@@ -1,0 +1,46 @@
+cartpole:
+  n_episodes: 1000
+  gamma: 1
+  lr: 0.001
+  eps_max: 1.
+  eps_min: 0.01
+  buffer_size: 10000
+  batch_size: 256
+  save_policy: False
+
+pendulum:
+  n_episodes: 500
+  gamma: 0.99
+  buffer_size: 30000
+  actor_lr: 0.00005
+  critic_lr: 0.0005
+  tau: 0.001
+  batch_size: 256
+  update_delay: 2
+  noise_mu: 0.15
+  noise_sigma: 0.2
+  save_policy: True
+
+lunarlander_ppo:
+  n_episodes: 3000
+  gamma: 0.99
+  actor_lr: 0.00001
+  critic_lr: 0.001
+  batch_size: 256
+  epsilon: 0.2              # Clipping value
+  train_iterations: 20
+  save_policy: True
+
+lunarlander_ddpg:
+  n_episodes: 3000
+  n_train: 10
+  gamma: 0.99
+  buffer_size: 30000
+  actor_lr: 0.00005
+  critic_lr: 0.0005
+  tau: 0.001
+  batch_size: 64
+  update_delay: 2
+  noise_mu: 0.15
+  noise_sigma: 0.2
+  save_policy: False
