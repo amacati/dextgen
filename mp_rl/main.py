@@ -22,6 +22,7 @@ def _run_env(config: dict, actor: nn.Module, queue: SharedReplayBuffer, finish_e
     logger = logging.getLogger(__name__ + f":Process{pid}")
     logger.debug(f"Startup successful")
     # Setup constants, hyperparameters, bookkeeping
+    dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = gym.make("LunarLanderContinuous-v2")
 
     n_actions = len(env.action_space.low)
@@ -38,7 +39,7 @@ def _run_env(config: dict, actor: nn.Module, queue: SharedReplayBuffer, finish_e
             t0 = time.perf_counter()
             noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma + noise_mu
             with torch.no_grad():
-                action = np.clip(actor(torch.tensor(state)).detach().numpy() + noise, -1, 1)
+                action = np.clip(actor(torch.tensor(state).to(dev)).detach().cpu().numpy() + noise, -1, 1)
             t1 = time.perf_counter()
             next_state, reward, done, _ = env.step(action)
             t2 = time.perf_counter()
@@ -64,14 +65,14 @@ def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
     return target
 
 
-def test_actor(actor, env):
+def test_actor(actor, env, dev):
     total_reward = 0.
     for _ in range(5):
         state = env.reset()
         done = False
         while not done:
             with torch.no_grad():
-                action = np.clip(actor(torch.tensor(state)).detach().numpy(), -1, 1)
+                action = np.clip(actor(torch.tensor(state.to(dev))).detach().cpu().numpy(), -1, 1)
             next_state, reward, done, _ = env.step(action)
             total_reward += reward
             state = next_state
@@ -99,23 +100,24 @@ def main(args):
     
     # Initialize actor critic networks and optimizers
     logger.debug("Initializing actor critic networks")
-    actor = DDPGActor(n_states, n_actions)
+    dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.debug(f"Device in use: {dev}")
+    actor = DDPGActor(n_states, n_actions).to(dev)
     actor.share_memory()
-    critic = DDPGCritic(n_states, n_actions)
-    target_actor = DDPGActor(n_states, n_actions)
-    target_critic = DDPGCritic(n_states, n_actions)
+    critic = DDPGCritic(n_states, n_actions).to(dev)
+    target_actor = DDPGActor(n_states, n_actions).to(dev)
+    target_critic = DDPGCritic(n_states, n_actions).to(dev)
 
     actor_optim = torch.optim.Adam(actor.parameters(), lr=actor_lr)
     critic_optim = torch.optim.Adam(critic.parameters(), lr=critic_lr)
     logger.debug("Actor critic network initialization successful")
     
     logger.debug("Initializing and starting shared replay buffer")
-    buffer = SharedReplayBuffer(config["buffer_size"], n_workers)
-    buffer.start()  # Start consumer thread for the queue
     
     # Create shared replay buffer, worker threads and events
-    # All worker processes and the training process have to wait for the training barrier
-    train_barrier = mp.Barrier(n_workers+1)  
+    # All worker processes and the training process have to wait for the training barrier 
+    buffer = SharedReplayBuffer(config["buffer_size"], n_workers)
+    train_barrier = mp.Barrier(n_workers+1)
     join_event = mp.Event()
     logger.debug("Creating env workers")
     workers = []
@@ -124,7 +126,9 @@ def main(args):
                                               train_barrier, join_event, pid))
         workers.append(p)
         p.start()
-
+    # Start buffer after processes. Recommended to not get processes mixed up
+    buffer.start()  # Start consumer thread for the queue
+    
     status_bar = tqdm(total=n_episodes, desc="Training iterations", position=0)
     reward_log = tqdm(total=0, position=1, bar_format='{desc}')
     for ep in range(n_episodes):
@@ -141,16 +145,16 @@ def main(args):
             t1 = time.perf_counter()
             critic_optim.zero_grad()
             states, actions, rewards, next_states, dones = buffer.sample(config["batch_size"])
-            next_states = torch.tensor(next_states)
+            next_states = torch.tensor(next_states).to(dev)
             with torch.no_grad():
                 next_actions = target_actor(next_states)
                 next_q = target_critic(next_states, next_actions).squeeze()
-                rewards = torch.tensor(rewards, requires_grad=False)
-                dones = 1 - torch.tensor(dones, requires_grad=False)
+                rewards = torch.tensor(rewards, requires_grad=False).to(dev)
+                dones = 1 - torch.tensor(dones, requires_grad=False).to(dev)
                 rewards = rewards + gamma * next_q * dones
             
-            states = torch.tensor(states)
-            actions = torch.tensor(actions)
+            states = torch.tensor(states).to(dev)
+            actions = torch.tensor(actions).to(dev)
             q_actions = critic(states, actions).squeeze()
             
             loss = nn.functional.mse_loss(q_actions, rewards)
@@ -176,7 +180,7 @@ def main(args):
         logger.debug("Sample time: {:2f}, Critic train time: {:2f}, Actor train time: {}".format(t01-t0,t_agent, t_critic))
         if ep % 10 == 0:
             logger.debug("Testing actor network")
-            reward = test_actor(actor, env)
+            reward = test_actor(actor, env, dev)
             reward_log.set_description_str("Current running average reward: {:.1f}".format(reward))
         if reward > 200:
             logger.info("Training succeeded.")
@@ -198,6 +202,7 @@ def main(args):
         
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn')  # Cuda cannot re-initialize in forked subprocesses
     parser = argparse.ArgumentParser()
     parser.add_argument('--nprocesses', help='Number of worker threads for sample generation',
                         default=5)
