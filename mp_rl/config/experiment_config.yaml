@@ -32,7 +32,7 @@ lunarlander_ppo:
   save_policy: True
 
 lunarlander_ddpg:
-  n_episodes: 3000
+  n_episodes: 2000
   n_train: 10
   gamma: 0.99
   buffer_size: 30000
@@ -43,4 +43,4 @@ lunarlander_ddpg:
   update_delay: 2
   noise_mu: 0.15
   noise_sigma: 0.2
-  save_policy: False
+  save_policy: True

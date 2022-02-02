@@ -1,4 +1,5 @@
 from operator import itemgetter
+import argparse
 import torch.multiprocessing as mp
 import time
 import logging
@@ -31,17 +32,25 @@ def _run_env(config: dict, actor: nn.Module, queue: SharedReplayBuffer, finish_e
         done = False
         t = 0
         noise = np.zeros(n_actions)
+        t_action = t_step = t_queue = 0
         while not done:
             # Sample noisy action
+            t0 = time.perf_counter()
             noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma + noise_mu
             with torch.no_grad():
                 action = np.clip(actor(torch.tensor(state)).detach().numpy() + noise, -1, 1)
+            t1 = time.perf_counter()
             next_state, reward, done, _ = env.step(action)
+            t2 = time.perf_counter()
             queue.put((state, action, reward, next_state, done))
+            t3 = time.perf_counter()
+            t_action += (t1-t0)
+            t_step += (t2-t1)
+            t_queue += (t3-t2)
             state = next_state
             t += 1
         finish_event.set()
-        logger.debug("Finished episode, event flag set")
+        logger.debug("Finished episode, event flag set. Timings: t_action: {:.2f}, t_step: {:.2f}, t_queue: {:.2f}".format(t_action, t_step, t_queue))
         train_barrier.wait()
         if join_event.is_set():
             break
@@ -69,17 +78,16 @@ def test_actor(actor, env):
     return total_reward/5
 
 
-def main():
+def main(args):
     # Setup logging and load configs
     logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
-    logger.setLevel(logging.INFO)
+    logging.getLogger().setLevel(args.loglvl)
     logger.debug("Loading config")
     path = Path(__file__).resolve().parent / "config" / "experiment_config.yaml"
     with open(path, "r") as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)["lunarlander_ddpg"]
     logger.debug("Loading successful, starting experiment")
-    n_workers = 5
+    n_workers = args.nprocesses
     
     env = gym.make("LunarLanderContinuous-v2")  # Gym is only created for its constants
     n_states = len(env.observation_space.low)
@@ -170,6 +178,9 @@ def main():
             logger.debug("Testing actor network")
             reward = test_actor(actor, env)
             reward_log.set_description_str("Current running average reward: {:.1f}".format(reward))
+        if reward > 200:
+            logger.info("Training succeeded.")
+            break
     # Join event is set before waiting for train_barrier to ensure worker processes receive shutdown
     # upon passing the barrier
     join_event.set()
@@ -178,6 +189,27 @@ def main():
         p.join()
     logger.info("Training finished")
     
+    if config["save_policy"]:
+        path = Path(__file__).resolve().parent
+        logger.debug(f"Saving models to {path}")
+        torch.save(actor.state_dict(), path / "lunarlander_ddpg_actor.pt")
+        torch.save(critic.state_dict(), path / "lunarlander_ddpg_critic.pt")
+        logger.debug(f"Saving complete")
+        
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--nprocesses', help='Number of worker threads for sample generation',
+                        default=5)
+    parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
+                        default="INFO")
+    args = parser.parse_args()
+    if args.loglvl == "DEBUG":
+        args.loglvl = logging.DEBUG
+    elif args.loglvl == "INFO":
+        args.loglvl = logging.INFO
+    elif args.loglvl == "WARN":
+        args.loglvl = logging.WARN
+    elif args.loglvl == "ERROR":
+        args.loglvl = logging.ERROR
+    main(args)
