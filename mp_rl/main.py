@@ -72,7 +72,7 @@ def test_actor(actor, env, dev):
         done = False
         while not done:
             with torch.no_grad():
-                action = np.clip(actor(torch.tensor(state.to(dev))).detach().cpu().numpy(), -1, 1)
+                action = np.clip(actor(torch.tensor(state).to(dev)).detach().cpu().numpy(), -1, 1)
             next_state, reward, done, _ = env.step(action)
             total_reward += reward
             state = next_state
@@ -126,8 +126,6 @@ def main(args):
                                               train_barrier, join_event, pid))
         workers.append(p)
         p.start()
-    # Start buffer after processes. Recommended to not get processes mixed up
-    buffer.start()  # Start consumer thread for the queue
     
     status_bar = tqdm(total=n_episodes, desc="Training iterations", position=0)
     reward_log = tqdm(total=0, position=1, bar_format='{desc}')
