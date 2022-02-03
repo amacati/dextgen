@@ -1,4 +1,5 @@
 import multiprocessing as mp
+from collections import deque
 import threading
 import logging
 import numpy as np
@@ -11,10 +12,10 @@ class SharedReplayBuffer:
     
     def __init__(self, n_samples: int, n_processes: int):
         self._mp_mgr = mp.Manager()
-        self.queue = self._mp_mgr.Queue(n_samples)  # Avoid deadlocking on process join due to open pipes to _queue
+        self.queue = self._mp_mgr.Queue()  # Avoid deadlocking on process join due to open pipes to _queue
         self._prod_events = [mp.Event() for _ in range(n_processes)]
         # Store data in lists instead of dataframes because frequent appends would make it extremely slow.
-        self.buffer = [[],[],[],[],[]]  # List of 5 lists for s, a, r, s_next, done
+        self.buffer = [deque(maxlen=n_samples) for _ in range(5)]  # List of 5 deques for s, a, r, s_next, done
         self._cons_thread = None
         self._cons_stop = threading.Event()
 
