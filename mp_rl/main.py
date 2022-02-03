@@ -31,30 +31,31 @@ def _run_env(config: dict, actor: nn.Module, queue: SharedReplayBuffer, finish_e
     noise_mu, noise_sigma = itemgetter("noise_mu", "noise_sigma")(config)
     
     while True:
-        state = env.reset()
-        done = False
-        t = 0
-        noise = np.zeros(n_actions)
-        t_action = t_step = t_queue = 0
-        while not done:
-            # Sample noisy action
-            t0 = time.perf_counter()
-            noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma + noise_mu
-            with torch.no_grad():
-                action = actor(torch.unsqueeze(torch.tensor(state), 0).to(dev))
-                action = np.clip(action.detach().squeeze().cpu().numpy() + noise, -1, 1)
-            t1 = time.perf_counter()
-            next_state, reward, done, _ = env.step(action)
-            t2 = time.perf_counter()
-            queue.put((state, action, reward, next_state, done))
-            t3 = time.perf_counter()
-            t_action += (t1-t0)
-            t_step += (t2-t1)
-            t_queue += (t3-t2)
-            state = next_state
-            t += 1
+        for _ in range(config["episodes"]):
+            state = env.reset()
+            done = False
+            t = 0
+            noise = np.zeros(n_actions)
+            t_action = t_step = t_queue = 0
+            while not done:
+                # Sample noisy action
+                t0 = time.perf_counter()
+                noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma + noise_mu
+                with torch.no_grad():
+                    action = actor(torch.unsqueeze(torch.tensor(state), 0).to(dev))
+                    action = np.clip(action.detach().squeeze().cpu().numpy() + noise, -1, 1)
+                t1 = time.perf_counter()
+                next_state, reward, done, _ = env.step(action)
+                t2 = time.perf_counter()
+                queue.put((state, action, reward, next_state, done))
+                t3 = time.perf_counter()
+                t_action += (t1-t0)
+                t_step += (t2-t1)
+                t_queue += (t3-t2)
+                state = next_state
+                t += 1
         finish_event.set()
-        logger.debug("Finished episode, event flag set. Timings: t_action: {:.2f}, t_step: {:.2f}, t_queue: {:.2f}".format(t_action, t_step, t_queue))
+        logger.debug("Finished episodes, event flag set. Timings: t_action: {:.2f}, t_step: {:.2f}, t_queue: {:.2f}".format(t_action, t_step, t_queue))
         train_barrier.wait()
         if join_event.is_set():
             break
@@ -106,7 +107,8 @@ def main(args):
     episode_reward_list = []
     # Unpack config
     actor_lr, critic_lr, gamma, tau = itemgetter("actor_lr", "critic_lr", "gamma", "tau")(config)
-    update_delay, n_episodes, n_train = itemgetter("update_delay", "n_episodes", "n_train")(config)
+    update_delay, epochs, cycles = itemgetter("update_delay", "epochs", "cycles")(config)
+    train_episodes = itemgetter("train_episodes")(config)
     logger.debug("Config unpack successful")
     
     # Initialize actor critic networks and optimizers
@@ -138,9 +140,9 @@ def main(args):
         workers.append(p)
         p.start()
     
-    status_bar = tqdm(total=n_episodes, desc="Training iterations", position=0)
+    status_bar = tqdm(total=epochs*cycles, desc="Training iterations", position=0)
     reward_log = tqdm(total=0, position=1, bar_format='{desc}')
-    for ep in range(n_episodes):
+    for ep in range(epochs*cycles):
         buffer.start()
         t0 = time.perf_counter()
         buffer.join()
@@ -150,7 +152,7 @@ def main(args):
         t_critic = 0
         logger.debug("Starting training")
         actor.train()
-        for t in range(n_train):
+        for t in range(train_episodes):
             # Training
             t1 = time.perf_counter()
             critic_optim.zero_grad()

@@ -6,19 +6,11 @@ class DDPGActor(nn.Module):
     
     def __init__(self, n_states: int, n_actions: int):
         super().__init__()
-        self.inorm = InputNorm(n_states)
         self.l1 = nn.Linear(n_states, 400)
         self.l2 = nn.Linear(400, 200)
         self.l3 = nn.Linear(200, n_actions)
-        self._n_samples = 0
-        input_mean = torch.zeros(n_states)
-        self.input_mean = nn.Parameter(input_mean, requires_grad=False)
-        self._input_smean = torch.zeros(n_states)
-        input_var = torch.ones(n_states)
-        self.input_var = nn.Parameter(input_var, requires_grad=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.inorm(x)
         x = torch.relu(self.l1(x))
         x = torch.relu(self.l2(x))
         return torch.tanh(self.l3(x))
@@ -28,13 +20,11 @@ class DDPGCritic(nn.Module):
     
     def __init__(self, n_states: int, n_actions: int):
         super().__init__()
-        self.inorm = InputNorm(n_states)
         self.l1 = nn.Linear(n_states, 400)
         self.l2 = nn.Linear(400+n_actions, 200)
         self.l3 = nn.Linear(200, 1)
 
     def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
-        state = self.inorm(state)
         state = torch.relu(self.l1(state))
         x = torch.relu(self.l2(torch.cat([state, action], dim=1)))
         return self.l3(x)
