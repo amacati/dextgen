@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from tqdm import tqdm
 import yaml
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import gym
@@ -79,6 +80,10 @@ def test_actor(actor, env, dev):
     return total_reward/5
 
 
+def running_average(values: list, window: int = 50, mode: str = 'valid'):
+    return np.convolve(values, np.ones(window)/window, mode=mode)
+
+
 def main(args):
     # Setup logging and load configs
     logging.basicConfig()
@@ -93,6 +98,7 @@ def main(args):
     env = gym.make("LunarLanderContinuous-v2")  # Gym is only created for its constants
     n_states = len(env.observation_space.low)
     n_actions = len(env.action_space.low)
+    episode_reward_list = []
     # Unpack config
     actor_lr, critic_lr, gamma, tau = itemgetter("actor_lr", "critic_lr", "gamma", "tau")(config)
     update_delay, n_episodes, n_train = itemgetter("update_delay", "n_episodes", "n_train")(config)
@@ -179,6 +185,7 @@ def main(args):
         if ep % 10 == 0:
             logger.debug("Testing actor network")
             reward = test_actor(actor, env, dev)
+            episode_reward_list.append(reward)
             reward_log.set_description_str("Current running average reward: {:.1f}".format(reward))
         if reward > 200:
             logger.info("Training succeeded.")
@@ -197,6 +204,17 @@ def main(args):
         torch.save(actor.state_dict(), path / "lunarlander_ddpg_actor.pt")
         torch.save(critic.state_dict(), path / "lunarlander_ddpg_critic.pt")
         logger.debug(f"Saving complete")
+    
+    fig, ax = plt.subplots()
+    ax.plot(episode_reward_list)
+    smooth_reward = running_average(episode_reward_list, window=10)
+    index = range(len(episode_reward_list)-len(smooth_reward), len(episode_reward_list))
+    ax.plot(index, smooth_reward)
+    ax.set_xlabel('Episode')
+    ax.set_ylabel('Accumulated reward')
+    ax.set_title('Agent performance over time')
+    ax.legend(["Episode reward", "Running average reward"])
+    plt.savefig(path / "reward.png")
         
 
 if __name__ == "__main__":
