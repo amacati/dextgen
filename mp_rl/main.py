@@ -197,7 +197,11 @@ def main(args):
             logger.info("Training succeeded.")
             break
     # Join event is set before waiting for train_barrier to ensure worker processes receive shutdown
-    # upon passing the barrier
+    # upon passing the barrier. Buffer join is used to ensure all processes have passed the 
+    # join_event.is_set() check, otherwise the barrier can deadlock on processes that exit after an 
+    # early read of the event
+    buffer.start()
+    buffer.join()
     join_event.set()
     train_barrier.wait()
     for p in workers:
