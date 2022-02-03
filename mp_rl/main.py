@@ -142,80 +142,85 @@ def main(args):
     
     status_bar = tqdm(total=epochs*cycles, desc="Training iterations", position=0)
     reward_log = tqdm(total=0, position=1, bar_format='{desc}')
-    for ep in range(epochs*cycles):
-        buffer.start()
-        t0 = time.perf_counter()
-        buffer.join()
-        t01 = time.perf_counter()
-        logger.debug("Buffer join successful")
-        t_agent = 0
-        t_critic = 0
-        logger.debug("Starting training")
-        actor.train()
-        for t in range(train_episodes):
-            # Training
-            t1 = time.perf_counter()
-            critic_optim.zero_grad()
-            states, actions, rewards, next_states, dones = buffer.sample(config["batch_size"])
-            next_states = torch.tensor(next_states).to(dev)
-            with torch.no_grad():
-                next_actions = target_actor(next_states)
-                next_q = target_critic(next_states, next_actions).squeeze()
-                rewards = torch.tensor(rewards, requires_grad=False).to(dev)
-                dones = 1 - torch.tensor(dones, requires_grad=False).to(dev)
-                rewards = rewards + gamma * next_q * dones
-            
-            states = torch.tensor(states).to(dev)
-            actions = torch.tensor(actions).to(dev)
-            q_actions = critic(states, actions).squeeze()
-            
-            loss = nn.functional.mse_loss(q_actions, rewards)
-            loss.backward()
-            nn.utils.clip_grad_norm_(critic.parameters(), 1.)
-            critic_optim.step()
-            t2 = time.perf_counter()
-            if t % update_delay == 0:
-                actor_optim.zero_grad()
-                actions = actor(states)
-                next_q = critic(states, actions)
-                loss = -torch.mean(next_q)
+    try:
+        for ep in range(epochs*cycles):
+            buffer.start()
+            t0 = time.perf_counter()
+            buffer.join()
+            t01 = time.perf_counter()
+            logger.debug("Buffer join successful")
+            t_agent = 0
+            t_critic = 0
+            logger.debug("Starting training")
+            actor.train()
+            for t in range(train_episodes):
+                # Training
+                t1 = time.perf_counter()
+                critic_optim.zero_grad()
+                states, actions, rewards, next_states, dones = buffer.sample(config["batch_size"])
+                next_states = torch.tensor(next_states).to(dev)
+                with torch.no_grad():
+                    next_actions = target_actor(next_states)
+                    next_q = target_critic(next_states, next_actions).squeeze()
+                    rewards = torch.tensor(rewards, requires_grad=False).to(dev)
+                    dones = 1 - torch.tensor(dones, requires_grad=False).to(dev)
+                    rewards = rewards + gamma * next_q * dones
+                
+                states = torch.tensor(states).to(dev)
+                actions = torch.tensor(actions).to(dev)
+                q_actions = critic(states, actions).squeeze()
+                
+                loss = nn.functional.mse_loss(q_actions, rewards)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(actor.parameters(), 1.)
-                actor_optim.step()
-                target_actor = soft_update(actor, target_actor, tau)
-                target_critic = soft_update(critic, target_critic, tau)
-            t3 = time.perf_counter()
-            t_critic += t2-t1
-            t_agent += t3-t2
+                nn.utils.clip_grad_norm_(critic.parameters(), 1.)
+                critic_optim.step()
+                t2 = time.perf_counter()
+                if t % update_delay == 0:
+                    actor_optim.zero_grad()
+                    actions = actor(states)
+                    next_q = critic(states, actions)
+                    loss = -torch.mean(next_q)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(actor.parameters(), 1.)
+                    actor_optim.step()
+                t3 = time.perf_counter()
+                t_critic += t2-t1
+                t_agent += t3-t2
+            train_barrier.wait()
+            status_bar.update()
+            # Target updates are only performed once every cycle
+            target_actor = soft_update(actor, target_actor, tau)
+            target_critic = soft_update(critic, target_critic, tau)
+            logger.debug("Sample time: {:2f}, Critic train time: {:2f}, Actor train time: {}".format(t01-t0,t_agent, t_critic))
+            if ep % 10 == 0:
+                logger.debug("Testing actor network")
+                reward = test_actor(target_actor, env, dev)
+                episode_reward_list.append(reward)
+                reward_log.set_description_str("Current running average reward: {:.1f}".format(reward))
+            if reward > 200:
+                logger.info("Training succeeded.")
+                break
+
+        # Join event is set before waiting for train_barrier to ensure worker processes receive shutdown
+        # upon passing the barrier. Buffer join is used to ensure all processes have passed the 
+        # join_event.is_set() check, otherwise the barrier can deadlock on processes that exit after an 
+        # early read of the event
+        buffer.start()
+        buffer.join()
+        join_event.set()
         train_barrier.wait()
-        status_bar.update()
-        logger.debug("Sample time: {:2f}, Critic train time: {:2f}, Actor train time: {}".format(t01-t0,t_agent, t_critic))
-        if ep % 10 == 0:
-            logger.debug("Testing actor network")
-            reward = test_actor(target_actor, env, dev)
-            episode_reward_list.append(reward)
-            reward_log.set_description_str("Current running average reward: {:.1f}".format(reward))
-        if reward > 200:
-            logger.info("Training succeeded.")
-            break
-    # Join event is set before waiting for train_barrier to ensure worker processes receive shutdown
-    # upon passing the barrier. Buffer join is used to ensure all processes have passed the 
-    # join_event.is_set() check, otherwise the barrier can deadlock on processes that exit after an 
-    # early read of the event
-    buffer.start()
-    buffer.join()
-    join_event.set()
-    train_barrier.wait()
-    for p in workers:
-        p.join()
-    logger.info("Training finished")
-    
-    if config["save_policy"]:
-        path = Path(__file__).resolve().parent
-        logger.debug(f"Saving models to {path}")
-        torch.save(actor.state_dict(), path / "lunarlander_ddpg_actor.pt")
-        torch.save(critic.state_dict(), path / "lunarlander_ddpg_critic.pt")
-        logger.debug(f"Saving complete")
+        for p in workers:
+            p.join()
+        logger.info("Training finished")
+        
+        if config["save_policy"]:
+            path = Path(__file__).resolve().parent
+            logger.debug(f"Saving models to {path}")
+            torch.save(actor.state_dict(), path / "lunarlander_ddpg_actor.pt")
+            torch.save(critic.state_dict(), path / "lunarlander_ddpg_critic.pt")
+            logger.debug(f"Saving complete")
+    except KeyboardInterrupt:  # Enable to save the plot of unfinished trainings
+        pass
     
     fig, ax = plt.subplots()
     ax.plot(episode_reward_list)
@@ -226,7 +231,7 @@ def main(args):
     ax.set_ylabel('Accumulated reward')
     ax.set_title('Agent performance over time')
     ax.legend(["Episode reward", "Running average reward"])
-    plt.savefig(path / "reward.png")
+    plt.savefig(Path(__file__).parent / "reward.png")
         
 
 if __name__ == "__main__":
