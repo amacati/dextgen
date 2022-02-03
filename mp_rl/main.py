@@ -24,6 +24,7 @@ def _run_env(config: dict, actor: nn.Module, queue: SharedReplayBuffer, finish_e
     logger.debug(f"Startup successful")
     # Setup constants, hyperparameters, bookkeeping
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    actor.eval()
     env = gym.make("LunarLanderContinuous-v2")
 
     n_actions = len(env.action_space.low)
@@ -40,7 +41,8 @@ def _run_env(config: dict, actor: nn.Module, queue: SharedReplayBuffer, finish_e
             t0 = time.perf_counter()
             noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma + noise_mu
             with torch.no_grad():
-                action = np.clip(actor(torch.tensor(state).to(dev)).detach().cpu().numpy() + noise, -1, 1)
+                action = actor(torch.unsqueeze(torch.tensor(state), 0).to(dev))
+                action = np.clip(action.detach().squeeze().cpu().numpy() + noise, -1, 1)
             t1 = time.perf_counter()
             next_state, reward, done, _ = env.step(action)
             t2 = time.perf_counter()
@@ -67,16 +69,19 @@ def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
 
 
 def test_actor(actor, env, dev):
+    actor.eval()
     total_reward = 0.
     for _ in range(5):
         state = env.reset()
         done = False
         while not done:
             with torch.no_grad():
-                action = np.clip(actor(torch.tensor(state).to(dev)).detach().cpu().numpy(), -1, 1)
+                action = actor(torch.unsqueeze(torch.tensor(state), 0).to(dev))
+                action = np.clip(action.detach().squeeze().cpu().numpy(), -1, 1)
             next_state, reward, done, _ = env.step(action)
             total_reward += reward
             state = next_state
+    actor.train()
     return total_reward/5
 
 
@@ -144,6 +149,7 @@ def main(args):
         t_agent = 0
         t_critic = 0
         logger.debug("Starting training")
+        actor.train()
         for t in range(n_train):
             # Training
             t1 = time.perf_counter()
@@ -184,7 +190,7 @@ def main(args):
         logger.debug("Sample time: {:2f}, Critic train time: {:2f}, Actor train time: {}".format(t01-t0,t_agent, t_critic))
         if ep % 10 == 0:
             logger.debug("Testing actor network")
-            reward = test_actor(actor, env, dev)
+            reward = test_actor(target_actor, env, dev)
             episode_reward_list.append(reward)
             reward_log.set_description_str("Current running average reward: {:.1f}".format(reward))
         if reward > 200:
@@ -221,7 +227,7 @@ if __name__ == "__main__":
     mp.set_start_method('spawn')  # Cuda cannot re-initialize in forked subprocesses
     parser = argparse.ArgumentParser()
     parser.add_argument('--nprocesses', help='Number of worker threads for sample generation',
-                        default=5)
+                        default=8)
     parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
                         default="INFO")
     args = parser.parse_args()
