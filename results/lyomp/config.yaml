@@ -1,9 +1,0 @@
-cartpole:
-  batch_size: 256
-  buffer_size: 2000
-  eps_max: 1.0
-  eps_min: 0.01
-  gamma: 1
-  lr: 0.001
-  n_episodes: 1000
-  save_policy: false

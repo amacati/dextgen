@@ -1,20 +1,24 @@
 import logging
 import time
-import yaml
-import multiprocessing
-from queue import Queue
 from pathlib import Path
-import numpy as np
+import argparse
+import yaml
 import matplotlib.pyplot as plt
-import gym
+from multiprocessing import Queue
+import numpy as np
+from tqdm import tqdm
 import torch
 import torch.nn as nn
-from tqdm import tqdm
 from memory import MemoryBuffer
-from utils import running_average
+import gym
+from gym.wrappers import FilterObservation, FlattenObservation
 
 
 logger = logging.getLogger(__name__)
+
+
+def running_average(values: list, window: int = 50, mode: str = 'valid'):
+    return np.convolve(values, np.ones(window)/window, mode=mode)
 
 
 def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
@@ -30,7 +34,7 @@ def fill_buffer(env, buffer: MemoryBuffer, L: int):
         done = False
         state = env.reset()
         while not done:
-            action = 2*(np.random.rand(2)-0.5)
+            action = 2*(np.random.rand(4)-0.5)
             next_state, reward, done, _ = env.step(action)
             buffer.append((state, action, reward, next_state, done))
             state = next_state
@@ -39,9 +43,9 @@ def fill_buffer(env, buffer: MemoryBuffer, L: int):
 
 class DDPGActor(nn.Module):
     
-    def __init__(self, n_states: int, n_actions: int):
+    def __init__(self, n_obs: int, n_actions: int):
         super().__init__()
-        self.l1 = nn.Linear(n_states, 400)
+        self.l1 = nn.Linear(n_obs, 400)
         self.l2 = nn.Linear(400, 200)
         self.l3 = nn.Linear(200, n_actions)
 
@@ -51,10 +55,10 @@ class DDPGActor(nn.Module):
         return torch.tanh(self.l3(x))
     
 class DDPGCritic(nn.Module):
-    
-    def __init__(self, n_states: int, n_actions: int):
+
+    def __init__(self, n_obs: int, n_actions: int):
         super().__init__()
-        self.l1 = nn.Linear(n_states, 400)
+        self.l1 = nn.Linear(n_obs, 400)
         self.l2 = nn.Linear(400+n_actions, 200)
         self.l3 = nn.Linear(200, 1)
 
@@ -62,17 +66,15 @@ class DDPGCritic(nn.Module):
         state = torch.relu(self.l1(state))
         x = torch.relu(self.l2(torch.cat([state, action], dim=1)))
         return self.l3(x)
-    
 
-def lunarlander_ddpg(config: dict, result: Queue):
-    # Check if running as main process to toggle status bar
-    mp_flag = multiprocessing.parent_process() is not None
-    logger.debug(f"Running in {('MP' if mp_flag else 'SP')} mode.")
+
+def fetch_reach_ddpg(config: dict, result: Queue):
     logger.debug(f"Config: {config}")
     # Setup constants, hyperparameters, bookkeeping
-    env = gym.make("LunarLanderContinuous-v2")
+    env = gym.make("FetchReach-v1")
+    env = FlattenObservation(FilterObservation(env, filter_keys=["observation", "desired_goal"]))
     n_episodes = config["n_episodes"]
-    n_states = len(env.observation_space.low)
+    n_obs = len(env.observation_space.low)
     n_actions = len(env.action_space.low)
     logger.debug(env.action_space)
     gamma = config["gamma"]
@@ -83,15 +85,15 @@ def lunarlander_ddpg(config: dict, result: Queue):
     tau = config["tau"]
     update_delay = config["update_delay"]
     
-    actor = DDPGActor(n_states, n_actions)
-    critic = DDPGCritic(n_states, n_actions)
-    target_actor = DDPGActor(n_states, n_actions)
-    target_critic = DDPGCritic(n_states, n_actions)
+    actor = DDPGActor(n_obs, n_actions)
+    critic = DDPGCritic(n_obs, n_actions)
+    target_actor = DDPGActor(n_obs, n_actions)
+    target_critic = DDPGCritic(n_obs, n_actions)
 
     actor_optim = torch.optim.Adam(actor.parameters(), lr=actor_lr)
     critic_optim = torch.optim.Adam(critic.parameters(), lr=critic_lr)
     buffer = MemoryBuffer(config["buffer_size"])
-    fill_buffer(env, buffer, config["buffer_size"])
+    fill_buffer(env, buffer, config["buffer_size"]/10)
     batch_size = config["batch_size"]
     episode_reward_list = []
 
@@ -99,9 +101,8 @@ def lunarlander_ddpg(config: dict, result: Queue):
     
     # Training setup
     logger.debug("Training start")
-    if not mp_flag:
-        status_bar = tqdm(total=n_episodes, desc="Training iterations", position=0, leave=False)
-        reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
+    status_bar = tqdm(total=n_episodes, desc="Training iterations", position=0, leave=False)
+    reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
     # Only allocate noise arrays once
     for i in range(n_episodes):
         state = env.reset()
@@ -115,14 +116,16 @@ def lunarlander_ddpg(config: dict, result: Queue):
         while not done:
             t0 = time.perf_counter()
             # Sample noisy action
-            noise = -noise*noise_mu + np.random.randn(2)*noise_sigma
+            noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma
             with torch.no_grad():
                 action = np.clip(actor(torch.tensor(state)).detach().numpy() + noise, -1, 1)
             next_state, reward, done, _ = env.step(action)
+            reward = - np.linalg.norm(next_state[0:2] - next_state[3:5])
             buffer.append((state, action, reward, next_state, done))
             ep_reward += reward
             state = next_state
             t1 = time.perf_counter()
+            
             # Training
             critic_optim.zero_grad()
             states, actions, rewards, next_states, dones = buffer.sample(batch_size)
@@ -161,10 +164,9 @@ def lunarlander_ddpg(config: dict, result: Queue):
         logger.debug("t_env: {:.3f}, t_critic: {:.3f}, t_actor: {:.3f}".format(t_env, t_critic, t_actor))
         episode_reward_list.append(ep_reward)
         av_reward = running_average(episode_reward_list)[-1]
-        if not mp_flag:
-            reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
-            status_bar.update()
-        if av_reward > 200:
+        reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
+        status_bar.update()
+        if i > 50 and av_reward > -1 :
             logger.debug("Training stopped, agent has solved the task.")
             break
     env.close()
@@ -173,8 +175,8 @@ def lunarlander_ddpg(config: dict, result: Queue):
     if save_policy:
         path = Path(__file__).resolve().parent
         logger.debug(f"Saving models to {path}")
-        torch.save(actor.state_dict(), path / "lunarlander_ddpg_actor.pt")
-        torch.save(critic.state_dict(), path / "lunarlander_ddpg_critic.pt")
+        torch.save(actor.state_dict(), path / "fetchreach_ddpg_actor.pt")
+        torch.save(critic.state_dict(), path / "fetchreach_ddpg_critic.pt")
         logger.debug(f"Saving complete")
     
     total_reward = 0
@@ -194,9 +196,10 @@ def lunarlander_ddpg(config: dict, result: Queue):
 
 
 def demo_agent():
-    env = gym.make("LunarLanderContinuous-v2")
+    env = gym.make("FetchReach-v1")
+    env = FlattenObservation(FilterObservation(env, filter_keys=["observation", "desired_goal"]))
     actor = DDPGActor(len(env.observation_space.low), len(env.action_space.low))
-    actor.load_state_dict(torch.load(Path(__file__).parent / "lunarlander_ddpg_actor.pt"))
+    actor.load_state_dict(torch.load(Path(__file__).parent / "fetchreach_ddpg_actor.pt"))
     actor.eval()
     state = env.reset()
     done = False
@@ -205,23 +208,23 @@ def demo_agent():
         next_state, _, done, _  = env.step(action)
         state = next_state
         env.render()
-        time.sleep(0.05)
+        time.sleep(0.1)
     env.close()
     
 
-if __name__ == "__main__":
+def main(args):
     train = False
     demo = True
+    logging.basicConfig()
+    logger.setLevel(args.loglvl)
     if train:
-        logging.basicConfig()
-        logger.setLevel(logging.INFO)
         logger.debug("Loading config")
         path = Path(__file__).resolve().parents[1] / "config" / "experiment_config.yaml"
         with open(path, "r") as f:
             config = yaml.load(f, Loader=yaml.SafeLoader)
         logger.debug("Loading successful, starting experiment")
         result = Queue()
-        lunarlander_ddpg(config["lunarlander_ddpg"], result)
+        fetch_reach_ddpg(config["fetchreach_ddpg"], result)
         logger.debug("Training finished")
         # Visualize reward
         episode_reward_list = result.get()
@@ -235,5 +238,22 @@ if __name__ == "__main__":
         ax.set_title('Agent performance over time')
         ax.legend(["Episode reward", "Running average reward"])
         plt.show()
+        plt.savefig(Path(__file__).parent / "reward.png")
     if demo:
         demo_agent()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
+                        default="INFO")
+    args = parser.parse_args()
+    if args.loglvl == "DEBUG":
+        args.loglvl = logging.DEBUG
+    elif args.loglvl == "INFO":
+        args.loglvl = logging.INFO
+    elif args.loglvl == "WARN":
+        args.loglvl = logging.WARN
+    elif args.loglvl == "ERROR":
+        args.loglvl = logging.ERROR
+    main(args)
