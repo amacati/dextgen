@@ -1,7 +1,14 @@
+import os
+import logging
 import numpy as np
 import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 import torch.nn as nn
-import gym
+from replay_buffer import MemoryBuffer
+
+
+logger = logging.getLogger(__name__)
 
 
 def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
@@ -25,33 +32,6 @@ def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
     return target
 
 
-def test_actor(actor: nn.Module, env: gym.Env, dev: torch.device) -> float:
-    """Tests an actor in its environment for 5 episodes and returns the average episode reward.
-    
-    Args:
-        actor (nn.Module): The actor network.
-        env (gym.Env): The environment for the actor.
-        dev (torch.device): The device on which the ``actor`` network and `torch.Tensors` operate.
-        
-    Returns:
-        The average reward from 5 episodes.
-    """
-    actor.eval()
-    total_reward = 0.
-    for _ in range(5):
-        state = env.reset()
-        done = False
-        while not done:
-            with torch.no_grad():
-                action = actor(torch.unsqueeze(torch.tensor(state), 0).to(dev))
-                action = np.clip(action.detach().squeeze().cpu().numpy(), -1, 1)
-            next_state, reward, done, _ = env.step(action)
-            total_reward += reward
-            state = next_state
-    actor.train()
-    return total_reward/5
-
-
 def running_average(values: list, window: int = 50, mode: str = 'valid') -> float:
     """Computes a running average over a list of values.
     
@@ -61,3 +41,22 @@ def running_average(values: list, window: int = 50, mode: str = 'valid') -> floa
         mode (str, optional): Modes for the convolution operation.
     """
     return np.convolve(values, np.ones(window)/window, mode=mode)
+
+
+def fill_buffer(env, buffer: MemoryBuffer):
+    while len(buffer) < buffer.size:
+        state = env.reset()
+        done = False
+        while not done:
+            action = env.action_space.sample()
+            next_state, reward, done, _ = env.step(action)
+            buffer.append((state, action, reward, next_state, done))
+            state = next_state
+
+
+def init_process(rank, size, fn, *args, **kwargs):
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
+    dist.init_process_group(backend="nccl", rank=rank, world_size=size)
+    logger.info("Torch distributed process group established")
+    fn(rank, size, *args, **kwargs)

@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 from memory import MemoryBuffer
 import gym
+import inspect
 from gym.wrappers import FilterObservation, FlattenObservation
 
 
@@ -68,10 +69,10 @@ class DDPGCritic(nn.Module):
         return self.l3(x)
 
 
-def fetch_reach_ddpg(config: dict, result: Queue):
+def train(config: dict, result: Queue):
     logger.debug(f"Config: {config}")
     # Setup constants, hyperparameters, bookkeeping
-    env = gym.make("FetchReach-v1")
+    env = gym.make("FetchReach-v1", reward_type="dense")
     env = FlattenObservation(FilterObservation(env, filter_keys=["observation", "desired_goal"]))
     n_episodes = config["n_episodes"]
     n_obs = len(env.observation_space.low)
@@ -103,74 +104,77 @@ def fetch_reach_ddpg(config: dict, result: Queue):
     logger.debug("Training start")
     status_bar = tqdm(total=n_episodes, desc="Training iterations", position=0, leave=False)
     reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
-    # Only allocate noise arrays once
-    for i in range(n_episodes):
-        state = env.reset()
-        done = False
-        ep_reward = 0
-        t = 0
-        noise = np.zeros(n_actions)
-        t_env = 0
-        t_critic = 0
-        t_actor = 0
-        while not done:
-            t0 = time.perf_counter()
-            # Sample noisy action
-            noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma
-            with torch.no_grad():
-                action = np.clip(actor(torch.tensor(state)).detach().numpy() + noise, -1, 1)
-            next_state, reward, done, _ = env.step(action)
-            reward = - np.linalg.norm(next_state[0:2] - next_state[3:5])
-            buffer.append((state, action, reward, next_state, done))
-            ep_reward += reward
-            state = next_state
-            t1 = time.perf_counter()
-            
-            # Training
-            critic_optim.zero_grad()
-            states, actions, rewards, next_states, dones = buffer.sample(batch_size)
-            next_states = torch.tensor(next_states)
-            with torch.no_grad():
-                next_actions = target_actor(next_states)
-                next_q = target_critic(next_states, next_actions).squeeze()
-                rewards = torch.tensor(rewards, requires_grad=False)
-                dones = 1 - torch.tensor(dones, requires_grad=False)
-                rewards = rewards + gamma * next_q * dones
-            
-            states = torch.tensor(states)
-            actions = torch.tensor(actions)
-            q_actions = critic(states, actions).squeeze()
-            
-            loss = nn.functional.mse_loss(q_actions, rewards)
-            loss.backward()
-            nn.utils.clip_grad_norm_(critic.parameters(), 1.)
-            critic_optim.step()
-            t2 = time.perf_counter()
-            if t % update_delay == 0:
-                actor_optim.zero_grad()
-                actions = actor(states)
-                next_q = critic(states, actions)
-                loss = -torch.mean(next_q)
+    try:
+        for i in range(n_episodes):
+            state = env.reset()
+            done = False
+            ep_reward = 0
+            t = 0
+            noise = np.zeros(n_actions)
+            t_env = 0
+            t_critic = 0
+            t_actor = 0
+            while not done:
+                t0 = time.perf_counter()
+                # Sample noisy action
+                noise = -noise*noise_mu + np.random.randn(n_actions)*noise_sigma
+                with torch.no_grad():
+                    action = np.clip(actor(torch.tensor(state)).detach().numpy() + noise, -1, 1)
+                next_state, reward, done, _ = env.step(action)
+                if t < 49 and done:
+                    logger.info("SOLVED TASK")
+                buffer.append((state, action, reward, next_state, done))
+                ep_reward += reward
+                state = next_state
+                t1 = time.perf_counter()
+                
+                # Training
+                critic_optim.zero_grad()
+                states, actions, rewards, next_states, dones = buffer.sample(batch_size)
+                next_states = torch.tensor(next_states)
+                with torch.no_grad():
+                    next_actions = target_actor(next_states)
+                    next_q = target_critic(next_states, next_actions).squeeze()
+                    rewards = torch.tensor(rewards, requires_grad=False)
+                    dones = 1 - torch.tensor(dones, requires_grad=False)
+                    rewards = rewards + gamma * next_q * dones
+                
+                states = torch.tensor(states)
+                actions = torch.tensor(actions)
+                q_actions = critic(states, actions).squeeze()
+                
+                loss = nn.functional.mse_loss(q_actions, rewards)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(actor.parameters(), 1.)
-                actor_optim.step()
-                target_actor = soft_update(actor, target_actor, tau)
-                target_critic = soft_update(critic, target_critic, tau)
-            t3 = time.perf_counter()
-            t += 1
-            t_env += (t1-t0)
-            t_critic += (t2-t1)
-            t_actor += (t3-t2)
-        logger.debug("t_env: {:.3f}, t_critic: {:.3f}, t_actor: {:.3f}".format(t_env, t_critic, t_actor))
-        episode_reward_list.append(ep_reward)
-        av_reward = running_average(episode_reward_list)[-1]
-        reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
-        status_bar.update()
-        if i > 50 and av_reward > -1 :
-            logger.debug("Training stopped, agent has solved the task.")
-            break
-    env.close()
-    logger.debug("Training has ended")
+                nn.utils.clip_grad_norm_(critic.parameters(), 1.)
+                critic_optim.step()
+                t2 = time.perf_counter()
+                if t % update_delay == 0:
+                    actor_optim.zero_grad()
+                    actions = actor(states)
+                    next_q = critic(states, actions)
+                    loss = -torch.mean(next_q)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(actor.parameters(), 1.)
+                    actor_optim.step()
+                    target_actor = soft_update(actor, target_actor, tau)
+                    target_critic = soft_update(critic, target_critic, tau)
+                t3 = time.perf_counter()
+                t += 1
+                t_env += (t1-t0)
+                t_critic += (t2-t1)
+                t_actor += (t3-t2)
+            logger.debug("t_env: {:.3f}, t_critic: {:.3f}, t_actor: {:.3f}".format(t_env, t_critic, t_actor))
+            episode_reward_list.append(ep_reward)
+            av_reward = running_average(episode_reward_list)[-1]
+            reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
+            status_bar.update()
+            if i > 50 and av_reward > -0.5:
+                logger.debug("Training stopped, agent has solved the task.")
+                break
+        env.close()
+        logger.debug("Training has ended")
+    except KeyboardInterrupt:
+        pass
 
     if save_policy:
         path = Path(__file__).resolve().parent
@@ -178,7 +182,7 @@ def fetch_reach_ddpg(config: dict, result: Queue):
         torch.save(actor.state_dict(), path / "fetchreach_ddpg_actor.pt")
         torch.save(critic.state_dict(), path / "fetchreach_ddpg_critic.pt")
         logger.debug(f"Saving complete")
-    
+
     total_reward = 0
     for _ in range(10):
         state = env.reset()
@@ -190,7 +194,6 @@ def fetch_reach_ddpg(config: dict, result: Queue):
             state = next_state
         env.close()
     logger.info("Final average reward over 10 runs: {:.2f}".format(total_reward/10))
-
     result.put(episode_reward_list)
     return
 
@@ -203,12 +206,13 @@ def demo_agent():
     actor.eval()
     state = env.reset()
     done = False
+    t = 0
     while not done:
         action = actor(torch.tensor(state)).detach().numpy()
         next_state, _, done, _  = env.step(action)
         state = next_state
         env.render()
-        time.sleep(0.1)
+        time.sleep(0.05)
     env.close()
     
 
@@ -237,8 +241,8 @@ def main(args):
         ax.set_ylabel('Accumulated reward')
         ax.set_title('Agent performance over time')
         ax.legend(["Episode reward", "Running average reward"])
-        plt.show()
         plt.savefig(Path(__file__).parent / "reward.png")
+        plt.show()
     if demo:
         demo_agent()
 

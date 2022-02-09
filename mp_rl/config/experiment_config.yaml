@@ -31,31 +31,37 @@ lunarlander_ppo:
   train_iterations: 20
   save_policy: True
 
+# Parameters are shared across ddp processes, effective sizes multiply by WORLD_SIZE
+# Example: Effective batch size is batch_size * WORLD_SIZE
 lunarlander_ddpg:
   epochs: 200
   cycles: 50
-  episodes: 16
+  episodes: 1
   train_episodes: 10
-  gamma: 0.99
-  buffer_size: 100000
-  actor_lr: 0.00005
-  critic_lr: 0.0005
-  tau: 0.001
-  batch_size: 64
-  update_delay: 2
-  noise_mu: 0.15
-  noise_sigma: 0.2
-  save_policy: True
-
-fetchreach_ddpg:
-  n_episodes: 30000
   gamma: 0.99
   buffer_size: 30000
   actor_lr: 0.00005
   critic_lr: 0.0005
-  tau: 0.01
+  tau: 0.001
+  batch_size: 16
+  update_delay: 2
+  noise_mu: 0.15
+  noise_sigma: 0.2
+  save_policy: True
+  n_episodes: 300  # DEPRECATED
+
+fetchreach_ddpg:
+  epochs: 200
+  cycles: 50
+  episodes: 1
+  train_episodes: 10
+  gamma: 0.99
+  buffer_size: 30000
+  actor_lr: 0.00005
+  critic_lr: 0.0005
+  tau: 0.001
   batch_size: 128
   update_delay: 2
   noise_mu: 0.15
   noise_sigma: 0.2
-  save_policy: False
+  save_policy: True
