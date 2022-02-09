@@ -3,3 +3,4 @@
 *.pt
 *.png
 *.ipynb_checkpoints
+*.pkl
