@@ -1,12 +1,13 @@
-from typing import Union, Type
-import copy
-import pickle
+from typing import Union
 from functools import singledispatchmethod
+
+import pickle
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
-from utils import soft_update
+
+from mp_rl.utils import soft_update
 
 
 T = Union[np.ndarray, torch.Tensor]

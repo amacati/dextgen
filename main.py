@@ -1,57 +1,48 @@
+import argparse
 import logging
 from pathlib import Path
-import string
-import random
 import yaml
-import matplotlib.pyplot as plt
-from chons.experiments.utils import running_average
-from chons.core.mp_engine import MPEngine
-from chons.experiments.cartpole import cartpole
+import torch.multiprocessing as mp
+from mp_rl.fetch_her import fetch_her
+from mp_rl.fetch_reach import fetch_reach
+from mp_rl.lunar_lander import lunar_lander
+from mp_rl.utils import init_process
 
+def main(args: argparse.Namespace):
+    """Launches the specified training functions on multiple workers simultaneously.
+    
+    Args:
+        args (argparse.Namespace): Arguments from the parser.
+    """
+    size = args.nprocesses
+    processes = []
+    mp.set_start_method("spawn")
+    path = Path(__file__).resolve().parent / "mp_rl" / "config" / "experiment_config.yaml"
+    with open(path, "r") as f:
+        config = yaml.load(f, Loader=yaml.SafeLoader)
+    logging.info("Spawning training processes")
+    for rank in range(size):
+        p = mp.Process(target=init_process, args=(rank, size, loglvls[args.loglvl], 
+                                                  train_fn[args.env], config))
+        p.start()
+        processes.append(p)
+    logging.info("Process spawn successful, awaiting join")
+    for p in processes:
+        p.join()
+    logger.info("Processes joined, training complete.")
 
 if __name__ == "__main__":
-    # Logging setup
+    parser = argparse.ArgumentParser()
+    parser.add_argument("env", help="Selects the gym environment", choices=["lunar", "fetch", "fetch_her"])
+    parser.add_argument('--nprocesses', help='Number of worker threads for sample generation',
+                        default=8, type=int)
+    parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
+                        default="INFO")
+    args = parser.parse_args()
+    logger = logging.getLogger(__name__)
+    loglvls = {"DEBUG": logging.DEBUG, "INFO": logging.INFO, "WARN": logging.WARN, "ERROR": logging.ERROR}
     logging.basicConfig()
-    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
-    for logger in loggers:
-        if "chons" in logger.name:
-            logger.setLevel(logging.INFO)
-    
-    # Config
-    nruns = 4
-    nprocesses = 2
-    letters = string.ascii_lowercase
-    uuid = ( ''.join(random.choice(letters) for _ in range(5)))
-    root = Path(__file__).parent
-    (root / "results" / uuid).mkdir(parents=True, exist_ok=False)  # Crash on UUID collision
-    config = {'cartpole': {'n_episodes': 5000,
-                           'gamma': 1,
-                           'lr': 0.001,
-                           'eps_max': 1.,
-                           'eps_min': 0.01,
-                           'buffer_size': 5000,
-                           'batch_size': 256,
-                           'save_policy': False}}
-
-    with open(root / "results" / uuid / 'config.yaml', 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
-    
-    engine = MPEngine(nprocesses)
-    engine.register_experiment(cartpole, root / "results" / uuid / "config.yaml")
-    results = []
-    for i in range(nruns):
-        rqueue = engine.run()
-        while not rqueue.empty():
-            results.append(rqueue.get())
-
-    for (idx, episode_reward_list) in enumerate(results):
-        fig, ax = plt.subplots()
-        ax.plot(episode_reward_list)
-        smooth_reward = running_average(episode_reward_list)
-        index = range(len(episode_reward_list)-len(smooth_reward), len(episode_reward_list))
-        ax.plot(index, smooth_reward)
-        ax.set_xlabel('Episode')
-        ax.set_ylabel('Accumulated reward')
-        ax.set_title('Agent performance over time')
-        ax.legend(["Episode reward", "Running average reward"])
-        plt.savefig(root / "results" / uuid / f'run_{idx}.png')
+    logging.getLogger().setLevel(loglvls[args.loglvl])
+    logger.info("Main process startup")
+    train_fn = {"lunar": lunar_lander.train, "fetch": fetch_reach.train, "fetch_her": fetch_her.train}
+    main(args)

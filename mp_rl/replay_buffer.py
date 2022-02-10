@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Union, Tuple
 from collections import deque
+
 import numpy as np
 
 

@@ -1,11 +1,13 @@
 import os
 import logging
 from typing import Callable
+
 import numpy as np
-import torch.distributed as dist
 import torch.nn as nn
+import torch.distributed as dist
 import gym
-from replay_buffer import MemoryBuffer
+
+from mp_rl.replay_buffer import MemoryBuffer
 
 
 logger = logging.getLogger(__name__)

@@ -2,16 +2,17 @@
 
 import logging
 import time
-import torch
-import yaml
 import multiprocessing
 from queue import Queue
 from pathlib import Path
+
+import torch
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 import gym
-import torch.nn as nn
 from tqdm import tqdm
+
 from replay_buffer import MemoryBuffer
 from utils import running_average
 from ddpg import DDPG, DDPGActor, DDPGCritic, load_ddpg

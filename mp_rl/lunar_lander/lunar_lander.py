@@ -7,10 +7,10 @@ import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from ddpg import DDPG, DDPGActor, DDPGCritic
-from replay_buffer import MemoryBuffer
-from noise import OrnsteinUhlenbeckNoise
-from utils import fill_buffer, running_average
+from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
+from mp_rl.replay_buffer import MemoryBuffer
+from mp_rl.noise import OrnsteinUhlenbeckNoise
+from mp_rl.utils import fill_buffer, running_average
 
 
 logger = logging.getLogger(__name__)
