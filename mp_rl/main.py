@@ -19,7 +19,7 @@ def main(args: argparse.Namespace):
     logging.info("Spawning training processes")
     for rank in range(size):
         p = mp.Process(target=init_process, args=(rank, size, loglvls[args.loglvl], 
-                                                  train_fn[args.experiment], config))
+                                                  train_fn[args.env], config))
         p.start()
         processes.append(p)
     logging.info("Process spawn successful, awaiting join")
@@ -29,7 +29,7 @@ def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("experiment", help="Experiment type that should be run", choices=["lunar", "fetch", "fetch_her"])
+    parser.add_argument("env", help="Selects the gym environment", choices=["lunar", "fetch", "fetch_her"])
     parser.add_argument('--nprocesses', help='Number of worker threads for sample generation',
                         default=8, type=int)
     parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],

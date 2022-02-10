@@ -59,7 +59,7 @@ def init_process(rank, size, loglvl, fn, *args, **kwargs):
     logger.setLevel(loglvl)
     # Set environment variables required for DDP discovery service
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29500"
+    os.environ["MASTER_PORT"] = "29501"  # 29500 in use on lsr.ei.tum clusters
     dist.init_process_group(backend="gloo", rank=rank, world_size=size)
     logger.info(f"P{rank}: Torch distributed process group established")
     fn(rank, size, *args, **kwargs)

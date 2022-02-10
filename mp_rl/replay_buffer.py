@@ -81,8 +81,6 @@ class MemoryBuffer:
     def sample(self, n: int):
         assert(n <= len(self.buffer))
         samples = np.random.choice(len(self.buffer), n, replace=False)
-        if 0 not in samples:
-            samples[-1] = 0  # Always include the latest experience
         states, actions, rewards, next_states, dones = zip(*[self.buffer[i] for i in samples])
         return [np.array(x, dtype=np.float32) for x in [states, actions, rewards, next_states, dones]]
     
