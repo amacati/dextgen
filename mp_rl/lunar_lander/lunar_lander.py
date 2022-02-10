@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
 from mp_rl.replay_buffer import MemoryBuffer
 from mp_rl.noise import OrnsteinUhlenbeckNoise
-from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown
+from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_stats
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,8 @@ def train(rank:int, size: int, config):
     if rank == 0:
         status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations", position=0, leave=False)
         reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
-        episode_reward_list = []
+        ep_rewards = []
+        ep_lengths = []
     try:
         def _train():  # Function to break out of all loops in early stopping polls
             for epoch in range(config["epochs"]*config["cycles"]):
@@ -60,14 +61,17 @@ def train(rank:int, size: int, config):
                     done = False
                     ddpg.noise_process.reset()
                     ep_reward = 0
+                    ep_length = 0
                     while not done:
                         action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
                         next_state, reward, done, _ = env.step(action)
                         buffer.append((state, action, reward, next_state, done))
                         ep_reward += reward
+                        ep_length += 1
                         state = next_state
                     if rank == 0:
-                        episode_reward_list.append(ep_reward)
+                        ep_rewards.append(ep_reward)
+                        ep_lengths.append(ep_length)
                 # Training
                 for train_episode in range(config["train_episodes"]):
                     batch = buffer.sample(config["batch_size"])
@@ -76,7 +80,7 @@ def train(rank:int, size: int, config):
                     ddpg.train_actor(batch)
                 ddpg.update_targets()
                 if rank == 0:
-                    av_reward = running_average(episode_reward_list)[-1]
+                    av_reward = running_average(ep_rewards)[-1]
                     reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
                     status_bar.update()
                     # Rank 0 process signals early stopping. ddp_poll_shutdown is called in both 
@@ -105,13 +109,4 @@ def train(rank:int, size: int, config):
         logger.debug(f"Saving complete")
 
     if rank == 0:    
-        fig, ax = plt.subplots()
-        ax.plot(episode_reward_list)
-        smooth_reward = running_average(episode_reward_list, window=10)
-        index = range(len(episode_reward_list)-len(smooth_reward), len(episode_reward_list))
-        ax.plot(index, smooth_reward)
-        ax.set_xlabel('Episode')
-        ax.set_ylabel('Accumulated reward')
-        ax.set_title('Agent performance over time')
-        ax.legend(["Episode reward", "Running average reward"])
-        plt.savefig(Path(__file__).parent / "reward.png")
+        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=100)

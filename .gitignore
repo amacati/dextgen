@@ -4,3 +4,4 @@
 *.png
 *.ipynb_checkpoints
 *.pkl
+/mp_rl/config/experiment_config.yaml  # Frequent changes, exclude for now

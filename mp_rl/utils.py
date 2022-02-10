@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -7,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.distributed as dist
 import gym
+import matplotlib.pyplot as plt
 
 from mp_rl.replay_buffer import MemoryBuffer
 
@@ -104,3 +106,24 @@ def ddp_poll_shutdown(shutdown: bool = False):
     if voting.item() > 0:
         return True
     return False
+
+def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
+    fig, ax = plt.subplots(1, 2, figsize=(15,4))
+    ax[0].plot(rewards)
+    smooth_reward = running_average(rewards, window=window)
+    index = range(len(rewards)-len(smooth_reward), len(rewards))
+    ax[0].plot(index, smooth_reward)
+    ax[0].set_xlabel('Episode')
+    ax[0].set_ylabel('Accumulated reward')
+    ax[0].set_title('Agent reward over time')
+    ax[0].legend(["Episode reward", "Running average reward"])
+    
+    ax[1].plot(ep_len)
+    smooth_len = running_average(ep_len, window=window)
+    index = range(len(ep_len)-len(smooth_len), len(rewards))
+    ax[1].plot(index, smooth_len)
+    ax[1].set_xlabel('Episode')
+    ax[1].set_ylabel('Episode length')
+    ax[1].set_title('Episode timestep development')
+    ax[1].legend(["Episode length", "Running average length"])
+    plt.savefig(path)
