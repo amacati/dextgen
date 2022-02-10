@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 def train(rank:int, size: int, config):
+    logging.basicConfig()
+    logger.setLevel(logging.INFO)
     logger.debug(f"Process {rank} startup successful.")
     config = config["lunarlander_ddpg"]
     logger.debug(f"Config: {config}")
@@ -29,10 +31,11 @@ def train(rank:int, size: int, config):
                 DDPGCritic(n_states, n_actions), DDPGCritic(n_states, n_actions), 
                 actor_lr, critic_lr, tau, gamma, noise_process, action_clip=(-1.,1.), actor_clip=1.,
                 critic_clip=1.)
-    ddpg.init_ddp(rank)
+    ddpg.init_ddp()
+    logger.info(f"P{rank}: DDPG moved to DDP, filling buffer")
     buffer = MemoryBuffer(config["buffer_size"])
     fill_buffer(env, buffer)
-    
+    logger.info(f"P{rank}: Buffer filled, starting training")
     if rank == 0:
         status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations", position=0, leave=False)
         reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
@@ -48,7 +51,6 @@ def train(rank:int, size: int, config):
                 while not done:
                     action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
                     next_state, reward, done, _ = env.step(action)
-                    print(next_state)
                     buffer.append((state, action, reward, next_state, done))
                     ep_reward += reward
                     state = next_state
@@ -65,6 +67,7 @@ def train(rank:int, size: int, config):
                 av_reward = running_average(episode_reward_list)[-1]
                 reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
                 status_bar.update()
+
     if rank == 0 and config["save_policy"]:
         path = Path(__file__).parent
         logger.debug(f"Saving models to {path}")

@@ -60,15 +60,12 @@ class DDPG:
         self.gamma = gamma
         self.actor_path = None
         self.critic_path = None
-        self._cuda_req = False
     
-    def cuda(self):
-        self._cuda_req = True
-        dev = torch.device("cuda")
-        self.actor = self.actor.to(dev)
-        self.critic = self.critic.to(dev)
-        self.actor_target = self.actor_target.to(dev)
-        self.critic_target = self.critic_target.to(dev)
+    def init_ddp(self):
+        self.actor = DDP(self.actor)
+        self.critic = DDP(self.critic)
+        self.actor_target = DDP(self.actor_target)
+        self.critic_target = DDP(self.critic_target)
         self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=self.actor_lr)
         self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=self.critic_lr)
         
@@ -134,22 +131,18 @@ class DDPG:
     @sanitize_array.register
     def _(self, x: np.ndarray):
         if x.ndim == 1:
-            t = torch.unsqueeze(torch.as_tensor(x), 1)
+            return torch.unsqueeze(torch.as_tensor(x), 1)
         elif x.ndim == 2:
-            t = torch.as_tensor(x)
-        else:
-            raise ValueError("Array shape exceeds expected dimensions of 1 or 2.")
-        return t.cuda() if self._cuda_req else t
+            return torch.as_tensor(x)
+        raise ValueError("Array shape exceeds expected dimensions of 1 or 2.")
     
     @sanitize_array.register
     def _(self, x: torch.Tensor):
         if x.ndim == 1:
-            t = torch.unsqueeze(x, 1)
+            return torch.unsqueeze(x, 1)
         elif x.ndim == 2:
-            t = x
-        else:
-            raise ValueError("Tensor shape exceeds expected dimensions of 1 or 2")
-        return t.cuda() if self._cuda_req else t
+            return x
+        raise ValueError("Tensor shape exceeds expected dimensions of 1 or 2")
 
 
 def load_ddpg(config_path):

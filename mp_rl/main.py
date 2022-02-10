@@ -9,24 +9,27 @@ from fetch_reach import fetch_reach
 from lunar_lander import lunar_lander
 from utils import init_process
 
-def main(args):
+def main(args: argparse.Namespace):
     size = args.nprocesses
     processes = []
     mp.set_start_method("spawn")
     path = Path(__file__).resolve().parent / "config" / "experiment_config.yaml"
     with open(path, "r") as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)
+    logging.info("Spawning training processes")
     for rank in range(size):
-        p = mp.Process(target=init_process, args=(rank, size, train_fn[args.e], config))
+        p = mp.Process(target=init_process, args=(rank, size, loglvls[args.loglvl], 
+                                                  train_fn[args.experiment], config))
         p.start()
         processes.append(p)
+    logging.info("Process spawn successful, awaiting join")
     for p in processes:
         p.join()
     logger.info("Processes joined, training complete.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("e", help="Experiment type that should be run", choices=["lunar", "fetch", "fetch_her"])
+    parser.add_argument("experiment", help="Experiment type that should be run", choices=["lunar", "fetch", "fetch_her"])
     parser.add_argument('--nprocesses', help='Number of worker threads for sample generation',
                         default=8, type=int)
     parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
@@ -37,7 +40,5 @@ if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
     logger.info("Main process startup")
-    if not torch.cuda.is_available():
-        raise RuntimeError("torch.cuda is not available, ddp training not possible!")
     train_fn = {"lunar": lunar_lander.train, "fetch": fetch_reach.train, "fetch_her": fetch_her.train}
     main(args)

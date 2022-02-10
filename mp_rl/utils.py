@@ -54,9 +54,12 @@ def fill_buffer(env, buffer: MemoryBuffer):
             state = next_state
 
 
-def init_process(rank, size, fn, *args, **kwargs):
+def init_process(rank, size, loglvl, fn, *args, **kwargs):
+    logging.basicConfig()
+    logger.setLevel(loglvl)
+    # Set environment variables required for DDP discovery service
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29501"
-    dist.init_process_group(backend="nccl", rank=rank, world_size=size)
-    logger.info("Torch distributed process group established")
+    os.environ["MASTER_PORT"] = "29500"
+    dist.init_process_group(backend="gloo", rank=rank, world_size=size)
+    logger.info(f"P{rank}: Torch distributed process group established")
     fn(rank, size, *args, **kwargs)
