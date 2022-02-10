@@ -42,8 +42,8 @@ lunarlander_ddpg:
   buffer_size: 10000
   actor_lr: 0.00005
   critic_lr: 0.0005
-  tau: 0.001
-  batch_size: 64
+  tau: 0.01
+  batch_size: 128
   mu: 0.15
   sigma: 0.2
   save_policy: True

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
 from mp_rl.replay_buffer import MemoryBuffer
 from mp_rl.noise import OrnsteinUhlenbeckNoise
-from mp_rl.utils import fill_buffer, running_average
+from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown
 
 
 logger = logging.getLogger(__name__)
@@ -53,8 +53,8 @@ def train(rank:int, size: int, config):
         reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
         episode_reward_list = []
     try:
-        for epoch in range(config["epochs"]):
-            for cycle in range(config["cycles"]):
+        def _train():  # Function to break out of all loops in early stopping polls
+            for epoch in range(config["epochs"]*config["cycles"]):
                 for episode in range(config["episodes"]):
                     state = env.reset()
                     done = False
@@ -79,6 +79,22 @@ def train(rank:int, size: int, config):
                     av_reward = running_average(episode_reward_list)[-1]
                     reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
                     status_bar.update()
+                    # Rank 0 process signals early stopping. ddp_poll_shutdown is called in both 
+                    # cases because all_reduce is synchronized across processes (blocks otherwise)
+                    # >50 check because initial average is skewed towards 0, %10 to reduce amount of
+                    # expensive all_reduce calls
+                    if epoch > 50 and epoch % 10 == 0:
+                        if av_reward > -150:
+                            logger.info("Problem solved, returning from all tasks")
+                            ddp_poll_shutdown(True)
+                            return
+                        ddp_poll_shutdown()
+                else:  # Graceful shutdown for processes of rank > 0
+                    if epoch > 50 and epoch % 10 == 0 and ddp_poll_shutdown():
+                        return
+            return
+
+        _train()                    
     except KeyboardInterrupt:  # Enable parameter save and plot save after abort
         pass
 

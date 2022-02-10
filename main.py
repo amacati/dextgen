@@ -1,12 +1,15 @@
 import argparse
 import logging
 from pathlib import Path
+
 import yaml
 import torch.multiprocessing as mp
+
 from mp_rl.fetch_her import fetch_her
 from mp_rl.fetch_reach import fetch_reach
 from mp_rl.lunar_lander import lunar_lander
 from mp_rl.utils import init_process
+
 
 def main(args: argparse.Namespace):
     """Launches the specified training functions on multiple workers simultaneously.

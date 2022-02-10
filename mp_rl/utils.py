@@ -3,6 +3,7 @@ import logging
 from typing import Callable
 
 import numpy as np
+import torch
 import torch.nn as nn
 import torch.distributed as dist
 import gym
@@ -84,3 +85,22 @@ def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args, **kwarg
     dist.init_process_group(backend="gloo", rank=rank, world_size=size)
     logger.info(f"P{rank}: Torch distributed process group established")
     fn(rank, size, *args, **kwargs)
+
+
+def ddp_poll_shutdown(shutdown: bool = False):
+    """Synchronized shutdown poll across DDP process group.
+    
+    All processes send 0 for continue or 1 for shutdown. Each process performs an all_reduce op. If
+    at least one process wants to shut down, the sum is > 0 and all processes abort.
+    
+    Args:
+        shutdown (bool): True if shutdown is requested, else False.
+    
+    Returns:
+        True if one process requested a shutdown, else False.
+    """
+    voting = torch.tensor([shutdown], dtype=torch.int8)
+    dist.all_reduce(voting)  # All_reduce is in-place
+    if voting.item() > 0:
+        return True
+    return False
