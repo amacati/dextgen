@@ -1,10 +1,12 @@
-from operator import itemgetter
 import logging
 from pathlib import Path
+from operator import itemgetter
+
+import gym
+import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-import torch
-import gym
+
 from ddpg import DDPG, DDPGActor, DDPGCritic
 from replay_buffer import MemoryBuffer
 from noise import OrnsteinUhlenbeckNoise
