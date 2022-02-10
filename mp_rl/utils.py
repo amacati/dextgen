@@ -56,7 +56,7 @@ def fill_buffer(env, buffer: MemoryBuffer):
 
 def init_process(rank, size, fn, *args, **kwargs):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29500"
+    os.environ["MASTER_PORT"] = "29501"
     dist.init_process_group(backend="nccl", rank=rank, world_size=size)
     logger.info("Torch distributed process group established")
     fn(rank, size, *args, **kwargs)

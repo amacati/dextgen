@@ -31,7 +31,7 @@ def train(rank:int, size: int, config):
                 critic_clip=1.)
     ddpg.init_ddp(rank)
     buffer = MemoryBuffer(config["buffer_size"])
-    fill_buffer(env, buffer, config["buffer_size"])
+    fill_buffer(env, buffer)
     
     if rank == 0:
         status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations", position=0, leave=False)
@@ -46,8 +46,9 @@ def train(rank:int, size: int, config):
                 ddpg.noise_process.reset()
                 ep_reward = 0
                 while not done:
-                    action = ddpg.action(torch.unsqueeze(torch.to_tensor(state), 0))[0]
+                    action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
                     next_state, reward, done, _ = env.step(action)
+                    print(next_state)
                     buffer.append((state, action, reward, next_state, done))
                     ep_reward += reward
                     state = next_state

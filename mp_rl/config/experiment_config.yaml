@@ -34,8 +34,8 @@ lunarlander_ppo:
 # Parameters are shared across ddp processes, effective sizes multiply by WORLD_SIZE
 # Example: Effective batch size is batch_size * WORLD_SIZE
 lunarlander_ddpg:
-  epochs: 200
-  cycles: 50
+  epochs: 2
+  cycles: 2
   episodes: 1
   train_episodes: 10
   gamma: 0.99
@@ -45,8 +45,8 @@ lunarlander_ddpg:
   tau: 0.001
   batch_size: 16
   update_delay: 2
-  noise_mu: 0.15
-  noise_sigma: 0.2
+  mu: 0.15
+  sigma: 0.2
   save_policy: True
   n_episodes: 300  # DEPRECATED
 
