@@ -105,8 +105,12 @@ class DDPG:
         self.critic_target = soft_update(self.critic, self.critic_target, self.tau)
         
     def save(self, actor_path, critic_path, config_path):
-        torch.save(self.actor, actor_path)
-        torch.save(self.critic, critic_path)
+        if isinstance(self.actor, DDP):  # Unwrap module from DDP
+            torch.save(self.actor.module, actor_path)
+            torch.save(self.critic.module, critic_path)
+        else:
+            torch.save(self.actor, actor_path)
+            torch.save(self.critic, critic_path)
         self.actor_path = actor_path
         self.critic_path = critic_path
         config = {"actor_lr": self.actor_lr, "critic_lr": self.critic_lr,
