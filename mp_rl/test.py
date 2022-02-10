@@ -1,3 +1,5 @@
+# Single thread implementation of DDP which solves the lunar lander env. Uses deprecated config.
+
 import logging
 import time
 import torch

@@ -18,6 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 def train(rank:int, size: int, config):
+    """Training function for the fetch-reach dense reward gym.
+    
+    Uses DDP to distribute training among several processes. Process 0 is responsible for reporting
+    running stats and saving the results. Problem is solved with DDPG.
+    
+    Args:
+        rank (int): Process rank in the DDP process group.
+        size (int): Total DDP world size.
+        config (dict): Config dictionary with hyperparameters.
+    """
+
     logging.basicConfig()
     logger.setLevel(logging.INFO)
     logger.debug(f"Process {rank} startup successful.")
@@ -44,33 +55,35 @@ def train(rank:int, size: int, config):
         status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations", position=0, leave=False)
         reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
         episode_reward_list = []
-
-    for epoch in range(config["epochs"]):
-        for cycle in range(config["cycles"]):
-            for episode in range(config["episodes"]):
-                state = env.reset()
-                done = False
-                ddpg.noise_process.reset()
-                ep_reward = 0
-                while not done:
-                    action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
-                    next_state, reward, done, _ = env.step(action)
-                    buffer.append((state, action, reward, next_state, done))
-                    ep_reward += reward
-                    state = next_state
+    try:
+        for epoch in range(config["epochs"]):
+            for cycle in range(config["cycles"]):
+                for episode in range(config["episodes"]):
+                    state = env.reset()
+                    done = False
+                    ddpg.noise_process.reset()
+                    ep_reward = 0
+                    while not done:
+                        action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
+                        next_state, reward, done, _ = env.step(action)
+                        buffer.append((state, action, reward, next_state, done))
+                        ep_reward += reward
+                        state = next_state
+                    if rank == 0:
+                        episode_reward_list.append(ep_reward)
+                # Training
+                for train_episode in range(config["train_episodes"]):
+                    batch = buffer.sample(config["batch_size"])
+                    batch = [ddpg.sanitize_array(x) for x in batch]
+                    ddpg.train_critic(batch)
+                    ddpg.train_actor(batch)
+                ddpg.update_targets()
                 if rank == 0:
-                    episode_reward_list.append(ep_reward)
-            # Training
-            for train_episode in range(config["train_episodes"]):
-                batch = buffer.sample(config["batch_size"])
-                batch = [ddpg.sanitize_array(x) for x in batch]
-                ddpg.train_critic(batch)
-                ddpg.train_actor(batch)
-            ddpg.update_targets()
-            if rank == 0:
-                av_reward = running_average(episode_reward_list)[-1]
-                reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
-                status_bar.update()
+                    av_reward = running_average(episode_reward_list)[-1]
+                    reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
+                    status_bar.update()
+    except KeyboardInterrupt:  # Enable saves on interrupts
+        pass
 
     if rank == 0 and config["save_policy"]:
         path = Path(__file__).parent

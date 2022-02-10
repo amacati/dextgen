@@ -10,6 +10,11 @@ from lunar_lander import lunar_lander
 from utils import init_process
 
 def main(args: argparse.Namespace):
+    """Launches the specified training functions on multiple workers simultaneously.
+    
+    Args:
+        args (argparse.Namespace): Arguments from the parser.
+    """
     size = args.nprocesses
     processes = []
     mp.set_start_method("spawn")

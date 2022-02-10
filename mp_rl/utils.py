@@ -1,10 +1,10 @@
 import os
 import logging
+from typing import Callable
 import numpy as np
-import torch
 import torch.distributed as dist
-import torch.multiprocessing as mp
 import torch.nn as nn
+import gym
 from replay_buffer import MemoryBuffer
 
 
@@ -43,7 +43,13 @@ def running_average(values: list, window: int = 50, mode: str = 'valid') -> floa
     return np.convolve(values, np.ones(window)/window, mode=mode)
 
 
-def fill_buffer(env, buffer: MemoryBuffer):
+def fill_buffer(env: gym.Env, buffer: MemoryBuffer):
+    """Fills the `buffer` with experiences under a uniformly random policy.
+    
+    Args:
+        env (gym.Env): The gym environment.
+        buffer (MemoryBuffer): Memory buffer which stores the experiences.
+    """
     while len(buffer) < buffer.size:
         state = env.reset()
         done = False
@@ -54,7 +60,20 @@ def fill_buffer(env, buffer: MemoryBuffer):
             state = next_state
 
 
-def init_process(rank, size, loglvl, fn, *args, **kwargs):
+def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args, **kwargs):
+    """Initializes a process with PyTorch's DDP process group and executes the provided function.
+    
+    Processes should target this function to ensure DDP is initialized before any calls that
+    require the process group to be established.
+    
+    Args:
+        rank (int): Process rank in the DDP process group.
+        size (int): Total DDP world size.
+        loglvl (int): Log level for Python's logging module in each process.
+        fn (Callable): The main process function. Gets called after all initializations are done.
+        args (any): Positional arguments for `fn`.
+        kwargs (any): Keyword arguments for `fn`.
+    """
     logging.basicConfig()
     logger.setLevel(loglvl)
     # Set environment variables required for DDP discovery service

@@ -17,6 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 def train(rank:int, size: int, config):
+    """Training function for the lunar lander continuous gym.
+    
+    Uses DDP to distribute training among several processes. Process 0 is responsible for reporting
+    running stats and saving the results. Problem is solved with DDPG.
+    
+    Args:
+        rank (int): Process rank in the DDP process group.
+        size (int): Total DDP world size.
+        config (dict): Config dictionary with hyperparameters.
+    """
     logging.basicConfig()
     logger.setLevel(logging.INFO)
     logger.debug(f"Process {rank} startup successful.")
