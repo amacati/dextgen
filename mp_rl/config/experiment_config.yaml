@@ -44,7 +44,6 @@ lunarlander_ddpg:
   critic_lr: 0.0005
   tau: 0.001
   batch_size: 16
-  update_delay: 2
   mu: 0.15
   sigma: 0.2
   save_policy: True
@@ -53,15 +52,14 @@ lunarlander_ddpg:
 fetchreach_ddpg:
   epochs: 200
   cycles: 50
-  episodes: 1
-  train_episodes: 10
+  episodes: 2
+  train_episodes: 5
   gamma: 0.99
-  buffer_size: 30000
+  buffer_size: 5000
   actor_lr: 0.00005
   critic_lr: 0.0005
   tau: 0.001
-  batch_size: 128
-  update_delay: 2
-  noise_mu: 0.15
-  noise_sigma: 0.2
+  batch_size: 16
+  mu: 0.15
+  sigma: 0.2
   save_policy: True

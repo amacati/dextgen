@@ -3,6 +3,7 @@ from pathlib import Path
 from operator import itemgetter
 
 import gym
+from gym.wrappers import FilterObservation, FlattenObservation
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -24,6 +25,7 @@ def train(rank:int, size: int, config):
     logger.debug(f"Config: {config}")
     # Setup constants, hyperparameters, bookkeeping
     env = gym.make("FetchReach-v1", reward_type="dense")
+    env = FlattenObservation(FilterObservation(env, filter_keys=["observation", "desired_goal"]))
     n_states = len(env.observation_space.low)
     n_actions = len(env.action_space.low)
     gamma, actor_lr, critic_lr, tau = itemgetter("gamma", "actor_lr", "critic_lr", "tau")(config)
