@@ -10,7 +10,7 @@ from tqdm import tqdm
 from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
 from mp_rl.replay_buffer import MemoryBuffer
 from mp_rl.noise import OrnsteinUhlenbeckNoise
-from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_stats
+from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_plots, save_stats
 
 
 logger = logging.getLogger(__name__)
@@ -110,5 +110,6 @@ def train(rank:int, size: int, config):
         ddpg.save(path / "fetchreach_actor.pt", path / "fetchreach_critic.pt", path / "ddpg.pkl")
         logger.debug(f"Saving complete")
 
-    if rank == 0:    
-        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=100)
+    if rank == 0:
+        save_plots(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)
+        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.json", window=50)

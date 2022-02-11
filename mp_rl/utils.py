@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import gym
 import matplotlib.pyplot as plt
+import json
 
 from mp_rl.replay_buffer import MemoryBuffer
 
@@ -108,8 +109,8 @@ def ddp_poll_shutdown(shutdown: bool = False):
     return False
 
 
-def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
-    fig, ax = plt.subplots(1, 2, figsize=(15, 4))
+def save_plots(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
+    fig, ax = plt.subplots(1, 2, figsize=(15,4))
     ax[0].plot(rewards)
     smooth_reward = running_average(rewards, window=window)
     index = range(len(rewards)-len(smooth_reward), len(rewards))
@@ -130,3 +131,16 @@ def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: in
     plt.savefig(path)
 
 
+def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
+    smooth_reward = running_average(rewards, window=window)
+    smooth_len = running_average(ep_len, window=window)
+    stats = {"final_reward": rewards[-1],
+             "final_av_reward": smooth_reward[-1],
+             "final_ep_len": ep_len[-1],
+             "final_ep_av_len": smooth_len[-1]}
+    with open(path, "w") as f:
+        json.dump(stats, f)
+
+
+def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
+    return obs["observation"], obs["desired_goal"], obs["achieved_goal"]
