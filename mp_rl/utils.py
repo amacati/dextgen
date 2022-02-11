@@ -1,7 +1,7 @@
 import os
 import logging
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 
 import numpy as np
 import torch
@@ -18,28 +18,28 @@ logger = logging.getLogger(__name__)
 
 def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
     """Performs a soft update of the target network's weights.
-    
-    Shifts the weights of the ``target`` by a factor of ``tau`` into the direction of the 
+
+    Shifts the weights of the ``target`` by a factor of ``tau`` into the direction of the
     ``network``.
-    
+
     Args:
         network (nn.Module): Network from which to copy the weights.
         target (nn.Module): Network that gets updated.
         tau (float): Controls how much the weights are shifted. Valid in [0, 1].
-        
+
     Returns:
         target (nn.Module): The updated target network.
     """
     target_state = target.state_dict()
     for k, v in network.state_dict().items():
-        target_state[k] = (1 - tau)  * target_state[k]  + tau * v
+        target_state[k] = (1 - tau) * target_state[k] + tau * v
     target.load_state_dict(target_state)
     return target
 
 
 def running_average(values: list, window: int = 50, mode: str = 'valid') -> float:
     """Computes a running average over a list of values.
-    
+
     Args:
         values (list): List of values that get smoothed.
         window (int, optional): Averaging window size.
@@ -50,7 +50,7 @@ def running_average(values: list, window: int = 50, mode: str = 'valid') -> floa
 
 def fill_buffer(env: gym.Env, buffer: MemoryBuffer):
     """Fills the `buffer` with experiences under a uniformly random policy.
-    
+
     Args:
         env (gym.Env): The gym environment.
         buffer (MemoryBuffer): Memory buffer which stores the experiences.
@@ -67,10 +67,10 @@ def fill_buffer(env: gym.Env, buffer: MemoryBuffer):
 
 def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args, **kwargs):
     """Initializes a process with PyTorch's DDP process group and executes the provided function.
-    
+
     Processes should target this function to ensure DDP is initialized before any calls that
     require the process group to be established.
-    
+
     Args:
         rank (int): Process rank in the DDP process group.
         size (int): Total DDP world size.
@@ -91,13 +91,13 @@ def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args, **kwarg
 
 def ddp_poll_shutdown(shutdown: bool = False):
     """Synchronized shutdown poll across DDP process group.
-    
+
     All processes send 0 for continue or 1 for shutdown. Each process performs an all_reduce op. If
     at least one process wants to shut down, the sum is > 0 and all processes abort.
-    
+
     Args:
         shutdown (bool): True if shutdown is requested, else False.
-    
+
     Returns:
         True if one process requested a shutdown, else False.
     """
@@ -107,8 +107,9 @@ def ddp_poll_shutdown(shutdown: bool = False):
         return True
     return False
 
+
 def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
-    fig, ax = plt.subplots(1, 2, figsize=(15,4))
+    fig, ax = plt.subplots(1, 2, figsize=(15, 4))
     ax[0].plot(rewards)
     smooth_reward = running_average(rewards, window=window)
     index = range(len(rewards)-len(smooth_reward), len(rewards))
@@ -117,7 +118,7 @@ def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: in
     ax[0].set_ylabel('Accumulated reward')
     ax[0].set_title('Agent reward over time')
     ax[0].legend(["Episode reward", "Running average reward"])
-    
+
     ax[1].plot(ep_len)
     smooth_len = running_average(ep_len, window=window)
     index = range(len(ep_len)-len(smooth_len), len(rewards))
@@ -127,3 +128,7 @@ def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: in
     ax[1].set_title('Episode timestep development')
     ax[1].legend(["Episode length", "Running average length"])
     plt.savefig(path)
+
+
+def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
+    return obs["observation"], obs["desired_goal"], obs["achieved_goal"]

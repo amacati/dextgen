@@ -6,7 +6,6 @@ import gym
 from gym.wrappers import FilterObservation, FlattenObservation
 import torch
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
 from mp_rl.replay_buffer import MemoryBuffer

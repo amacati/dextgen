@@ -5,22 +5,22 @@ import numpy as np
 
 
 class HERBuffer:
-    
-    def __init__(self, size_s: int, size_a: int, size_g: int, T:int, k: int, max_samples: int, 
+
+    def __init__(self, size_s: int, size_a: int, size_g: int, T: int, k: int, max_samples: int,
                  sample_mode: str = "her", reward_fun: Optional[Callable] = None):
         self.size = max_samples // T
         self.curr_size = 0
         self.T = T  # Episodes have a fixed time horizon T
         # Keys: state, action, next state, reward, done, goal desired, goal achieved
-        buffer_sizes = {"s": size_s, "a": size_a, "sn": size_s, "r": 1, "d": 1, "g": size_g, "ag": size_g}
+        self.buffer_sizes = {"s": size_s, "a": size_a, "sn": size_s, "r": 1, "d": 1, "g": size_g, "ag": size_g}
         self.buffer_keys = ["s", "a", "sn", "r", "d", "g", "ag"]  # Order required for sampling
-        self.buffer = {key: np.empty([self.size, T, size_b]) for key, size_b in buffer_sizes.items()}
+        self.buffer = {key: np.empty([self.size, T, size_b]) for key, size_b in self.buffer_sizes.items()}
         self.k = k
         self.p_her = 1 - 1./(1+k)
         assert sample_mode in ["her", "default"]
         self.sample_mode = sample_mode
         self.reward_fun = reward_fun or self._reward_fun
-    
+
     def append_episode(self, episode: dict):
         self._validate_episode(episode)
         idx = self.curr_size if self.curr_size < self.size else np.random.randint(0, self.size)
@@ -42,12 +42,12 @@ class HERBuffer:
         elif self.sample_mode == "her":
             return self._sample_her(N)
         raise RuntimeError("Unsupported sample mode!")
-    
+
     def _sample_default(self, N: int):
         e_idx = np.random.randint(0, self.curr_size, N)
         t_idx = np.random.randint(0, self.T, N)
         return {key: val[e_idx, t_idx].copy() for key, val in self.buffer.items()}
-    
+
     def _sample_her(self, N: int):
         e_idx = np.random.randint(0, self.curr_size, N)
         t_idx = np.random.randint(0, self.T, N)
@@ -59,12 +59,15 @@ class HERBuffer:
         transitions["g"][h_idx] = self.buffer["ag"][e_idx[h_idx], f_idx]
         transitions["r"] = self.reward_fun(transitions)
         return transitions
-    
+
     def _reward_fun(self, *_):
         raise NotImplementedError("Reward function has to be specified by user before use")
-    
+
     def __len__(self):
         return self.curr_size
+
+    def get_trajectory_buffer(self):
+        return {key: np.empty((self.T, size_b)) for key, size_b in self.buffer_sizes}
 
 
 class MemoryBuffer:
@@ -75,7 +78,7 @@ class MemoryBuffer:
 
     def append(self, exp: Tuple[np.ndarray, Union[int, np.ndarray], float, np.ndarray, bool]):
         self.buffer.append(exp)
-    
+
     def __len__(self):
         return len(self.buffer)
 
@@ -84,6 +87,6 @@ class MemoryBuffer:
         samples = np.random.choice(len(self.buffer), n, replace=False)
         states, actions, rewards, next_states, dones = zip(*[self.buffer[i] for i in samples])
         return [np.array(x, dtype=np.float32) for x in [states, actions, rewards, next_states, dones]]
-    
+
     def clear(self):
         self.buffer.clear()
