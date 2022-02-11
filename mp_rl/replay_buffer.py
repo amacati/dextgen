@@ -1,10 +1,29 @@
+from abc import ABC, abstractmethod
 from typing import Callable, Optional, Union, Tuple
 from collections import deque
 
 import numpy as np
 
 
-class HERBuffer:
+class ReplayBuffer(ABC):
+
+    def __init__(self):
+        super().__init__()
+
+    @abstractmethod
+    def sample(self, *_):
+        ...
+
+    @abstractmethod
+    def append(self, *_):
+        ...
+
+    @abstractmethod
+    def __len__(self):
+        ...
+
+
+class HERBuffer(ReplayBuffer):
 
     def __init__(self, size_s: int, size_a: int, size_g: int, T: int, k: int, max_samples: int,
                  sample_mode: str = "her", reward_fun: Optional[Callable] = None):
@@ -12,16 +31,18 @@ class HERBuffer:
         self.curr_size = 0
         self.T = T  # Episodes have a fixed time horizon T
         # Keys: state, action, next state, reward, done, goal desired, goal achieved
-        self.buffer_sizes = {"s": size_s, "a": size_a, "sn": size_s, "r": 1, "d": 1, "g": size_g, "ag": size_g}
+        self.buffer_sizes = {"s": size_s, "a": size_a, "sn": size_s, "r": 1, "d": 1, "g": size_g,
+                             "ag": size_g}
         self.buffer_keys = ["s", "a", "sn", "r", "d", "g", "ag"]  # Order required for sampling
-        self.buffer = {key: np.empty([self.size, T, size_b]) for key, size_b in self.buffer_sizes.items()}
+        self.buffer = {key: np.zeros([self.size, T, size_b])
+                       for key, size_b in self.buffer_sizes.items()}
         self.k = k
         self.p_her = 1 - 1./(1+k)
         assert sample_mode in ["her", "default"]
         self.sample_mode = sample_mode
         self.reward_fun = reward_fun or self._reward_fun
 
-    def append_episode(self, episode: dict):
+    def append(self, episode: dict):
         self._validate_episode(episode)
         idx = self.curr_size if self.curr_size < self.size else np.random.randint(0, self.size)
         for key, val in episode.items():  # Keys are already validated to match the buffer
@@ -55,7 +76,7 @@ class HERBuffer:
         transitions = {key: val[e_idx, t_idx].copy() for key, val in self.buffer.items()}
         h_idx = np.where(np.random.uniform(size=N) < self.p_her)
         t_offset = (np.random.uniform(size=N) * (self.T - t_idx)).astype(int)
-        f_idx = np.minimum(t_idx + 1 + t_offset, self.T-1)[h_idx]  # +1 ensures future goals, but can overflow
+        f_idx = np.minimum(t_idx + 1 + t_offset, self.T-1)[h_idx]  # Force future goals w/o overflow
         transitions["g"][h_idx] = self.buffer["ag"][e_idx[h_idx], f_idx]
         transitions["r"] = self.reward_fun(transitions)
         return transitions
@@ -67,10 +88,10 @@ class HERBuffer:
         return self.curr_size
 
     def get_trajectory_buffer(self):
-        return {key: np.empty((self.T, size_b)) for key, size_b in self.buffer_sizes}
+        return {key: np.zeros((self.T, size_b)) for key, size_b in self.buffer_sizes.items()}
 
 
-class MemoryBuffer:
+class MemoryBuffer(ReplayBuffer):
 
     def __init__(self, maxlen: int = 10000):
         self.buffer = deque(maxlen=maxlen)
@@ -85,8 +106,7 @@ class MemoryBuffer:
     def sample(self, n: int):
         assert(n <= len(self.buffer))
         samples = np.random.choice(len(self.buffer), n, replace=False)
-        states, actions, rewards, next_states, dones = zip(*[self.buffer[i] for i in samples])
-        return [np.array(x, dtype=np.float32) for x in [states, actions, rewards, next_states, dones]]
+        return [np.array(x, dtype=np.float32) for x in zip(*[self.buffer[i] for i in samples])]
 
     def clear(self):
         self.buffer.clear()

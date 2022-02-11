@@ -50,10 +50,11 @@ def train(rank: int, size: int, config):
     ddpg.init_ddp()
     logger.info(f"P{rank}: DDPG moved to DDP, filling buffer")
     buffer = HERBuffer(n_states, n_actions, n_goals, T, 4, config["buffer_size"], "default")
-    fill_buffer(env, buffer)
+    fill_buffer(buffer, env)
     logger.info(f"P{rank}: Buffer filled, starting training")
     if rank == 0:
-        status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations", position=0, leave=False)
+        status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations",
+                          position=0, leave=False)
         reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
         ep_rewards = []
         ep_lengths = []
@@ -69,31 +70,35 @@ def train(rank: int, size: int, config):
                     t = 0
                     ep_buffer = buffer.get_trajectory_buffer()
                     while not done:
-                        action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
+                        f_state = np.concatenate((state, goal))
+                        action = ddpg.action(torch.unsqueeze(torch.as_tensor(f_state), 0))[0]
                         next_obs, reward, done, _ = env.step(action)
-                        next_state = next_obs["observation"]
-                        for key, val in zip(["s", "a", "sn", "r", "d", "g", "ag"],
-                                            [state, action, next_state, reward, done, goal, agoal]):
+                        next_state, next_goal, next_agoal = unwrap_obs(next_obs)
+                        for key, val in zip(["s", "a", "r", "sn", "d", "g", "ag"],
+                                            [state, action, reward, next_state, done, goal, agoal]):
                             ep_buffer[key][t] = val
                         ep_reward += reward
                         t += 1
-                        state = next_state
-                    buffer.append_episode(ep_buffer)
+                        state, goal, agoal = next_state, next_goal, next_agoal
+                    buffer.append(ep_buffer)
                     if rank == 0:
                         ep_rewards.append(ep_reward)
                         ep_lengths.append(t)
                 # Training
                 for train_episode in range(config["train_episodes"]):
-                    batch = buffer.sample(config["batch_size"])
+                    dbatch = buffer.sample(config["batch_size"])
+                    f_state, f_next_state = [np.concatenate((dbatch[key], dbatch["g"]), axis=1)
+                                             for key in ("s", "sn")]
+                    batch = [f_state, dbatch["a"], dbatch["r"], f_next_state, dbatch["d"]]
                     batch = [ddpg.sanitize_array(x) for x in batch]
                     ddpg.train_critic(batch)
                     ddpg.train_actor(batch)
                 ddpg.update_targets()
                 if rank == 0:
                     av_reward = running_average(ep_rewards)[-1]
-                    reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
+                    reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))  # noqa: E501
                     status_bar.update()
-                    # Rank 0 process signals early stopping. ddp_poll_shutdown is called in both 
+                    # Rank 0 process signals early stopping. ddp_poll_shutdown is called in both
                     # cases because all_reduce is synchronized across processes (blocks otherwise)
                     # >50 check because initial average is skewed towards 0, %10 to reduce amount of
                     # expensive all_reduce calls
@@ -119,4 +124,5 @@ def train(rank: int, size: int, config):
         logger.debug("Saving complete")
 
     if rank == 0:
-        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=100)
+        save_plots(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)
+        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)

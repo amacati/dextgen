@@ -14,7 +14,7 @@ T = Union[np.ndarray, torch.Tensor]
 
 
 class DDPGActor(nn.Module):
-    
+
     def __init__(self, n_states: int, n_actions: int):
         super().__init__()
         self.l1 = nn.Linear(n_states, 400)
@@ -25,9 +25,10 @@ class DDPGActor(nn.Module):
         x = torch.relu(self.l1(x))
         x = torch.relu(self.l2(x))
         return torch.tanh(self.l3(x))
-    
+
+
 class DDPGCritic(nn.Module):
-    
+
     def __init__(self, n_states: int, n_actions: int):
         super().__init__()
         self.l1 = nn.Linear(n_states, 400)
@@ -41,9 +42,9 @@ class DDPGCritic(nn.Module):
 
 
 class DDPG:
-    
-    def __init__(self, actor, actor_target, critic, critic_target, actor_lr, critic_lr, tau, gamma, 
-                 noise_process, action_clip = None, actor_clip = None, critic_clip = None):
+
+    def __init__(self, actor, actor_target, critic, critic_target, actor_lr, critic_lr, tau, gamma,
+                 noise_process, action_clip=None, actor_clip=None, critic_clip=None):
         self.actor = actor
         self.actor_target = actor_target
         self.critic = critic
@@ -61,7 +62,7 @@ class DDPG:
         self.gamma = gamma
         self.actor_path = None
         self.critic_path = None
-    
+
     def init_ddp(self):
         self.actor = DDP(self.actor)
         self.critic = DDP(self.critic)
@@ -69,7 +70,7 @@ class DDPG:
         self.critic_target = DDP(self.critic_target)
         self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=self.actor_lr)
         self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=self.critic_lr)
-        
+
     def action(self, states: T) -> np.ndarray:
         states = self.sanitize_array(states)
         with torch.no_grad():
@@ -87,7 +88,7 @@ class DDPG:
         (-torch.mean(next_q)).backward()
         torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.actor_clip)
         self.actor_optim.step()
-    
+
     def train_critic(self, train_batch: list[T]):
         states, actions, rewards, next_states, dones = [self.sanitize_array(x) for x in train_batch]
         self.critic_optim.zero_grad()
@@ -99,11 +100,11 @@ class DDPG:
         nn.functional.mse_loss(q_actions, rewards).backward()
         nn.utils.clip_grad_norm_(self.critic.parameters(), self.critic_clip)
         self.critic_optim.step()
-        
+
     def update_targets(self):
         self.actor_target = soft_update(self.actor, self.actor_target, self.tau)
         self.critic_target = soft_update(self.critic, self.critic_target, self.tau)
-        
+
     def save(self, actor_path, critic_path, config_path):
         if isinstance(self.actor, DDP):  # Unwrap module from DDP
             torch.save(self.actor.module, actor_path)
@@ -120,7 +121,7 @@ class DDPG:
                   "actor_path": self.actor_path, "critic_path": self.critic_path}
         with open(config_path, "wb") as f:
             pickle.dump(config, f)
-    
+
     def load_models(self, actor_path, critic_path):
         self.actor = torch.load(self.actor_path)
         self.actor_target = torch.load(self.actor_path)
@@ -128,30 +129,31 @@ class DDPG:
         self.critic_target = torch.load(self.critic_path)
         self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=self.actor_lr)
         self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=self.critic_lr)
-    
+
     @singledispatchmethod
     def sanitize_array(self, x):
         raise TypeError(f"Cannot process array inputs of type {type(x)}")
-    
+
     @sanitize_array.register
     def _(self, x: np.ndarray):
         if x.ndim == 1:
-            return torch.unsqueeze(torch.as_tensor(x), 1)
+            return torch.unsqueeze(torch.as_tensor(x, dtype=torch.float32), 1)
         elif x.ndim == 2:
-            return torch.as_tensor(x)
+            return torch.as_tensor(x, dtype=torch.float32)
         raise ValueError("Array shape exceeds expected dimensions of 1 or 2.")
-    
+
     @sanitize_array.register
     def _(self, x: torch.Tensor):
         if x.ndim == 1:
-            return torch.unsqueeze(x, 1)
+            return torch.unsqueeze(x, 1).float()
         elif x.ndim == 2:
-            return x
+            return x.float()
         raise ValueError("Tensor shape exceeds expected dimensions of 1 or 2")
 
 
 def load_ddpg(config_path):
-    ddpg = DDPG(DDPGActor(1,1), DDPGActor(1,1), DDPGCritic(1,1), DDPGCritic(1,1), 1., 1., 1., 1., None)  # Values get overwritten
+    ddpg = DDPG(DDPGActor(1, 1), DDPGActor(1, 1), DDPGCritic(1, 1), DDPGCritic(1, 1),
+                1., 1., 1., 1., None)  # Values get overwritten
     with open(config_path, "rb") as f:
         config = pickle.load(f)
     for key, val in config.items():
@@ -161,7 +163,7 @@ def load_ddpg(config_path):
 
 
 class InputNorm(nn.Module):
-    
+
     def __init__(self, size: int, tau: float = 0.01):
         super().__init__()
         self._tau = tau
@@ -184,7 +186,7 @@ class InputNorm(nn.Module):
             else:
                 input_mean = self.input_mean * self._ntau + torch.sum(x, 0) * self._tau
                 self.input_mean.copy_(input_mean)
-                self._input_smean = self._input_smean * self._ntau + torch.sum(torch.square(x), 0) * self._tau
+                self._input_smean = self._input_smean * self._ntau + torch.sum(torch.square(x), 0) * self._tau  # noqa: E501
                 input_var = self._input_smean - torch.square(self.input_mean)
                 self.input_var.copy_(input_var)
 
