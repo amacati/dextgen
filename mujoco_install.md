@@ -15,9 +15,9 @@
 ### Modify bashrc
 Add the following lines to your .bashrc. Replace `<user>` with your user name.
 
-```$ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/<user>/.mujoco/mujoco210/bin' > ~/.bashrc```
+```export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/<user>/.mujoco/mujoco210/bin```
 
-```$ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia' > ~/.bashrc```
+```export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia```
 
 Source after you are done!
 
@@ -52,7 +52,7 @@ you have to install patchelf.
 
 Add .local/bin to PATH in .bashrc. Make sure to replace `<user>` with your user name.
 
-```$ echo 'export PATH=$PATH:/home/<user>/.local/bin' > ~/.bashrc```
+```export PATH=$PATH:/home/<user>/.local/bin```
 
 Don't forget to source.
 
