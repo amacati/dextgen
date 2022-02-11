@@ -35,7 +35,7 @@ def train(rank: int, size: int, config):
     config = config["fetchreach_ddpg"]
     logger.debug(f"Config: {config}")
     # Setup constants, hyperparameters, bookkeeping
-    env = gym.make("FetchReach-v1", reward_type="dense")
+    env = gym.make("FetchReach-v1", reward_type="sparse")
     T = 50  # Episode length
     n_states = len(env.observation_space["observation"].low)
     n_goals = len(env.observation_space["desired_goal"].low)
@@ -49,7 +49,11 @@ def train(rank: int, size: int, config):
                 critic_clip=1.)
     ddpg.init_ddp()
     logger.info(f"P{rank}: DDPG moved to DDP, filling buffer")
-    buffer = HERBuffer(n_states, n_actions, n_goals, T, 4, config["buffer_size"], "default")
+
+    def reward_fn(dbatch: dict):
+        return np.linalg.norm(dbatch["s"][:, 0:3] - dbatch["g"], axis=1) < 0.05
+
+    buffer = HERBuffer(n_states, n_actions, n_goals, T, 4, config["buffer_size"], "her", reward_fn)
     fill_buffer(buffer, env)
     logger.info(f"P{rank}: Buffer filled, starting training")
     if rank == 0:
@@ -125,4 +129,4 @@ def train(rank: int, size: int, config):
 
     if rank == 0:
         save_plots(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)
-        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)
+        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.json", window=50)

@@ -5,7 +5,6 @@ from operator import itemgetter
 import gym
 import torch
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
 from mp_rl.replay_buffer import MemoryBuffer
@@ -16,12 +15,12 @@ from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_pl
 logger = logging.getLogger(__name__)
 
 
-def train(rank:int, size: int, config):
+def train(rank: int, size: int, config):
     """Training function for the lunar lander continuous gym.
-    
+
     Uses DDP to distribute training among several processes. Process 0 is responsible for reporting
     running stats and saving the results. Problem is solved with DDPG.
-    
+
     Args:
         rank (int): Process rank in the DDP process group.
         size (int): Total DDP world size.
@@ -37,19 +36,20 @@ def train(rank:int, size: int, config):
     n_states = len(env.observation_space.low)
     n_actions = len(env.action_space.low)
     gamma, actor_lr, critic_lr, tau = itemgetter("gamma", "actor_lr", "critic_lr", "tau")(config)
-    
+
     noise_process = OrnsteinUhlenbeckNoise(mu=config["mu"], sigma=config["sigma"], dims=n_actions)
-    ddpg = DDPG(DDPGActor(n_states, n_actions), DDPGActor(n_states, n_actions), 
-                DDPGCritic(n_states, n_actions), DDPGCritic(n_states, n_actions), 
-                actor_lr, critic_lr, tau, gamma, noise_process, action_clip=(-1.,1.), actor_clip=1.,
+    ddpg = DDPG(DDPGActor(n_states, n_actions), DDPGActor(n_states, n_actions),
+                DDPGCritic(n_states, n_actions), DDPGCritic(n_states, n_actions),
+                actor_lr, critic_lr, tau, gamma, noise_process, action_clip=(-1., 1), actor_clip=1.,
                 critic_clip=1.)
     ddpg.init_ddp()
     logger.info(f"P{rank}: DDPG moved to DDP, filling buffer")
     buffer = MemoryBuffer(config["buffer_size"])
-    fill_buffer(env, buffer)
+    fill_buffer(buffer, env)
     logger.info(f"P{rank}: Buffer filled, starting training")
     if rank == 0:
-        status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations", position=0, leave=False)
+        status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations",
+                          position=0, leave=False)
         reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
         ep_rewards = []
         ep_lengths = []
@@ -81,9 +81,9 @@ def train(rank:int, size: int, config):
                 ddpg.update_targets()
                 if rank == 0:
                     av_reward = running_average(ep_rewards)[-1]
-                    reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))
+                    reward_log.set_description_str("Current running average reward: {:.1f}".format(av_reward))  # noqa: E501
                     status_bar.update()
-                    # Rank 0 process signals early stopping. ddp_poll_shutdown is called in both 
+                    # Rank 0 process signals early stopping. ddp_poll_shutdown is called in both
                     # cases because all_reduce is synchronized across processes (blocks otherwise)
                     # >50 check because initial average is skewed towards 0, %10 to reduce amount of
                     # expensive all_reduce calls
@@ -98,15 +98,16 @@ def train(rank:int, size: int, config):
                         return
             return
 
-        _train()                    
+        _train()
     except KeyboardInterrupt:  # Enable parameter save and plot save after abort
         pass
 
     if rank == 0 and config["save_policy"]:
         path = Path(__file__).parent
         logger.debug(f"Saving models to {path}")
-        ddpg.save(path / "lunarlander_ddpg_actor.pt", path / "lunarlander_ddpg_critic.pt", path / "ddpg.pkl")
-        logger.debug(f"Saving complete")
+        ddpg.save(path / "lunarlander_ddpg_actor.pt", path / "lunarlander_ddpg_critic.pt",
+                  path / "ddpg.pkl")
+        logger.debug("Saving complete")
 
     if rank == 0:
         save_plots(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)

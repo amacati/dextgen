@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from mp_rl.utils import soft_update
@@ -51,8 +52,8 @@ class DDPG:
         self.critic_target = critic_target
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
-        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
+        self.actor_optim = optim.Adam(self.actor.parameters(), lr=actor_lr, weight_decay=0.01)
+        self.critic_optim = optim.Adam(self.critic.parameters(), lr=critic_lr, weight_decay=0.01)
         self.noise_process = noise_process
         self.action_clip = action_clip or (-np.Inf, np.Inf)
         self.actor_clip = actor_clip or np.Inf
@@ -68,8 +69,8 @@ class DDPG:
         self.critic = DDP(self.critic)
         self.actor_target = DDP(self.actor_target)
         self.critic_target = DDP(self.critic_target)
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=self.actor_lr)
-        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=self.critic_lr)
+        self.actor_optim = optim.Adam(self.actor.parameters(), lr=self.actor_lr, weight_decay=0.01)
+        self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.critic_lr, weight_decay=0.01)  # noqa: E501
 
     def action(self, states: T) -> np.ndarray:
         states = self.sanitize_array(states)
@@ -127,8 +128,8 @@ class DDPG:
         self.actor_target = torch.load(self.actor_path)
         self.critic = torch.load(self.critic_path)
         self.critic_target = torch.load(self.critic_path)
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=self.actor_lr)
-        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=self.critic_lr)
+        self.actor_optim = optim.Adam(self.actor.parameters(), lr=self.actor_lr, weight_decay=0.01)
+        self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.critic_lr, weight_decay=0.01)  # noqa: E501
 
     @singledispatchmethod
     def sanitize_array(self, x):
