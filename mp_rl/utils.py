@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import gym
 import matplotlib.pyplot as plt
+import json
 
 from mp_rl.replay_buffer import MemoryBuffer
 
@@ -107,7 +108,7 @@ def ddp_poll_shutdown(shutdown: bool = False):
         return True
     return False
 
-def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
+def save_plots(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
     fig, ax = plt.subplots(1, 2, figsize=(15,4))
     ax[0].plot(rewards)
     smooth_reward = running_average(rewards, window=window)
@@ -127,3 +128,14 @@ def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: in
     ax[1].set_title('Episode timestep development')
     ax[1].legend(["Episode length", "Running average length"])
     plt.savefig(path)
+
+
+def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
+    smooth_reward = running_average(rewards, window=window)
+    smooth_len = running_average(ep_len, window=window)
+    stats = {"final_reward": rewards[-1], 
+             "final_av_reward": smooth_reward[-1],
+             "final_ep_len": ep_len[-1], 
+             "final_ep_av_len": smooth_len[-1]}
+    with open(path, "w") as f:
+        json.dump(stats, f)

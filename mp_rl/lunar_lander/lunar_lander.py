@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
 from mp_rl.replay_buffer import MemoryBuffer
 from mp_rl.noise import OrnsteinUhlenbeckNoise
-from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_stats
+from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_plots, save_stats
 
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ def train(rank:int, size: int, config):
                     # >50 check because initial average is skewed towards 0, %10 to reduce amount of
                     # expensive all_reduce calls
                     if epoch > 50 and epoch % 10 == 0:
-                        if av_reward > -150:
+                        if av_reward > 200:
                             logger.info("Problem solved, returning from all tasks")
                             ddp_poll_shutdown(True)
                             return
@@ -108,5 +108,6 @@ def train(rank:int, size: int, config):
         ddpg.save(path / "lunarlander_ddpg_actor.pt", path / "lunarlander_ddpg_critic.pt", path / "ddpg.pkl")
         logger.debug(f"Saving complete")
 
-    if rank == 0:    
-        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=100)
+    if rank == 0:
+        save_plots(ep_rewards, ep_lengths, Path(__file__).parent / "stats.png", window=50)
+        save_stats(ep_rewards, ep_lengths, Path(__file__).parent / "stats.json", window=50)
