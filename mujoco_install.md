@@ -58,6 +58,16 @@ Don't forget to source.
 
 ```$ source ~/.bashrc```
 
+## GLEW missing GL version
+Sometimes rendering the simulation throws the error
+
+```GLEW initalization error: Missing GL version```
+
+This can be resolved by adding an additional environment variable to your .bashrc (source after you are done!).
+
+```$ echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so' >> ~/.bashrc```
+
+
 ## Done
 
 You should now be able to run mujoco_test.py
