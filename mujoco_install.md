@@ -13,11 +13,11 @@
 ```$ cd ~/.mujoco && tar -xf mujoco210-linux-x86_64.tar.gz```
 
 ### Modify bashrc
-Add the following lines to your .bashrc. Replace `<user>` with your user name.
+Execute the following commands to add environment variables required by Mujoco to your .bashrc. Replace `<user>` with your user name.
 
-```$ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/<user>/.mujoco/mujoco210/bin' > ~/.bashrc```
+```$ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/<user>/.mujoco/mujoco210/bin' >> ~/.bashrc```
 
-```$ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia' > ~/.bashrc```
+```$ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia' >> ~/.bashrc```
 
 Source after you are done!
 
@@ -52,11 +52,21 @@ you have to install patchelf.
 
 Add .local/bin to PATH in .bashrc. Make sure to replace `<user>` with your user name.
 
-```$ echo 'export PATH=$PATH:/home/<user>/.local/bin' > ~/.bashrc```
+```$ echo 'export PATH=$PATH:/home/<user>/.local/bin' >> ~/.bashrc```
 
 Don't forget to source.
 
 ```$ source ~/.bashrc```
+
+## GLEW missing GL version
+Sometimes rendering the simulation throws the error
+
+```GLEW initalization error: Missing GL version```
+
+This can be resolved by adding an additional environment variable to your .bashrc (source after you are done!).
+
+```$ echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so' >> ~/.bashrc```
+
 
 ## Done
 
