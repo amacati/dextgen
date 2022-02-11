@@ -130,5 +130,3 @@ def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: in
     plt.savefig(path)
 
 
-def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
-    return obs["observation"], obs["desired_goal"], obs["achieved_goal"]
