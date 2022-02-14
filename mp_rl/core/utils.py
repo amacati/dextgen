@@ -12,7 +12,7 @@ import gym
 import matplotlib.pyplot as plt
 import json
 
-from mp_rl.replay_buffer import ReplayBuffer, HERBuffer, MemoryBuffer
+from mp_rl.core.replay_buffer import ReplayBuffer, HERBuffer, MemoryBuffer
 
 
 logger = logging.getLogger(__name__)

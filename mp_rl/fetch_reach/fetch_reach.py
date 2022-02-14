@@ -7,10 +7,10 @@ from gym.wrappers import FilterObservation, FlattenObservation
 import torch
 from tqdm import tqdm
 
-from mp_rl.ddpg import DDPG, DDPGActor, DDPGCritic
-from mp_rl.replay_buffer import MemoryBuffer
-from mp_rl.noise import OrnsteinUhlenbeckNoise
-from mp_rl.utils import fill_buffer, running_average, ddp_poll_shutdown, save_plots, save_stats
+from mp_rl.core.ddpg import DDPG, DDPGActor, DDPGCritic
+from mp_rl.core.replay_buffer import MemoryBuffer
+from mp_rl.core.noise import OrnsteinUhlenbeckNoise
+from mp_rl.core.utils import fill_buffer, running_average, ddp_poll_shutdown, save_plots, save_stats
 
 
 logger = logging.getLogger(__name__)

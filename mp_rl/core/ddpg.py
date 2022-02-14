@@ -8,45 +8,18 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from mp_rl.utils import soft_update
+from mp_rl.core.utils import soft_update
 
 
 T = Union[np.ndarray, torch.Tensor]
-
-
-class DDPGActor(nn.Module):
-
-    def __init__(self, n_states: int, n_actions: int):
-        super().__init__()
-        self.l1 = nn.Linear(n_states, 400)
-        self.l2 = nn.Linear(400, 200)
-        self.l3 = nn.Linear(200, n_actions)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = torch.relu(self.l1(x))
-        x = torch.relu(self.l2(x))
-        return torch.tanh(self.l3(x))
-
-
-class DDPGCritic(nn.Module):
-
-    def __init__(self, n_states: int, n_actions: int):
-        super().__init__()
-        self.l1 = nn.Linear(n_states, 400)
-        self.l2 = nn.Linear(400+n_actions, 200)
-        self.l3 = nn.Linear(200, 1)
-
-    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
-        state = torch.relu(self.l1(state))
-        x = torch.relu(self.l2(torch.cat([state, action], dim=1)))
-        return self.l3(x)
 
 
 class DDPG:
 
     def __init__(self, actor, actor_target, critic, critic_target, actor_lr, critic_lr, tau, gamma,
                  noise_process, action_clip=None, actor_clip=None, critic_clip=None):
-        self.actor = actor
+        self.actor = Actor()
+        self.critic = Critic()
         self.actor_target = actor_target
         self.critic = critic
         self.critic_target = critic_target
@@ -72,6 +45,37 @@ class DDPG:
         self.actor_optim = optim.Adam(self.actor.parameters(), lr=self.actor_lr, weight_decay=0.01)
         self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.critic_lr, weight_decay=0.01)  # noqa: E501
 
+    def train(self):
+        if self.rank == 0:
+            status_bar = tqdm(total=config["epochs"]*config["cycles"], desc="Training iterations",
+                            position=0, leave=False)
+            reward_log = tqdm(total=0, position=1, bar_format='{desc}', leave=False)
+            ep_success = []
+        for epoch in range(self.args.n_epochs):
+            for _ in range(self.args.n_cycles):
+                for _ in range(self.args.n_rollouts):
+                    ep_buffer = self.buffer.get_trajectory_buffer()
+                    obs = self.env.reset()
+                    state, goal, agoal = unwrap_obs(obs)
+                    for t in range(self.T):
+                        with torch.no_grad():
+                            action = self.actor(state, goal)
+                        next_obs, _, _, info = self.env.step(action)
+                        next_state, _, next_agoal = unwrap_obs(next_obs)
+                        ep_buffer.append(state, action, goal, agoal)
+                        state = next_state
+                        agoal = next_agoal
+                    self.buffer.append(ep_buffer)
+                for _ in range(self.args.n_train):
+                    self.train_agent()
+            av_success = self.eval_agent()
+            if self.rank == 0:
+                ep_success.append(av_success)
+                success_log.set_description_str("Current success rate: {:.1f}".format(av_success))  # noqa: E501
+                status_bar.update()
+            if av_success > self.early_stop:
+                return
+
     def action(self, states: T) -> np.ndarray:
         states = self.sanitize_array(states)
         with torch.no_grad():
@@ -96,7 +100,7 @@ class DDPG:
         with torch.no_grad():
             next_actions = self.actor_target(next_states)
             next_q = self.critic_target(next_states, next_actions)
-            rewards = rewards + self.gamma * next_q * (1 - dones)
+            rewards = rewards + self.gamma * next_q  # No dones in fixed length episode
         q_actions = self.critic(states, actions)
         nn.functional.mse_loss(q_actions, rewards).backward()
         nn.utils.clip_grad_norm_(self.critic.parameters(), self.critic_clip)
@@ -161,37 +165,3 @@ def load_ddpg(config_path):
         setattr(ddpg, key, val)
     ddpg.load_models(ddpg.actor_path, ddpg.critic_path)
     return ddpg
-
-
-class InputNorm(nn.Module):
-
-    def __init__(self, size: int, tau: float = 0.01):
-        super().__init__()
-        self._tau = tau
-        self._ntau = 1 - tau
-        self._init = False
-        self._eps = 1e-5
-        input_mean = torch.zeros(size)
-        self.input_mean = nn.Parameter(input_mean, requires_grad=False)
-        self._input_smean = torch.zeros(size)
-        input_var = torch.ones(size)
-        self.input_var = nn.Parameter(input_var, requires_grad=False)
-
-    def _update_input_dist(self, x):
-        with torch.no_grad():
-            if not self._init:
-                self.input_mean.copy_(torch.mean(x, 0))
-                self._input_smean = torch.mean(torch.square(x), 0)
-                self.input_var.copy_(torch.var(x, 0))
-                self._init = True
-            else:
-                input_mean = self.input_mean * self._ntau + torch.sum(x, 0) * self._tau
-                self.input_mean.copy_(input_mean)
-                self._input_smean = self._input_smean * self._ntau + torch.sum(torch.square(x), 0) * self._tau  # noqa: E501
-                input_var = self._input_smean - torch.square(self.input_mean)
-                self.input_var.copy_(input_var)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.training:
-            self._update_input_dist(x)
-        return (x - self.input_mean)/(self.input_var + self._eps)  # Add eps for numerical stability

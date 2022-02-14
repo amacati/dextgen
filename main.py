@@ -8,12 +8,12 @@ import torch.multiprocessing as mp
 from mp_rl.fetch_her import fetch_her
 from mp_rl.fetch_reach import fetch_reach
 from mp_rl.lunar_lander import lunar_lander
-from mp_rl.utils import init_process
+from mp_rl.core.utils import init_process
 
 
 def main(args: argparse.Namespace):
     """Launches the specified training functions on multiple workers simultaneously.
-    
+
     Args:
         args (argparse.Namespace): Arguments from the parser.
     """
@@ -33,6 +33,7 @@ def main(args: argparse.Namespace):
     for p in processes:
         p.join()
     logger.info("Processes joined, training complete.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
