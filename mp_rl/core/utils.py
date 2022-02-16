@@ -32,10 +32,8 @@ def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
     Returns:
         target (nn.Module): The updated target network.
     """
-    target_state = target.state_dict()
-    for k, v in network.state_dict().items():
-        target_state[k] = (1 - tau) * target_state[k] + tau * v
-    target.load_state_dict(target_state)
+    for network_p, target_p in zip(network.parameters(), target.parameters()):
+        target_p.data.copy_(tau*network_p.data + (1-tau)*target_p)
     return target
 
 

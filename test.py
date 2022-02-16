@@ -3,43 +3,52 @@ import logging
 from pathlib import Path
 import time
 
+import pickle
 import torch
 import gym
 
-from mp_rl.ddpg import load_ddpg
+from mp_rl.core.utils import unwrap_obs
+from mp_rl.core.actor import ActorNetwork
 
 
-def test_lunar():
-    path = Path(__file__).parent/"mp_rl"/"lunar_lander"/"ddpg.pkl"
-    ddpg = load_ddpg(path)
-    env = gym.make("LunarLanderContinuous-v2")
-    state = env.reset()
-    t_reward = 0
-    done = False
-    while not done:
-        action = ddpg.action(torch.unsqueeze(torch.as_tensor(state), 0))[0]
-        next_state, reward, done, _ = env.step(action)
-        t_reward += reward
-        state = next_state
-        env.render()
-        time.sleep(0.01)
-    logger.info(f"Episode reward: {reward}")
-    
-def test_fetch():
-    raise NotImplementedError
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env", help="Selects the gym environment", choices=["FetchReach-v1"],
+                        default="FetchReach-v1")
+    parser.add_argument("--loglvl", help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
+                        default="INFO")
+    parser.add_argument("--ntests", help="Number of evaluation runs", default=3, type=int)
+    args = parser.parse_args()
+    return args
 
-def test_fetch_her():
-    raise NotImplementedError
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("env", help="Selects the gym environment", choices=["lunar", "fetch", "fetch_her"])
-    parser.add_argument('--loglvl', help="Logger levels", choices=["DEBUG", "INFO", "WARN", "ERROR"],
-                        default="INFO")
-    args = parser.parse_args()
-    logger = logging.getLogger(__name__)
+    args = parse_args()
+    logger = logging.getLogger("GymTestScript")
     loglvls = {"DEBUG": logging.DEBUG, "INFO": logging.INFO, "WARN": logging.WARN, "ERROR": logging.ERROR}
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
-    env_tests = {"lunar": test_lunar, "fetch": test_fetch, "fetch_her": test_fetch_her}
-    env_tests[args.env]()
+    env = gym.make(args.env)
+    size_s = len(env.observation_space["observation"].low) + len(env.observation_space["desired_goal"].low)
+    size_a = len(env.action_space.low)
+    actor = ActorNetwork(size_s, size_a)
+    path = Path(__file__).parent / "mp_rl" / "saves"
+    actor.load_state_dict(torch.load(path / (args.env+"_actor.pt")))
+    with open(path / (args.env+"_state_norm.pkl"), "rb") as f:
+        state_norm = pickle.load(f)
+    with open(path / (args.env+"_goal_norm.pkl"), "rb") as f:
+        goal_norm = pickle.load(f)    
+    success = 0.
+    for _ in range(args.ntests):
+        state, goal, _ = unwrap_obs(env.reset())
+        for _ in range(env._max_episode_steps):
+            state, goal = state_norm(state), goal_norm(goal)
+            state, goal = torch.as_tensor(state, dtype=torch.float32), torch.as_tensor(goal, dtype=torch.float32)
+            with torch.no_grad():
+                action = actor(torch.cat([state, goal]))
+            next_obs, reward, _, info = env.step(action.numpy())
+            state, goal, _ = unwrap_obs(next_obs)
+            env.render()
+            time.sleep(0.1)
+        success += info["is_success"]
+    logger.info(f"Agent success rate: {success/args.ntests:.2f}")
