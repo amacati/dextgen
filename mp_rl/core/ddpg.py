@@ -126,6 +126,8 @@ class DDPG:
 
     def save(self):
         path = Path(__file__).parents[1] / "saves"
+        if not path.is_dir():
+            path.mkdir(parents=True, exist_ok=True)
         torch.save(self.actor.action_net.state_dict(), path / (self.args.env+"_actor.pt"))
         self.state_norm.save(path / (self.args.env+"_state_norm.pkl"))
         self.goal_norm.save(path / (self.args.env+"_goal_norm.pkl"))
