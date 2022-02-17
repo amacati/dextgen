@@ -13,7 +13,7 @@ from mp_rl.core.noise import GaussianNoise
 from mp_rl.core.actor import Actor
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
-from mp_rl.core.replay_buffer import HERBuffer
+from mp_rl.core.replay_buffer import HERBuffer, her_sampling
 
 T = Union[np.ndarray, torch.Tensor]
 
@@ -113,8 +113,11 @@ class DDPG:
         self.critic.backward(critic_loss_T)
 
     def _update_norm(self, ep_buffer):
-        self.state_norm.update(ep_buffer["s"])
-        self.goal_norm.update(ep_buffer["g"])
+        buffers = [np.expand_dims(ep_buffer[x], axis=0) for x in ("s", "a", "g", "ag")]
+        states, _, _, _, goals = her_sampling(*buffers, self.T, self.buffer.p_her,
+                                              self.env.compute_reward)
+        self.state_norm.update(states)
+        self.goal_norm.update(goals)
 
     def eval_agent(self):
         self.actor.eval()

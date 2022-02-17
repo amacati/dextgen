@@ -141,29 +141,30 @@ class HERBuffer(ReplayBuffer):
 
 def her_sampling(states: np.ndarray, actions: np.ndarray, goals: np.ndarray, agoals: np.ndarray,
                  N: int, p_her: float, reward_fun: Callable) -> Tuple[np.ndarray]:
-    neps, T = actions.shape
+    assert states.ndim == 3, "Requires tensors of dimensions (episode, timestep, data_dim)"
+    neps, T, _ = actions.shape
     e_idx = np.random.randint(0, neps, N)
     t_idx = np.random.randint(0, T, N)
     # Copy transitions to avoid changing the ground truth values after sampling
-    goals = goals[e_idx, t_idx].copy()  # TODO: Verify copy
+    goals = goals[e_idx, t_idx].copy()
     h_idx = np.where(np.random.uniform(size=N) < p_her)
     t_offset = (np.random.uniform(size=N) * (T - t_idx)).astype(int)
     f_idx = (t_idx + 1 + t_offset)[h_idx]
     goals[h_idx] = agoals[e_idx[h_idx], f_idx].copy()
     rewards = reward_fun(agoals[e_idx, t_idx + 1], goals, None)
     rewards = np.expand_dims(rewards, 1)
-    states, actions = states[e_idx, t_idx].copy(), actions[e_idx, t_idx].copy()
     next_states = states[e_idx, t_idx + 1].copy()
+    states, actions = states[e_idx, t_idx].copy(), actions[e_idx, t_idx].copy()
     return states, actions, rewards, next_states, goals
 
 
 def default_sampling(states: np.ndarray, actions: np.ndarray, goals: np.ndarray, agoals: np.ndarray,
                      N: int, reward_fun: Callable) -> Tuple[np.ndarray]:
-    neps, T = actions.shape
+    neps, T, _ = actions.shape
     e_idx = np.random.randint(0, neps, N)
     t_idx = np.random.randint(0, T, N)
-    states, actions = states[e_idx, t_idx].copy(), actions[e_idx, t_idx].copy()
     next_states, goals = states[e_idx, t_idx + 1].copy(), goals[e_idx, t_idx].copy()
+    states, actions = states[e_idx, t_idx].copy(), actions[e_idx, t_idx].copy()
     rewards = np.expand_dims(reward_fun(agoals[e_idx, t_idx + 1], goals, None), 1)
     return states, actions, rewards, next_states, goals
 
