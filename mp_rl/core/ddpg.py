@@ -5,52 +5,69 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
 from tqdm import tqdm
 import gym
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.noise import OrnsteinUhlenbeckNoise, GaussianNoise
+from mp_rl.core.noise import GaussianNoise
 from mp_rl.core.actor import Actor
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
 from mp_rl.core.replay_buffer import HERBuffer
-
 
 T = Union[np.ndarray, torch.Tensor]
 
 
 class DDPG:
 
-    def __init__(self, env: gym.Env, args: argparse.Namespace):
+    def __init__(self,
+                 env: gym.Env,
+                 args: argparse.Namespace,
+                 world_size: int = 1,
+                 rank: int = 0,
+                 dist: bool = False):
         self.env = env
         self.args = args
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
-        #noise_process = OrnsteinUhlenbeckNoise(args.mu, args.sigma, size_a)
+        # noise_process = OrnsteinUhlenbeckNoise(args.mu, args.sigma, size_a)
         noise_process = GaussianNoise(0, args.sigma, size_a)
-        self.actor = Actor(size_s + size_g, size_a, noise_process, args.actor_lr, args.eps, 
-                           args.action_clip, args.grad_clip)
-        self.critic = Critic(size_s + size_g, size_a, args.critic_lr, args.grad_clip)
+        self.actor = Actor(size_s + size_g, size_a, noise_process,
+                           args.actor_lr, args.eps, args.action_clip,
+                           args.grad_clip)
+        self.critic = Critic(size_s + size_g, size_a, args.critic_lr,
+                             args.grad_clip)
         self.state_norm = Normalizer(size_s, clip=args.state_clip)
         self.goal_norm = Normalizer(size_g, clip=args.goal_clip)
         self.T = env._max_episode_steps
-        self.buffer = HERBuffer(size_s, size_a, size_g, self.T, 4, args.buffer_size,
+        self.buffer = HERBuffer(size_s,
+                                size_a,
+                                size_g,
+                                self.T,
+                                4,
+                                args.buffer_size,
                                 reward_fun=self.env.compute_reward)
-        self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
+        self.action_max = torch.as_tensor(self.env.action_space.high,
+                                          dtype=torch.float32)
         self.dist = False
+        self.world_size = world_size
+        self.rank = 0
         self.actor_path = None
         self.critic_path = None
-        self.rank = 0  # Default rank, dist overwrites if necessary
-
-    def init_ddp(self):
-        ...
+        if dist:
+            self.init_ddp()
 
     def train(self):
         if self.rank == 0:
-            status_bar = tqdm(total=self.args.epochs, desc="Epochs", position=0, leave=True)
-            success_log = tqdm(total=0, position=1, bar_format='{desc}', leave=True)
+            status_bar = tqdm(total=self.args.epochs,
+                              desc="Epochs",
+                              position=0,
+                              leave=True)
+            success_log = tqdm(total=0,
+                               position=1,
+                               bar_format='{desc}',
+                               leave=True)
             ep_success = []
         for epoch in range(self.args.epochs):
             for _ in range(self.args.cycles):
@@ -60,7 +77,8 @@ class DDPG:
                     state, goal, agoal = unwrap_obs(obs)
                     for t in range(self.T):
                         with torch.no_grad():
-                            action = self.actor.select_action(self.wrap_obs(state, goal))
+                            action = self.actor.select_action(
+                                self.wrap_obs(state, goal))
                         next_obs, _, _, _ = self.env.step(action)
                         next_state, _, next_agoal = unwrap_obs(next_obs)
                         ep_buffer.append(state, action, goal, agoal)
@@ -75,15 +93,19 @@ class DDPG:
             av_success = self.eval_agent()
             if self.rank == 0:
                 ep_success.append(av_success)
-                success_log.set_description_str("Current success rate: {:.1f}".format(av_success))  # noqa: E501
+                success_log.set_description_str(
+                    "Current success rate: {:.1f}".format(
+                        av_success))  # noqa: E501
                 status_bar.update()
                 self.save()
             if av_success > self.args.early_stop:
                 return
 
     def _train_agent(self):
-        states, actions, rewards, next_states, goals = self.buffer.sample(self.args.batch_size)  # Sample definitively correct
-        obs_T, obs_next_T = self.wrap_obs(states, goals), self.wrap_obs(next_states, goals)
+        states, actions, rewards, next_states, goals = self.buffer.sample(
+            self.args.batch_size)
+        obs_T, obs_next_T = self.wrap_obs(states, goals), self.wrap_obs(
+            next_states, goals)
         actions_T = torch.as_tensor(actions, dtype=torch.float32)
         rewards_T = torch.as_tensor(rewards, dtype=torch.float32)
         with torch.no_grad():
@@ -93,16 +115,17 @@ class DDPG:
             rewards_T = rewards_T + self.args.gamma * next_q_T  # No dones in fixed length episode
             # rewards_T.detach()  # TODO: remove?
             # Clip to minimum reward possible, geometric sum from 0 to inf with gamma and -1 rewards
-            torch.clip(rewards_T, -1/(1-self.args.gamma), 0, out=rewards_T)
+            torch.clip(rewards_T, -1 / (1 - self.args.gamma), 0, out=rewards_T)
         q_T = self.critic(obs_T, actions_T)
         critic_loss_T = (rewards_T - q_T).pow(2).mean()
         actions_T = self.actor(obs_T)
         next_q_T = self.critic(obs_T, actions_T)
-        action_norm_T = self.args.action_norm * (actions_T/self.action_max).pow(2).mean()
+        action_norm_T = self.args.action_norm * (
+            actions_T / self.action_max).pow(2).mean()
         actor_loss_T = -next_q_T.mean() + action_norm_T
         self.actor.backward(actor_loss_T)
         self.critic.backward(critic_loss_T)
-        
+
     def _update_norm(self, ep_buffer):
         self.state_norm.update(ep_buffer["s"])
         self.goal_norm.update(ep_buffer["g"])
@@ -114,35 +137,36 @@ class DDPG:
             state, goal, _ = unwrap_obs(self.env.reset())
             for t in range(self.T):
                 with torch.no_grad():
-                    action = self.actor.select_action(self.wrap_obs(state, goal))
+                    action = self.actor.select_action(
+                        self.wrap_obs(state, goal))
                 next_obs, _, _, info = self.env.step(action)
                 state, goal, _ = unwrap_obs(next_obs)
             success += info["is_success"]
         self.actor.train()
         if self.dist:
-            success_rate = torch.tensor([success/self.args.evals], dtype=torch.float32)
-            return dist.all_reduce(success_rate).item()
-        return success/self.args.evals
+            success_rate = torch.tensor([success / self.args.evals],
+                                        dtype=torch.float32)
+            dist.all_reduce(success_rate)  # In-place op
+            return success_rate.item() / self.world_size
+        return success / self.args.evals
 
     def save(self):
         path = Path(__file__).parents[1] / "saves"
         if not path.is_dir():
             path.mkdir(parents=True, exist_ok=True)
-        torch.save(self.actor.action_net.state_dict(), path / (self.args.env+"_actor.pt"))
-        self.state_norm.save(path / (self.args.env+"_state_norm.pkl"))
-        self.goal_norm.save(path / (self.args.env+"_goal_norm.pkl"))
+        torch.save(self.actor.action_net.state_dict(),
+                   path / (self.args.env + "_actor.pt"))
+        self.state_norm.save(path / (self.args.env + "_state_norm.pkl"))
+        self.goal_norm.save(path / (self.args.env + "_goal_norm.pkl"))
 
     def wrap_obs(self, states: np.ndarray, goals: np.ndarray) -> torch.Tensor:
         states, goals = self.state_norm(states), self.goal_norm(goals)
-        x = np.concatenate((states, goals), axis=states.ndim-1)
+        x = np.concatenate((states, goals), axis=states.ndim - 1)
         return torch.as_tensor(x, dtype=torch.float32)
-    
-    @property
-    def dist(self):
-        return self._dist
-    
-    @dist.setter
-    def dist(self, value):
-        if value:
-            raise NotImplementedError("Dist currently not supported")
-        self._dist = value
+
+    def init_ddp(self):
+        self.actor.init_ddp()
+        self.critic.init_ddp()
+        self.state_norm.init_ddp()
+        self.goal_norm.init_ddp()
+        self.dist = True

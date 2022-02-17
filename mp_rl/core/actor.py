@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 
 from mp_rl.core.utils import soft_update
@@ -7,7 +8,13 @@ from mp_rl.core.utils import soft_update
 
 class Actor:
 
-    def __init__(self, size_s, size_a, noise_process, lr, eps, action_clip: float = np.Inf,
+    def __init__(self,
+                 size_s,
+                 size_a,
+                 noise_process,
+                 lr,
+                 eps,
+                 action_clip: float = np.Inf,
                  grad_clip: float = np.Inf):
         self.action_net = ActorNetwork(size_s, size_a)
         self.optim = torch.optim.Adam(self.action_net.parameters(), lr=lr)
@@ -24,10 +31,12 @@ class Actor:
         actions = self.action_net(states).numpy()
         if self._train:  # With noise process + random sampling for exploration
             actions += self.noise_process.sample()
-            np.clip(actions, -self.action_clip, self.action_clip, out=actions)  # In-place op
-            random_actions = np.random.uniform(-self.action_clip, self.action_clip, actions.shape)
+            np.clip(actions, -self.action_clip, self.action_clip,
+                    out=actions)  # In-place op
+            random_actions = np.random.uniform(-self.action_clip,
+                                               self.action_clip, actions.shape)
             choice = np.random.binomial(1, self.eps, 1)[0]
-            actions += choice*(random_actions - actions)
+            actions += choice * (random_actions - actions)
         else:  # No random exploration moves
             np.clip(actions, -self.action_clip, self.action_clip, out=actions)
         return actions
@@ -54,15 +63,12 @@ class Actor:
     def update_target(self, tau):
         soft_update(self.action_net, self.target_net, tau)
 
-    @property
-    def dist(self):
-        return self._dist
-
-    @dist.setter
-    def dist(self, value: bool):
-        if value:
-            raise NotImplementedError("Dist currently not supported")
-        self._dist = value
+    def init_ddp(self):
+        self.dist = True
+        self.action_net = DDP(self.action_net)
+        # Target reloads state dict because DDP overwrites weights in process rank 1 to n with the
+        # weights of action_net from process rank 0
+        self.target_net.load_state_dict(self.action_net.module.state_dict())
 
 
 class ActorNetwork(nn.Module):
