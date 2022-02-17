@@ -1,3 +1,3 @@
 # Master Thesis Martin Schuck
 
-![example workflow](https://github.com/amacati/rl/.github/workflows/github-actions.yaml/badge.svg)
+[![PEP8 Check](https://github.com/amacati/rl/actions/workflows/github-actions.yaml/badge.svg)](https://github.com/amacati/rl/actions/workflows/github-actions.yaml)
