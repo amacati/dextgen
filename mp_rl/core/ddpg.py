@@ -43,7 +43,7 @@ class DDPG:
                                 size_a,
                                 size_g,
                                 self.T,
-                                4,
+                                args.k,
                                 args.buffer_size,
                                 reward_fun=self.env.compute_reward)
         self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
