@@ -15,6 +15,7 @@ FetchReach-v1:
   eps: 0.3  # Fraction of completely random actions
   mu: 0.15  # Ornstein-Uhlenbeck mu
   sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
+  k: 4  # Ratio of HER experience vs normal experience
 
   action_clip: 1.
   state_clip: 200.
