@@ -64,6 +64,7 @@ def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args, **kwarg
     os.environ["MASTER_PORT"] = "29501"  # 29500 in use on lsr.ei.tum clusters
     dist.init_process_group(backend="gloo", rank=rank, world_size=size)
     logger.info(f"P{rank}: Torch distributed process group established")
+    torch.set_num_threads(2)  # Limit PyTorch's core count to avoid self contention
     fn(rank, size, *args, **kwargs)
 
 

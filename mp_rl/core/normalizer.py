@@ -8,22 +8,17 @@ class Normalizer:
 
     def __init__(self, size, eps=1e-2, clip=np.inf):
         self.size = size
-        self.eps2 = torch.ones(size, dtype=torch.float32,
-                               requires_grad=False) * eps**2
+        self.eps2 = torch.ones(size, dtype=torch.float32, requires_grad=False) * eps**2
         self.clip = clip
         # Tensors for allreduce ops to transfer stats between processe via torch dist and Gloo.
         # Local tensors hold stats from the current update, accumulate external stats in the
         # all_reduce phase, transfer the accumulated values into the all-time tensors and reset to
         # zero. Avoids including past stats from other processes as own values for the current run
         self.lsum = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.lsum_sq = torch.zeros(size,
-                                   dtype=torch.float32,
-                                   requires_grad=False)
+        self.lsum_sq = torch.zeros(size, dtype=torch.float32, requires_grad=False)
         self.lcount = torch.zeros(1, dtype=torch.float32, requires_grad=False)
         self.sum = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.sum_sq = torch.zeros(size,
-                                  dtype=torch.float32,
-                                  requires_grad=False)
+        self.sum_sq = torch.zeros(size, dtype=torch.float32, requires_grad=False)
         self.count = torch.zeros(1, dtype=torch.float32, requires_grad=False)
         self.mean = torch.zeros(size, dtype=torch.float32, requires_grad=False)
         self.std = torch.ones(size, dtype=torch.float32, requires_grad=False)
@@ -34,8 +29,7 @@ class Normalizer:
 
     def normalize(self, x) -> torch.Tensor:
         if isinstance(x, np.ndarray):
-            return np.clip((x - self.mean.numpy()) / self.std.numpy(),
-                           -self.clip, self.clip)
+            return np.clip((x - self.mean.numpy()) / self.std.numpy(), -self.clip, self.clip)
         return torch.clip((x - self.mean) / self.std, -self.clip, self.clip)
 
     def update(self, x: np.ndarray):
