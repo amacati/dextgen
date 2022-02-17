@@ -2,18 +2,13 @@ import os
 import logging
 from pathlib import Path
 from typing import Callable, Tuple
-from functools import singledispatch
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.distributed as dist
-import gym
 import matplotlib.pyplot as plt
 import json
-
-from mp_rl.core.replay_buffer import ReplayBuffer, HERBuffer, MemoryBuffer
-
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +28,7 @@ def soft_update(network: nn.Module, target: nn.Module, tau: float) -> nn.Module:
         target (nn.Module): The updated target network.
     """
     for network_p, target_p in zip(network.parameters(), target.parameters()):
-        target_p.data.copy_(tau*network_p.data + (1-tau)*target_p)
+        target_p.data.copy_(tau * network_p.data + (1 - tau) * target_p)
     return target
 
 
@@ -45,49 +40,7 @@ def running_average(values: list, window: int = 50, mode: str = 'valid') -> floa
         window (int, optional): Averaging window size.
         mode (str, optional): Modes for the convolution operation.
     """
-    return np.convolve(values, np.ones(window)/window, mode=mode)
-
-
-@singledispatch
-def fill_buffer(buffer: ReplayBuffer, env: gym.Env):
-    """Fills the `buffer` with experiences under a uniformly random policy.
-
-    Args:
-        buffer (ReplayBuffer): Memory buffer which stores the experiences.
-        env (gym.Env): The gym environment.
-    """
-    raise TypeError(f"Buffer with type {type(buffer)} currently not supported")
-
-
-@fill_buffer.register
-def _(buffer: MemoryBuffer, env: gym.Env):
-    while len(buffer) < buffer.size:
-        state = env.reset()
-        done = False
-        while not done:
-            action = env.action_space.sample()
-            next_state, reward, done, _ = env.step(action)
-            buffer.append((state, action, reward, next_state, done))
-            state = next_state
-
-
-@fill_buffer.register
-def _(buffer: HERBuffer, env: gym.Env):
-    while len(buffer) < buffer.size:
-        state, goal, agoal = unwrap_obs(env.reset())
-        done = False
-        t = 0
-        ep_buffer = buffer.get_trajectory_buffer()
-        while not done:
-            action = env.action_space.sample()
-            next_obs, reward, done, _ = env.step(action)
-            next_state, next_goal, next_agoal = unwrap_obs(next_obs)
-            for key, val in zip(["s", "a", "sn", "r", "d", "g", "ag"],
-                                [state, action, next_state, reward, done, goal, agoal]):
-                ep_buffer[key][t] = val
-            state, goal, agoal = next_state, next_goal, next_agoal
-            t += 1
-        buffer.append(ep_buffer)
+    return np.convolve(values, np.ones(window) / window, mode=mode)
 
 
 def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args, **kwargs):
@@ -137,7 +90,7 @@ def save_plots(rewards: list[float], ep_len: list[float], path: Path, window: in
     fig, ax = plt.subplots(1, 2, figsize=(15, 4))
     ax[0].plot(rewards)
     smooth_reward = running_average(rewards, window=window)
-    index = range(len(rewards)-len(smooth_reward), len(rewards))
+    index = range(len(rewards) - len(smooth_reward), len(rewards))
     ax[0].plot(index, smooth_reward)
     ax[0].set_xlabel('Episode')
     ax[0].set_ylabel('Accumulated reward')
@@ -146,7 +99,7 @@ def save_plots(rewards: list[float], ep_len: list[float], path: Path, window: in
 
     ax[1].plot(ep_len)
     smooth_len = running_average(ep_len, window=window)
-    index = range(len(ep_len)-len(smooth_len), len(rewards))
+    index = range(len(ep_len) - len(smooth_len), len(rewards))
     ax[1].plot(index, smooth_len)
     ax[1].set_xlabel('Episode')
     ax[1].set_ylabel('Episode length')
@@ -158,10 +111,12 @@ def save_plots(rewards: list[float], ep_len: list[float], path: Path, window: in
 def save_stats(rewards: list[float], ep_len: list[float], path: Path, window: int = 10):
     smooth_reward = running_average(rewards, window=window)
     smooth_len = running_average(ep_len, window=window)
-    stats = {"final_reward": rewards[-1],
-             "final_av_reward": smooth_reward[-1],
-             "final_ep_len": ep_len[-1],
-             "final_ep_av_len": smooth_len[-1]}
+    stats = {
+        "final_reward": rewards[-1],
+        "final_av_reward": smooth_reward[-1],
+        "final_ep_len": ep_len[-1],
+        "final_ep_av_len": smooth_len[-1]
+    }
     with open(path, "w") as f:
         json.dump(stats, f)
 

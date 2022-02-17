@@ -1,6 +1,6 @@
 #!/bin/sh
 
-pycodestyle /github/workspace
+pycodestyle /github/workspace --max-line-length=100
 rc=$?
 if [ $rc -ne 0 ] ; then
     echo "PyCodeStyle check failed"
