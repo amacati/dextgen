@@ -7,8 +7,8 @@ from mp_rl.core.utils import soft_update
 
 class Actor:
 
-    def __init__(self, size_s, size_a, noise_process, lr, eps, action_clip = np.Inf,
-                 grad_clip = np.Inf):
+    def __init__(self, size_s, size_a, noise_process, lr, eps, action_clip: float = np.Inf,
+                 grad_clip: float = np.Inf):
         self.action_net = ActorNetwork(size_s, size_a)
         self.optim = torch.optim.Adam(self.action_net.parameters(), lr=lr)
         self.target_net = ActorNetwork(size_s, size_a)
@@ -39,7 +39,7 @@ class Actor:
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
-    
+
     def target(self, states):
         return self.target_net(states)
 
@@ -53,11 +53,11 @@ class Actor:
 
     def update_target(self, tau):
         soft_update(self.action_net, self.target_net, tau)
-        
+
     @property
     def dist(self):
         return self._dist
-    
+
     @dist.setter
     def dist(self, value: bool):
         if value:
