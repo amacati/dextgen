@@ -1,12 +1,15 @@
 import argparse
 from typing import Union
 from pathlib import Path
+import time
 
 import numpy as np
 import torch
 import torch.distributed as dist
 from tqdm import tqdm
 import gym
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.noise import GaussianNoise
@@ -50,8 +53,7 @@ class DDPG:
         self.dist = False
         self.world_size = world_size
         self.rank = rank
-        self.actor_path = None
-        self.critic_path = None
+        self.PATH = Path(__file__).parents[1] / "saves" / self.args.env
         if dist:
             self.init_ddp()
 
@@ -60,7 +62,9 @@ class DDPG:
             status_bar = tqdm(total=self.args.epochs, desc="Epochs", position=0, leave=True)
             success_log = tqdm(total=0, position=1, bar_format='{desc}', leave=True)
             ep_success = []
+            ep_time = []
         for epoch in range(self.args.epochs):
+            epoch_start = time.perf_counter()
             for _ in range(self.args.cycles):
                 for _ in range(self.args.rollouts):
                     ep_buffer = self.buffer.get_trajectory_buffer()
@@ -80,15 +84,21 @@ class DDPG:
                     self._train_agent()
                 self.actor.update_target(self.args.tau)
                 self.critic.update_target(self.args.tau)
+            epoch_end = time.perf_counter()
             av_success = self.eval_agent()
             if self.rank == 0:
                 ep_success.append(av_success)
+                ep_time.append(epoch_end - epoch_start)
                 success_log.set_description_str("Current success rate: {:.3f}".format(av_success))
                 status_bar.update()
                 if self.args.save:
                     self.save()
             if av_success > self.args.early_stop:
+                if self.rank == 0:
+                    self.generate_plots(ep_success, ep_time)
                 return
+        if self.rank == 0:
+            self.generate_plots(ep_success, ep_time)
 
     def _train_agent(self):
         states, actions, rewards, next_states, goals = self.buffer.sample(self.args.batch_size)
@@ -138,16 +148,31 @@ class DDPG:
         return success / self.args.evals
 
     def save(self):
-        path = Path(__file__).parents[1] / "saves"
-        if not path.is_dir():
-            path.mkdir(parents=True, exist_ok=True)
+        if not self.PATH.is_dir():
+            self.PATH.mkdir(parents=True, exist_ok=True)
         if self.dist:
-            torch.save(self.actor.action_net.module.state_dict(),
-                       path / (self.args.env + "_actor.pt"))
+            torch.save(self.actor.action_net.module.state_dict(), self.PATH / "actor.pt")
         else:
-            torch.save(self.actor.action_net.state_dict(), path / (self.args.env + "_actor.pt"))
-        self.state_norm.save(path / (self.args.env + "_state_norm.pkl"))
-        self.goal_norm.save(path / (self.args.env + "_goal_norm.pkl"))
+            torch.save(self.actor.action_net.state_dict(), self.PATH / "actor.pt")
+        self.state_norm.save(self.PATH / "state_norm.pkl")
+        self.goal_norm.save(self.PATH / "goal_norm.pkl")
+
+    def generate_plots(self, ep_success, ep_time):
+        if not self.PATH.is_dir():
+            self.PATH.mkdir(parents=True, exist_ok=True)
+        fig, ax = plt.subplots(1, 2, figsize=(15, 4))
+        ax[0].plot(ep_success)
+        ax[0].set_xlabel('Episode')
+        ax[0].set_ylabel('Success rate')
+        ax[0].set_title('Agent performance over time')
+        ax[0].xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        ax[1].plot(ep_time)
+        ax[1].set_xlabel('Episode')
+        ax[1].set_ylabel('Time in s')
+        ax[1].set_title('Episode compute times')
+        ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(self.PATH / "stats.png")
 
     def wrap_obs(self, states: np.ndarray, goals: np.ndarray) -> torch.Tensor:
         states, goals = self.state_norm(states), self.goal_norm(goals)

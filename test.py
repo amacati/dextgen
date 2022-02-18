@@ -43,11 +43,11 @@ if __name__ == "__main__":
         env.observation_space["desired_goal"].low)
     size_a = len(env.action_space.low)
     actor = ActorNetwork(size_s, size_a)
-    path = Path(__file__).parent / "mp_rl" / "saves"
-    actor.load_state_dict(torch.load(path / (args.env + "_actor.pt")))
-    with open(path / (args.env + "_state_norm.pkl"), "rb") as f:
+    path = Path(__file__).parent / "mp_rl" / "saves" / args.env
+    actor.load_state_dict(torch.load(path / "actor.pt"))
+    with open(path / "state_norm.pkl", "rb") as f:
         state_norm = pickle.load(f)
-    with open(path / (args.env + "_goal_norm.pkl"), "rb") as f:
+    with open(path / "goal_norm.pkl", "rb") as f:
         goal_norm = pickle.load(f)
     success = 0.
     render = True
