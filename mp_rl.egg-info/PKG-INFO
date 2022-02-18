@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: mp-rl
+Version: 0.1
+Summary: A multiprocessing reinforcement learning module for grasping.
+Home-page: UNKNOWN
+Author: Martin Schuck
+Author-email: martin.schuck@tum.de
+License: UNKNOWN
+Keywords: RL MP DDPG DDP
+Platform: UNKNOWN
+
+UNKNOWN
+

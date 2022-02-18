@@ -71,7 +71,7 @@ class DDPG:
         self.dist = False
         self.world_size = world_size
         self.rank = rank
-        self.PATH = Path(__file__).parents[1] / "saves" / self.args.env
+        self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
         if dist:
             self.init_ddp()
 
@@ -194,7 +194,7 @@ class DDPG:
     def save(self):
         """Save the actor network and the normalizers for testing and inference.
 
-        Saves are located under `/mp_rl/save/<env_name>/`.
+        Saves are located under `/save/<env_name>/`.
         """
         if not self.PATH.is_dir():
             self.PATH.mkdir(parents=True, exist_ok=True)
@@ -208,7 +208,7 @@ class DDPG:
     def generate_plots(self, ep_success: List[float], ep_time: List[float]):
         """Generate and save a plot from training statistics.
 
-        Saves are located under `/mp_rl/save/<env_name>/`.
+        Saves are located under `/save/<env_name>/`.
 
         Args:
             ep_success: Episode agent evaluation success rate.
