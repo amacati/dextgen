@@ -47,7 +47,7 @@ class Actor:
         """Select an action for the given input states.
 
         If in train mode, samples noise and chooses completely random actions with probability
-        ``. If in evaluation mode, only clips the action to the maximum value.
+        `self.eps`. If in evaluation mode, only clips the action to the maximum value.
 
         Note:
             This function returns a numpy array instead of a torch.Tensor for compatibility with the
