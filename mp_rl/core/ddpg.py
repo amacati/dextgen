@@ -1,5 +1,10 @@
+"""DDPG class encapsulating the Deep Deterministic Policy Gradient algorithm.
+
+Assumes dictionary gym environments.
+"""
+
 import argparse
-from typing import Union
+from typing import List, Union
 from pathlib import Path
 import time
 
@@ -16,12 +21,16 @@ from mp_rl.core.noise import GaussianNoise
 from mp_rl.core.actor import Actor
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
-from mp_rl.core.replay_buffer import HERBuffer, her_sampling
+from mp_rl.core.replay_buffer import HERBuffer, her_sampling, TrajectoryBuffer
 
 T = Union[np.ndarray, torch.Tensor]
 
 
 class DDPG:
+    """Deep Deterministic Policy Gradient algorithm class.
+
+    Uses a state/goal normalizer and the HER sampling method to solve sparse reward environments.
+    """
 
     def __init__(self,
                  env: gym.Env,
@@ -29,6 +38,15 @@ class DDPG:
                  world_size: int = 1,
                  rank: int = 0,
                  dist: bool = False):
+        """Initialize the Actor, Critic, HERBuffer and torch's DDP if required.
+
+        Args:
+            env: OpenAI dictionary gym environment.
+            args: User settings and configs merged into a single namespace.
+            world_size: Process group world size for distributed training.
+            rank: Process rank for distributed training.
+            dist: Toggles distributed training mode.
+        """
         self.env = env
         self.args = args
         size_s = len(env.observation_space["observation"].low)
@@ -58,6 +76,14 @@ class DDPG:
             self.init_ddp()
 
     def train(self):
+        """Train a policy to solve the environment with DDPG.
+
+        Trajectories are resampled with HER to solve sparse reward environments. Supports
+        distributed training across multiple processes.
+
+        .. DDPG paper:
+            https://arxiv.org/pdf/1509.02971.pdf
+        """
         if self.rank == 0:
             status_bar = tqdm(total=self.args.epochs, desc="Epochs", position=0, leave=True)
             success_log = tqdm(total=0, position=1, bar_format='{desc}', leave=True)
@@ -101,6 +127,7 @@ class DDPG:
             self.generate_plots(ep_success, ep_time)
 
     def _train_agent(self):
+        """Train the agent and critic network with experience sampled from the replay buffer."""
         states, actions, rewards, next_states, goals = self.buffer.sample(self.args.batch_size)
         obs_T, obs_next_T = self.wrap_obs(states, goals), self.wrap_obs(next_states, goals)
         actions_T = torch.as_tensor(actions, dtype=torch.float32)
@@ -122,14 +149,31 @@ class DDPG:
         self.actor.backward(actor_loss_T)
         self.critic.backward(critic_loss_T)
 
-    def _update_norm(self, ep_buffer):
+    def _update_norm(self, ep_buffer: TrajectoryBuffer):
+        """Update the normalizers with an episode of play experience.
+
+        Samples the trajectory instead of taking every experience to create a goal distribution that
+        is equal to what the networks encouter.
+
+        Args:
+            ep_buffer: Buffer containing a trajectory of replay experience.
+
+        Todo:
+            It is unclear if sampling the goals from HER is necessary, or if the unmodified
+            trajectory can be used. This should be investigated and simplified if possible.
+        """
         buffers = [np.expand_dims(ep_buffer[x], axis=0) for x in ("s", "a", "g", "ag")]
         states, _, _, _, goals = her_sampling(*buffers, self.T, self.buffer.p_her,
                                               self.env.compute_reward)
         self.state_norm.update(states)
         self.goal_norm.update(goals)
 
-    def eval_agent(self):
+    def eval_agent(self) -> float:
+        """Evaluate the current agent performance on the gym task.
+
+        Runs `args.evals` times and averages the success rate. If distributed training is enabled,
+        further averages over all distributed evaluations.
+        """
         self.actor.eval()
         success = 0
         for _ in range(self.args.evals):
@@ -148,6 +192,10 @@ class DDPG:
         return success / self.args.evals
 
     def save(self):
+        """Save the actor network and the normalizers for testing and inference.
+
+        Saves are located under `/mp_rl/save/<env_name>/`.
+        """
         if not self.PATH.is_dir():
             self.PATH.mkdir(parents=True, exist_ok=True)
         if self.dist:
@@ -157,7 +205,15 @@ class DDPG:
         self.state_norm.save(self.PATH / "state_norm.pkl")
         self.goal_norm.save(self.PATH / "goal_norm.pkl")
 
-    def generate_plots(self, ep_success, ep_time):
+    def generate_plots(self, ep_success: List[float], ep_time: List[float]):
+        """Generate and save a plot from training statistics.
+
+        Saves are located under `/mp_rl/save/<env_name>/`.
+
+        Args:
+            ep_success: Episode agent evaluation success rate.
+            ep_time: Episode training process time. Excludes the evaluation timing.
+        """
         if not self.PATH.is_dir():
             self.PATH.mkdir(parents=True, exist_ok=True)
         fig, ax = plt.subplots(1, 2, figsize=(15, 4))
@@ -175,11 +231,21 @@ class DDPG:
         plt.savefig(self.PATH / "stats.png")
 
     def wrap_obs(self, states: np.ndarray, goals: np.ndarray) -> torch.Tensor:
+        """Wrap states and goals into a contingent input tensor.
+
+        Args:
+            states: Input states array.
+            goals: Input goals array.
+
+        Returns:
+            A fused state goal tensor.
+        """
         states, goals = self.state_norm(states), self.goal_norm(goals)
         x = np.concatenate((states, goals), axis=states.ndim - 1)
         return torch.as_tensor(x, dtype=torch.float32)
 
     def init_ddp(self):
+        """Configure actor, critic and normalizers for distributed training."""
         self.actor.init_ddp()
         self.critic.init_ddp()
         self.state_norm.init_ddp()

@@ -1,6 +1,7 @@
-import mujoco_py as mj 
-from pathlib import Path
+"""Mujoco installation test script."""
 
+import mujoco_py as mj
+from pathlib import Path
 
 mj_path = mj.utils.discover_mujoco()
 xml_path = Path(mj_path) / "model" / "humanoid.xml"

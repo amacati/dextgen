@@ -1,3 +1,5 @@
+"""Test a previously trained agent on an OpenAI gym environment."""
+
 import argparse
 import logging
 from pathlib import Path
@@ -13,6 +15,11 @@ from mp_rl.core.actor import ActorNetwork
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse arguments for the gym environment and logging levels.
+
+    Returns:
+        The parsed arguments as a namespace.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--env",
                         help="Selects the gym environment",

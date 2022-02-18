@@ -1,3 +1,5 @@
+"""Noise process classes that are used to sample possibly time correlated noise."""
+
 from abc import ABC, abstractmethod
 from typing import Union
 
@@ -7,35 +9,39 @@ T = Union[float, np.ndarray]
 
 
 class NoiseProcess(ABC):
-    """Abstract base class for NoiseProcesses.
-    """
+    """Abstract base class for NoiseProcesses."""
 
     def __init__(self):
+        """Initialize the noise process."""
         super().__init__()
 
     @abstractmethod
-    def sample(self):
-        raise NotImplementedError
+    def sample(self) -> np.ndarray:
+        """Sample a noise sample from the process.
+
+        Returns:
+            A noise sample array of the noise process' dimension.
+        """
 
     @abstractmethod
     def reset(self):
-        raise NotImplementedError
+        """Reset internal process states if any."""
 
 
 class OrnsteinUhlenbeckNoise(NoiseProcess):
-    """Implements the Ornstein Uhlenbeck process to generate an N-dimensional noise.
+    """Ornstein Uhlenbeck noise process to generate an N-dimensional noise.
 
     Noise sampled from this process is correlated with previous samples, which can be useful in RL
     applications.
     """
 
     def __init__(self, mu: T, sigma: T, dims: int):
-        """Initializes the noise array.
+        """Initialize the noise process.
 
         Args:
-            mu (T): Previous noise reduction factor.
-            sigma (T): Standard deviation of the gaussian noise in each step.
-            dims (int): Noise dimension.
+            mu: Previous noise reduction factor.
+            sigma: Standard deviation of the gaussian noise in each step.
+            dims: Noise dimension.
         """
         self.mu = mu
         self.sigma = sigma
@@ -43,7 +49,7 @@ class OrnsteinUhlenbeckNoise(NoiseProcess):
         self.noise = np.zeros(dims, dtype=np.float32)
 
     def sample(self) -> np.ndarray:
-        """Samples from the noise process.
+        """Sample from the noise process.
 
         Returns:
             A numpy array of noise that is correlated with previous samples.
@@ -52,31 +58,30 @@ class OrnsteinUhlenbeckNoise(NoiseProcess):
         return self.noise
 
     def reset(self):
-        """Resets the noise process to start from 0.
-        """
+        """Reset the internal noise process state to start from 0."""
         self.noise[:] = 0
 
 
 class GaussianNoise(NoiseProcess):
-    """Standard gaussian noise.
-
-    Samples are uncorrelated.
-    """
+    """Standard gaussian noise with uncorrelated samples."""
 
     def __init__(self, mu: T, sigma: T, dims: int):
-        """Initializes the parameters.
+        """Initialize the noise process.
 
         Args:
-            mu (T): Gaussian mean.
-            sigma (T): Gaussian variance.
-            dims (int): Noise dimension.
+            mu: Gaussian mean.
+            sigma: Gaussian variance.
+            dims: Noise dimension.
         """
         self.mu = mu
         self.sigma = sigma
         self.dims = dims
 
     def sample(self) -> np.ndarray:
-        """Samples from the noise process.
+        """Sample from the noise process.
+
+        Returns:
+            A numpy array of gaussian noise.
         """
         return self.mu + self.sigma * np.random.randn(self.dims)
 

@@ -1,3 +1,5 @@
+"""Train an agent on an OpenAI gym environment with DDPG and PyTorch's DDP."""
+
 import argparse
 import logging
 from pathlib import Path
@@ -11,6 +13,11 @@ from mp_rl.core.utils import init_process
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse arguments for the gym environment and logging levels.
+
+    Returns:
+        The parsed arguments as a namespace.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--env",
                         help="Selects the gym environment",
@@ -24,7 +31,15 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def expand_args(args):
+def expand_args(args: argparse.Namespace):
+    """Expand the arguments namespace with settings from the main config file.
+
+    Config can be found at './config/experiment_config.yaml'. Each config must be named after their
+    gym name.
+
+    Args:
+        args: User provided arguments namespace.
+    """
     path = Path(__file__).parent / "config" / "experiment_config.yaml"
     with open(path, "r") as f:
         config = yaml.load(f, yaml.SafeLoader)
@@ -35,13 +50,19 @@ def expand_args(args):
         setattr(args, key, val)
 
 
-def launch_distributed_ddpg(args):
+def launch_distributed_ddpg(args: argparse.Namespace):
+    """Launch multiple training processes as a DataDistributedParallel group.
+
+    Establishes the connection among processes for PyTorch and cleans up after processes exit.
+
+    Args:
+        args: User provided arguments namespace.
+    """
     processes = []
     mp.set_start_method("spawn")
     for rank in range(args.nprocesses):
         p = mp.Process(target=init_process,
-                       args=(rank, args.nprocesses, loglvls[args.loglvl],
-                             run_dist_ddpg, args))
+                       args=(rank, args.nprocesses, loglvls[args.loglvl], run_dist_ddpg, args))
         p.start()
         processes.append(p)
     logging.info("Process spawn successful, awaiting join")
@@ -50,7 +71,16 @@ def launch_distributed_ddpg(args):
     logger.info("Processes joined, training complete.")
 
 
-def run_dist_ddpg(rank, size, args):
+def run_dist_ddpg(rank: int, size: int, args: argparse.Namespace):
+    """Start the training in distributed mode on a process of the DDP process group.
+
+    Creates the gym and the DDPG module on each worker and starts the training.
+
+    Args:
+        rank: Process rank within the process group.
+        size: Process group world size.
+        args: User provided arguments namespace.
+    """
     env = gym.make(args.env)
     ddpg = DDPG(env, args, world_size=size, rank=rank, dist=True)
     ddpg.train()
