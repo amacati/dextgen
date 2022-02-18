@@ -146,8 +146,8 @@ class DDPG:
         next_q_T = self.critic(obs_T, actions_T)
         action_norm_T = self.args.action_norm * (actions_T / self.action_max).pow(2).mean()
         actor_loss_T = -next_q_T.mean() + action_norm_T
-        self.actor.backward(actor_loss_T)
-        self.critic.backward(critic_loss_T)
+        self.actor.backward_step(actor_loss_T)
+        self.critic.backward_step(critic_loss_T)
 
     def _update_norm(self, ep_buffer: TrajectoryBuffer):
         """Update the normalizers with an episode of play experience.
