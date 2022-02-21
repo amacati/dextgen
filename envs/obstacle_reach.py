@@ -1,6 +1,5 @@
 import numpy as np
 from pathlib import Path
-import gym
 from gym import utils
 import envs.rotations
 from envs.fetch import FetchEnv, goal_distance
