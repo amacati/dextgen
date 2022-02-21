@@ -1,3 +1,4 @@
+"""Small test script for miscellaneous stuff."""
 import gym
 import envs
 import numpy as np

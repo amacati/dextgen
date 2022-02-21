@@ -35,7 +35,9 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
             initial_qpos=initial_qpos,
             reward_type=reward_type,
         )
-        utils.EzPickle.__init__(self, reward_type=reward_type, obstacle_threshold=obstacle_threshold)
+        utils.EzPickle.__init__(self,
+                                reward_type=reward_type,
+                                obstacle_threshold=obstacle_threshold)
 
     def compute_reward(self, achieved_goal, goal, info):
         if goal.ndim == 2:
@@ -85,19 +87,23 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
     def _sample_goal(self):
         goal = self.np_random.uniform(self.c_low, self.c_high)
         obstacle = self.np_random.uniform(self.c_low, self.c_high)
-        while goal_distance(self.initial_gripper_xpos[:3], obstacle) < self.obstacle_threshold or goal_distance(goal, obstacle) < self.obstacle_threshold:
+        while goal_distance(
+                self.initial_gripper_xpos[:3], obstacle) < self.obstacle_threshold or goal_distance(
+                    goal, obstacle) < self.obstacle_threshold:
             obstacle = self.np_random.uniform(self.c_low, self.c_high)
         return np.concatenate([goal, obstacle]).copy()
-    
+
     def _sample_goal_old(self):
         goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(
             -self.target_range, self.target_range, size=3)
         obstacle = self.initial_gripper_xpos[:3] + self.np_random.uniform(
             -self.target_range, self.target_range, size=3)
         goal[2] = obstacle[2] = self.height_offset
-        while goal_distance(self.initial_gripper_xpos[:3], obstacle) < self.ff_threshold or goal_distance(goal, obstacle) < self.ff_threshold:
+        while goal_distance(
+                self.initial_gripper_xpos[:3], obstacle) < self.ff_threshold or goal_distance(
+                    goal, obstacle) < self.ff_threshold:
             obstacle = self.initial_gripper_xpos[:3] + self.np_random.uniform(
-            -self.target_range, self.target_range, size=3)
+                -self.target_range, self.target_range, size=3)
             obstacle[2] = self.height_offset
         return np.concatenate([goal, obstacle]).copy()
 

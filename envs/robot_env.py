@@ -15,8 +15,8 @@ try:
     import mujoco_py
 except ImportError as e:
     raise error.DependencyNotInstalled(
-        "{}. (HINT: you need to install mujoco_py, and also perform the setup instructions here: https://github.com/openai/mujoco-py/.)"
-        .format(e))
+        "{}. (HINT: you need to install mujoco_py, and also perform the setup instructions here: \
+            https://github.com/openai/mujoco-py/.)".format(e))
 
 DEFAULT_SIZE = 500
 
@@ -92,8 +92,8 @@ class RobotEnv(gym.GoalEnv):
     def reset(self):
         # Attempt to reset the simulator. Since we randomize initial conditions, it
         # is possible to get into a state with numerical issues (e.g. due to penetration or
-        # Gimbel lock) or we may not achieve an initial condition (e.g. an object is within the hand).
-        # In this case, we just keep randomizing until we eventually achieve a valid initial
+        # Gimbel lock) or we may not achieve an initial condition (e.g. an object is within the
+        # hand). In this case, we just keep randomizing until we eventually achieve a valid initial
         # configuration.
         super(RobotEnv, self).reset()
         did_reset_sim = False

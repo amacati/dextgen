@@ -1,6 +1,10 @@
+from typing import Union
+
 import numpy as np
 
-import envs.rotations, envs.robot_env, envs.utils
+import envs.rotations
+import envs.robot_env
+import envs.utils
 
 
 def goal_distance(goal_a, goal_b):
@@ -13,33 +17,33 @@ class FetchEnv(envs.robot_env.RobotEnv):
 
     def __init__(
         self,
-        model_path,
-        n_substeps,
-        gripper_extra_height,
-        block_gripper,
-        has_object,
-        target_in_the_air,
-        target_offset,
-        obj_range,
-        target_range,
-        distance_threshold,
-        initial_qpos,
-        reward_type,
+        model_path: str,
+        n_substeps: int,
+        gripper_extra_height: float,
+        block_gripper: bool,
+        has_object: bool,
+        target_in_the_air: bool,
+        target_offset: Union[float, np.ndarray],
+        obj_range: float,
+        target_range: float,
+        distance_threshold: float,
+        initial_qpos: dict,
+        reward_type: str,
     ):
         """Initializes a new Fetch environment.
         Args:
-            model_path (string): path to the environments XML file
-            n_substeps (int): number of substeps the simulation runs on every call to step
-            gripper_extra_height (float): additional height above the table when positioning the gripper
-            block_gripper (boolean): whether or not the gripper is blocked (i.e. not movable) or not
-            has_object (boolean): whether or not the environment has an object
-            target_in_the_air (boolean): whether or not the target should be in the air above the table or on the table surface
-            target_offset (float or array with 3 elements): offset of the target
-            obj_range (float): range of a uniform distribution for sampling initial object positions
-            target_range (float): range of a uniform distribution for sampling a target
-            distance_threshold (float): the threshold after which a goal is considered achieved
-            initial_qpos (dict): a dictionary of joint names and values that define the initial configuration
-            reward_type ('sparse' or 'dense'): the reward type, i.e. sparse or dense
+            model_path: path to the environments XML file
+            n_substeps: number of substeps the simulation runs on every call to step
+            gripper_extra_height: additional height above the table when positioning the gripper
+            block_gripper: whether or not the gripper is blocked (i.e. not movable) or not
+            has_object: whether or not the environment has an object
+            target_in_the_air: whether or not the target should be above or on the table
+            target_offset: offset of the target
+            obj_range: range of a uniform distribution for sampling initial object positions
+            target_range: range of a uniform distribution for sampling a target
+            distance_threshold: the threshold after which a goal is considered achieved
+            initial_qpos: a dictionary of joint names and values defining the initial configuration
+            reward_type: the reward type, i.e. `sparse` or `dense`
         """
         self.gripper_extra_height = gripper_extra_height
         self.block_gripper = block_gripper
@@ -201,7 +205,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
 
         # Move end effector into position.
         gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height
-                                  ]) + self.sim.data.get_site_xpos("robot0:grip")
+                                  ]) + self.sim.data.get_site_xpos("robot0:grip")  # noqa: E124
         gripper_rotation = np.array([1.0, 0.0, 1.0, 0.0])
         self.sim.data.set_mocap_pos("robot0:mocap", gripper_target)
         self.sim.data.set_mocap_quat("robot0:mocap", gripper_rotation)
