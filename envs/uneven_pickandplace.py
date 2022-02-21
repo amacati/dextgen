@@ -17,6 +17,7 @@ class UnevenPickAndPlace(FetchEnv, utils.EzPickle):
         }
         self.c_low = (1.05, 0.4, 0.4)
         self.c_high = (1.55, 1.1, 0.4)
+        self.max_reset_steps = 100
         FetchEnv.__init__(
             self,
             MODEL_XML_PATH,
@@ -47,11 +48,13 @@ class UnevenPickAndPlace(FetchEnv, utils.EzPickle):
             assert object_qpos.shape == (7,)
             object_qpos[:2] = object_xpos
             self.sim.data.set_joint_qpos("object0:joint", object_qpos)
-        while not np.linalg.norm(self.sim.data.get_site_xvelp("object0")) < 1e-4:
+        for _ in range(self.max_reset_steps):
+            if np.linalg.norm(self.sim.data.get_site_xvelp("object0")) < 1e-3:
+                if self._check_initial_pos(self.sim.data.get_site_xpos("object0")):
+                    return True
+                return self._reset_sim()  # Object at rest outside of bounds, retry
             self.sim.step()
-        if not self._check_initial_pos(self.sim.data.get_site_xpos("object0")):
-            return self._reset_sim()  # Retry initialization if object fell off the table
-        return True
+        return self._reset_sim()  # Object not at rest after max_reset_steps, retry
 
     def _check_initial_pos(self, pos):
         return self.c_low[0] < pos[0] < self.c_high[0] and self.c_low[1] < pos[1] < self.c_high[1]
