@@ -8,6 +8,7 @@ import gym
 import torch.multiprocessing as mp
 import yaml
 
+import envs  # Import registers environments with gym
 from mp_rl.core.ddpg import DDPG
 from mp_rl.core.utils import init_process
 
@@ -21,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--env",
                         help="Selects the gym environment",
-                        choices=["FetchReach-v1", "FetchPickAndPlace-v1"],
+                        choices=["FetchReach-v1", "FetchPickAndPlace-v1", "ObstacleReach-v0"],
                         default="FetchReach-v1")
     parser.add_argument('--loglvl',
                         help="Logger levels",
@@ -45,7 +46,7 @@ def expand_args(args: argparse.Namespace):
         config = yaml.load(f, yaml.SafeLoader)
 
     if args.env not in config.keys():
-        raise KeyError(f"Config file is missing config for env '{args.env}'")
+        raise KeyError(f"Environment config file is missing config for env '{args.env}'")
     for key, val in config[args.env].items():
         setattr(args, key, val)
 

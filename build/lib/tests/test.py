@@ -1,5 +1,5 @@
 import gym
-from envs.forbidden_forest import ForbiddenForest
+from envs.obstacle_reach import ObstacleReach
 
 if __name__ == "__main__":
-    gym.make("ForbiddenForest")
+    gym.make("ObstacleReach-v0")

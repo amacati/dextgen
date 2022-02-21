@@ -1,9 +1,11 @@
 import gym
-from mp_rl.core.ddpg import DDPG
-from envs.forbidden_forest import ForbiddenForest
+import envs
+import numpy as np
+import time
 
-if __name__ == "__main__":
-    gym.envs.register(id='ForbiddenForest-v0',
-                      entry_point='envs.forbidden_forest:ForbiddenForest',
-                      max_episode_steps=50)
-    gym.make("ForbiddenForest-v0")
+env = gym.make("ObstacleReach-v0")
+obs = env.reset()
+print(env.observation_space)
+while True:
+    # env.step(env.action_space.sample())
+    env.render()

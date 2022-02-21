@@ -9,6 +9,7 @@ import pickle
 import torch
 import gym
 import mujoco_py
+import envs  # Import registers envs in gym
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.actor import ActorNetwork
@@ -23,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--env",
                         help="Selects the gym environment",
-                        choices=["FetchReach-v1", "FetchPickAndPlace-v1"],
+                        choices=["FetchReach-v1", "FetchPickAndPlace-v1", "ObstacleReach-v0"],
                         default="FetchReach-v1")
     parser.add_argument("--loglvl",
                         help="Logger levels",
@@ -50,7 +51,7 @@ if __name__ == "__main__":
         env.observation_space["desired_goal"].low)
     size_a = len(env.action_space.low)
     actor = ActorNetwork(size_s, size_a)
-    path = Path(__file__).parent / "mp_rl" / "saves" / args.env
+    path = Path(__file__).parent / "saves" / args.env
     actor.load_state_dict(torch.load(path / "actor.pt"))
     with open(path / "state_norm.pkl", "rb") as f:
         state_norm = pickle.load(f)
