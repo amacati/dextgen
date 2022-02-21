@@ -64,9 +64,6 @@ def launch_distributed_ddpg(args: argparse.Namespace):
     """
     processes = []
     mp.set_start_method("spawn")
-    # PyTorch averages gradients in DDP instead of accumulating them
-    args.actor_lr *= args.nprocesses
-    args.critic_lr *= args.nprocesses
     for rank in range(args.nprocesses):
         p = mp.Process(target=init_process,
                        args=(rank, args.nprocesses, loglvls[args.loglvl], run_dist_ddpg, args))
