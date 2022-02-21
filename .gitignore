@@ -5,4 +5,4 @@
 *.ipynb_checkpoints
 *.pkl
 *.json
-/mp_rl/config/experiment_config.yaml  # Frequent changes, exclude for now
+/mp_rl.egg-info
