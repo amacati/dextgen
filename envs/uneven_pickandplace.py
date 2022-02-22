@@ -1,3 +1,4 @@
+"""UnevenPickAndPlace environment class file."""
 import numpy as np
 from pathlib import Path
 from gym import utils
@@ -7,8 +8,10 @@ MODEL_XML_PATH = str(Path("fetch", "uneven_pick_and_place.xml"))
 
 
 class UnevenPickAndPlace(FetchEnv, utils.EzPickle):
+    """Environment for pick and place with an uneven ground."""
 
-    def __init__(self, reward_type="sparse"):
+    def __init__(self, reward_type: str = "sparse"):
+        """Initialize the Mujoco sim."""
         initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,
@@ -35,7 +38,7 @@ class UnevenPickAndPlace(FetchEnv, utils.EzPickle):
         )
         utils.EzPickle.__init__(self, reward_type=reward_type)
 
-    def _reset_sim(self):
+    def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
 
         # Randomize start position of object.
@@ -56,5 +59,5 @@ class UnevenPickAndPlace(FetchEnv, utils.EzPickle):
             self.sim.step()
         return self._reset_sim()  # Object not at rest after max_reset_steps, retry
 
-    def _check_initial_pos(self, pos):
+    def _check_initial_pos(self, pos: np.ndarray) -> bool:
         return self.c_low[0] < pos[0] < self.c_high[0] and self.c_low[1] < pos[1] < self.c_high[1]

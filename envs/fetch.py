@@ -1,13 +1,15 @@
-from typing import Union
+"""FetchEnv class file."""
+from typing import Union, Dict
 
 import numpy as np
 
 import envs.rotations
 import envs.robot_env
-import envs.utils
+# import envs.utils
 
 
-def goal_distance(goal_a, goal_b):
+def goal_distance(goal_a: np.ndarray, goal_b: np.ndarray) -> np.ndarray:
+    """Compute the distance between two goals."""
     assert goal_a.shape == goal_b.shape
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
@@ -30,7 +32,8 @@ class FetchEnv(envs.robot_env.RobotEnv):
         initial_qpos: dict,
         reward_type: str,
     ):
-        """Initializes a new Fetch environment.
+        """Initialize a new Fetch environment.
+
         Args:
             model_path: path to the environments XML file
             n_substeps: number of substeps the simulation runs on every call to step
@@ -65,7 +68,13 @@ class FetchEnv(envs.robot_env.RobotEnv):
     # GoalEnv methods
     # ----------------------------
 
-    def compute_reward(self, achieved_goal, goal, info):
+    def compute_reward(self, achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:
+        """Compute the agent reward for the achieved goal.
+
+        Args:
+            achieved_goal: Achieved goal.
+            goal: Desired goal.
+        """
         # Compute distance between goal and the achieved goal.
         d = goal_distance(achieved_goal, goal)
         if self.reward_type == "sparse":
@@ -82,7 +91,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
             self.sim.data.set_joint_qpos("robot0:r_gripper_finger_joint", 0.0)
             self.sim.forward()
 
-    def _set_action(self, action):
+    def _set_action(self, action: np.ndarray):
         assert action.shape == (4,)
         action = (action.copy())  # ensure that we don't change the action outside of this scope
         pos_ctrl, gripper_ctrl = action[:3], action[3]
@@ -104,7 +113,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
         envs.utils.ctrl_set_action(self.sim, action)
         envs.utils.mocap_set_action(self.sim, action)
 
-    def _get_obs(self):
+    def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
@@ -163,7 +172,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
         self.sim.model.site_pos[site_id] = self.goal - sites_offset[0]
         self.sim.forward()
 
-    def _reset_sim(self):
+    def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
 
         # Randomize start position of object.
@@ -180,7 +189,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
         self.sim.forward()
         return True
 
-    def _sample_goal(self):
+    def _sample_goal(self) -> np.ndarray:
         if self.has_object:
             goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(
                 -self.target_range, self.target_range, size=3)
@@ -193,11 +202,11 @@ class FetchEnv(envs.robot_env.RobotEnv):
                 -self.target_range, self.target_range, size=3)
         return goal.copy()
 
-    def _is_success(self, achieved_goal, desired_goal):
+    def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = goal_distance(achieved_goal, desired_goal)
         return (d < self.distance_threshold).astype(np.float32)
 
-    def _env_setup(self, initial_qpos):
+    def _env_setup(self, initial_qpos: np.ndarray):
         for name, value in initial_qpos.items():
             self.sim.data.set_joint_qpos(name, value)
         envs.utils.reset_mocap_welds(self.sim)
@@ -216,6 +225,3 @@ class FetchEnv(envs.robot_env.RobotEnv):
         self.initial_gripper_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
         if self.has_object:
             self.height_offset = self.sim.data.get_site_xpos("object0")[2]
-
-    def render(self, mode="human", width=500, height=500):
-        return super(FetchEnv, self).render(mode, width, height)

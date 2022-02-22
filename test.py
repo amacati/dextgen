@@ -9,7 +9,7 @@ import pickle
 import torch
 import gym
 import mujoco_py
-import envs  # Import registers envs in gym
+import envs  # Import registers environments with gym  # noqa: F401
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.actor import ActorNetwork

@@ -1,15 +1,19 @@
+"""ObstacleReach environment class file."""
 import numpy as np
 from pathlib import Path
+from typing import Dict
 from gym import utils
-import envs.rotations
+import envs.utils
 from envs.fetch import FetchEnv, goal_distance
 
 MODEL_XML_PATH = str(Path("fetch", "obstaclereach.xml"))
 
 
 class ObstacleReach(FetchEnv, utils.EzPickle):
+    """Environment for reaching a goal with a forbidden region that should not be crossed."""
 
-    def __init__(self, reward_type="sparse", obstacle_threshold: float = 0.15):
+    def __init__(self, reward_type: str = "sparse", obstacle_threshold: float = 0.15):
+        """Initialize the Mujoco sim."""
         initial_qpos = {
             "robot0:slide0": 0.4049,
             "robot0:slide1": 0.48,
@@ -38,7 +42,13 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
                                 reward_type=reward_type,
                                 obstacle_threshold=obstacle_threshold)
 
-    def compute_reward(self, achieved_goal, goal, info):
+    def compute_reward(self, achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:
+        """Compute the agent reward for the achieved goal.
+
+        Args:
+            achieved_goal: Achieved goal.
+            goal: Desired goal.
+        """
         if goal.ndim == 2:
             dg = goal_distance(achieved_goal[:, :3], goal[:, :3])
             dff = goal_distance(achieved_goal[:, 3:], goal[:, 3:])
@@ -51,7 +61,7 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
             return reward_goal + reward_obstacle
         return -dg + .2 * dff
 
-    def _get_obs(self):
+    def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
@@ -83,27 +93,13 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
             "desired_goal": self.goal.copy(),
         }
 
-    def _sample_goal(self):
+    def _sample_goal(self) -> np.ndarray:
         goal = self.np_random.uniform(self.c_low, self.c_high)
         obstacle = self.np_random.uniform(self.c_low, self.c_high)
         while goal_distance(
                 self.initial_gripper_xpos[:3], obstacle) < self.obstacle_threshold or goal_distance(
                     goal, obstacle) < self.obstacle_threshold:
             obstacle = self.np_random.uniform(self.c_low, self.c_high)
-        return np.concatenate([goal, obstacle]).copy()
-
-    def _sample_goal_old(self):
-        goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(
-            -self.target_range, self.target_range, size=3)
-        obstacle = self.initial_gripper_xpos[:3] + self.np_random.uniform(
-            -self.target_range, self.target_range, size=3)
-        goal[2] = obstacle[2] = self.height_offset
-        while goal_distance(
-                self.initial_gripper_xpos[:3], obstacle) < self.ff_threshold or goal_distance(
-                    goal, obstacle) < self.ff_threshold:
-            obstacle = self.initial_gripper_xpos[:3] + self.np_random.uniform(
-                -self.target_range, self.target_range, size=3)
-            obstacle[2] = self.height_offset
         return np.concatenate([goal, obstacle]).copy()
 
     def _render_callback(self):

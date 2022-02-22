@@ -1,3 +1,4 @@
+"""Init file registers environments to OpenAI's gym."""
 import gym
 
 # Register OpenAI gym environments

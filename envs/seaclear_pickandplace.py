@@ -1,4 +1,4 @@
-import numpy as np
+"""SeaClearPickAndPlace class file."""
 from pathlib import Path
 from gym import utils
 from envs.fetch import FetchEnv
@@ -7,8 +7,10 @@ MODEL_XML_PATH = str(Path("fetch", "seaclear_pick_and_place.xml"))
 
 
 class SeaClearPickAndPlace(FetchEnv, utils.EzPickle):
+    """Environment for pick and place with the SeaClear gripper."""
 
-    def __init__(self, reward_type="sparse"):
+    def __init__(self, reward_type: str = "sparse"):
+        """Initialize the Mujoco sim."""
         initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,

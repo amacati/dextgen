@@ -1,4 +1,6 @@
+"""SizePickAndPlace class file."""
 import numpy as np
+from typing import Dict
 from pathlib import Path
 from gym import utils
 from envs.fetch import FetchEnv
@@ -8,9 +10,15 @@ MODEL_XML_PATH = str(Path("fetch", "pick_and_place.xml"))
 
 
 class SizePickAndPlace(FetchEnv, utils.EzPickle):
+    """Environment for cuboid grasping targets which change size on every reset."""
 
-    def __init__(self, reward_type="sparse"):
-        self.initial_qpos = {
+    def __init__(self, reward_type: str = "sparse"):
+        """Initialize SizePickAndPlace environment from FetchEnv.
+
+        Args:
+            reward_type: the reward type, i.e. `sparse` or `dense`
+        """
+        initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,
             "robot0:slide2": 0.0,
@@ -31,12 +39,12 @@ class SizePickAndPlace(FetchEnv, utils.EzPickle):
             obj_range=0.15,
             target_range=0.15,
             distance_threshold=0.05,
-            initial_qpos=self.initial_qpos,
+            initial_qpos=initial_qpos,
             reward_type=reward_type,
         )
         utils.EzPickle.__init__(self, reward_type=reward_type)
 
-    def _reset_sim(self):
+    def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
         # Randomize object size
         self._cube_size = self.np_random.uniform(self.cube_low, self.cube_high)
@@ -56,7 +64,7 @@ class SizePickAndPlace(FetchEnv, utils.EzPickle):
         self.sim.forward()
         return True
 
-    def _get_obs(self):
+    def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep

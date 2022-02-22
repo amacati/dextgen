@@ -8,7 +8,7 @@ import gym
 import torch.multiprocessing as mp
 import yaml
 
-import envs  # Import registers environments with gym
+import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.ddpg import DDPG
 from mp_rl.core.utils import init_process
 
