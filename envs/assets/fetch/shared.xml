@@ -33,6 +33,7 @@
         <mesh file="wrist_flex_link_collision.stl" name="robot0:wrist_flex_link"></mesh>
         <mesh file="wrist_roll_link_collision.stl" name="robot0:wrist_roll_link"></mesh>
         <mesh file="torso_fixed_link.stl" name="robot0:torso_fixed_link"></mesh>
+        <mesh file="seaclear_gripper_link.stl" name="robot0:seaclear_gripper_link"></mesh>
     </asset>
 
     <equality>
@@ -54,9 +55,16 @@
                 <geom condim="4" margin="0.001" type="box" user="0" rgba="0.356 0.361 0.376 1.0"></geom>
                 <joint armature="100" damping="1000" limited="true" solimplimit="0.99 0.999 0.01" solreflimit="0.01 1" type="slide"></joint>
             </default>
+            <default class="robot0:SeaClearGripper">
+                <geom condim="4" margin="0.001" type="box" user="0" rgba="0.356 0.361 0.376 1.0"></geom>
+                <joint armature="100" damping="1000" limited="true" solimplimit="0.99 0.999 0.01" solreflimit="0.01 1" type="hinge"></joint>
+            </default>
 
             <default class="robot0:grey">
                 <geom rgba="0.356 0.361 0.376 1.0"></geom>
+            </default>
+            <default class="robot0:orange">
+                <geom rgba="1. 0.65 0.0 1.0"></geom>
             </default>
             <default class="robot0:blue">
                 <geom rgba="0.086 0.506 0.767 1.0"></geom>

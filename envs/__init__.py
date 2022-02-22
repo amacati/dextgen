@@ -8,3 +8,7 @@ gym.envs.register(id='ObstacleReach-v0',
 gym.envs.register(id='UnevenPickAndPlace-v0',
                   entry_point='envs.uneven_pickandplace:UnevenPickAndPlace',
                   max_episode_steps=50)
+
+gym.envs.register(id='SeaClearPickAndPlace-v0',
+                  entry_point='envs.seaclear_pickandplace:SeaClearPickAndPlace',
+                  max_episode_steps=50)
