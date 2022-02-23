@@ -21,3 +21,7 @@ gym.envs.register(id='SizePickAndPlace-v0',
 gym.envs.register(id='ShadowHandPickAndPlace-v0',
                   entry_point='envs.shadowhand_pickandplace:ShadowHandPickAndPlace',
                   max_episode_steps=50)
+
+gym.envs.register(id='OrientPickAndPlace-v0',
+                  entry_point='envs.orient_pickandplace:OrientPickAndPlace',
+                  max_episode_steps=50)

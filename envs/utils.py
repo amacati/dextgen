@@ -54,7 +54,6 @@ def mocap_set_action(sim: mujoco_py.MjSim, action: np.ndarray):
     if sim.model.nmocap > 0:
         action, _ = np.split(action, (sim.model.nmocap * 7,))
         action = action.reshape(sim.model.nmocap, 7)
-
         pos_delta = action[:, :3]
         quat_delta = action[:, 3:]
 

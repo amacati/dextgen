@@ -11,21 +11,20 @@ import envs.utils
 class FetchEnv(envs.robot_env.RobotEnv):
     """Superclass for all Fetch environments."""
 
-    def __init__(
-        self,
-        model_path: str,
-        n_substeps: int,
-        gripper_extra_height: float,
-        block_gripper: bool,
-        has_object: bool,
-        target_in_the_air: bool,
-        target_offset: Union[float, np.ndarray],
-        obj_range: float,
-        target_range: float,
-        distance_threshold: float,
-        initial_qpos: dict,
-        reward_type: str,
-    ):
+    def __init__(self,
+                 model_path: str,
+                 n_substeps: int,
+                 gripper_extra_height: float,
+                 block_gripper: bool,
+                 has_object: bool,
+                 target_in_the_air: bool,
+                 target_offset: Union[float, np.ndarray],
+                 obj_range: float,
+                 target_range: float,
+                 distance_threshold: float,
+                 initial_qpos: dict,
+                 reward_type: str,
+                 n_actions: int = 4):
         """Initialize a new Fetch environment.
 
         Args:
@@ -41,6 +40,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
             distance_threshold: the threshold after which a goal is considered achieved
             initial_qpos: a dictionary of joint names and values defining the initial configuration
             reward_type: the reward type, i.e. `sparse` or `dense`
+            n_actions: Action state dimension
         """
         self.gripper_extra_height = gripper_extra_height
         self.block_gripper = block_gripper
@@ -55,7 +55,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
         super(FetchEnv, self).__init__(
             model_path=model_path,
             n_substeps=n_substeps,
-            n_actions=4,
+            n_actions=n_actions,
             initial_qpos=initial_qpos,
         )
 
