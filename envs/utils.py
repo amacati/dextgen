@@ -96,3 +96,9 @@ def reset_mocap2body_xpos(sim: mujoco_py.MjSim):
         assert mocap_id != -1
         sim.data.mocap_pos[mocap_id][:] = sim.data.body_xpos[body_idx]
         sim.data.mocap_quat[mocap_id][:] = sim.data.body_xquat[body_idx]
+
+
+def goal_distance(goal_a: np.ndarray, goal_b: np.ndarray) -> np.ndarray:
+    """Compute the distance between two goals."""
+    assert goal_a.shape == goal_b.shape
+    return np.linalg.norm(goal_a - goal_b, axis=-1)

@@ -17,3 +17,7 @@ gym.envs.register(id='SeaClearPickAndPlace-v0',
 gym.envs.register(id='SizePickAndPlace-v0',
                   entry_point='envs.size_pickandplace:SizePickAndPlace',
                   max_episode_steps=50)
+
+gym.envs.register(id='ShadowHandPickAndPlace-v0',
+                  entry_point='envs.shadowhand_pickandplace:ShadowHandPickAndPlace',
+                  max_episode_steps=50)

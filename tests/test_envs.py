@@ -16,6 +16,9 @@ class TestEnv:
     def test_size_pickandplace_env(self):
         self.run_env(env_key="SizePickAndPlace-v0")
 
+    def test_shadowhand_pickandplace_env(self):
+        self.run_env(env_key="ShadowHandPickAndPlace-v0")
+
     @staticmethod
     def run_env(env_key):
         env = gym.make(env_key)

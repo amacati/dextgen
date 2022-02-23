@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Dict
 from gym import utils
 import envs.utils
-from envs.fetch import FetchEnv, goal_distance
+from envs.utils import goal_distance
+from envs.fetch import FetchEnv
 
 MODEL_XML_PATH = str(Path("fetch", "obstaclereach.xml"))
 

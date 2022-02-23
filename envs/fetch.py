@@ -5,13 +5,7 @@ import numpy as np
 
 import envs.rotations
 import envs.robot_env
-# import envs.utils
-
-
-def goal_distance(goal_a: np.ndarray, goal_b: np.ndarray) -> np.ndarray:
-    """Compute the distance between two goals."""
-    assert goal_a.shape == goal_b.shape
-    return np.linalg.norm(goal_a - goal_b, axis=-1)
+import envs.utils
 
 
 class FetchEnv(envs.robot_env.RobotEnv):
@@ -76,7 +70,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
             goal: Desired goal.
         """
         # Compute distance between goal and the achieved goal.
-        d = goal_distance(achieved_goal, goal)
+        d = envs.utils.goal_distance(achieved_goal, goal)
         if self.reward_type == "sparse":
             return -(d > self.distance_threshold).astype(np.float32)
         else:
@@ -203,7 +197,7 @@ class FetchEnv(envs.robot_env.RobotEnv):
         return goal.copy()
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
-        d = goal_distance(achieved_goal, desired_goal)
+        d = envs.utils.goal_distance(achieved_goal, desired_goal)
         return (d < self.distance_threshold).astype(np.float32)
 
     def _env_setup(self, initial_qpos: np.ndarray):
