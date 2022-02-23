@@ -115,7 +115,6 @@ class ShadowHandPickAndPlace(envs.robot_env.RobotEnv, utils.EzPickle):
         action = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
-        envs.utils.ctrl_set_action(self.sim, action)
         envs.utils.mocap_set_action(self.sim, action)
 
         ctrlrange = self.sim.model.actuator_ctrlrange
