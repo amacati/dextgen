@@ -1,0 +1,11 @@
+name: Linting
+on: push
+
+jobs:
+  FormatCheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: PyCodeStyle linting check
+        uses: ./.github/actions/pycodestyle
