@@ -16,15 +16,17 @@ class Normalizer:
     multiple processes via torch distributed.
     """
 
-    def __init__(self, size: int, eps: float = 1e-2, clip: float = np.inf):
+    def __init__(self, size: int, world_size: int, eps: float = 1e-2, clip: float = np.inf):
         """Initialize local and global buffer tensors for distributed mode.
 
         Args:
             size: Data dimension. Each dimensions mean and variance is tracked individually.
+            world_size: Torch distributed communication group size.
             eps: Minimum variance value to ensure numeric stability. Has to be larger than 0.
             clip: Clipping value for normalized data.
         """
         self.size = size
+        self.world_size = world_size
         self.eps2 = torch.ones(size, dtype=torch.float32, requires_grad=False) * eps**2
         self.clip = clip
         # Tensors for allreduce ops to transfer stats between processe via torch dist and Gloo.
@@ -89,10 +91,13 @@ class Normalizer:
         self.dist = True
 
     def _transfer_buffers(self):
-        """Add the local buffers to the global estimate and reset the buffers."""
-        self.sum += self.lsum
-        self.sum_sq += self.lsum_sq
-        self.count += self.lcount
+        """Add the local buffers to the global estimate and reset the buffers.
+
+        Average before summing to normalizer.
+        """
+        self.sum += self.lsum / self.world_size
+        self.sum_sq += self.lsum_sq / self.world_size
+        self.count += self.lcount / self.world_size
         self.lsum[:] = 0  # Reset local tensors to not sum up previous runs
         self.lsum_sq[:] = 0
         self.lcount[:] = 0

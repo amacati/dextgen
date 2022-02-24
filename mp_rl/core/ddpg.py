@@ -57,8 +57,8 @@ class DDPG:
         self.actor = Actor(size_s + size_g, size_a, noise_process, args.actor_lr, args.eps,
                            args.action_clip, args.grad_clip)
         self.critic = Critic(size_s + size_g, size_a, args.critic_lr, args.grad_clip)
-        self.state_norm = Normalizer(size_s, clip=args.state_clip)
-        self.goal_norm = Normalizer(size_g, clip=args.goal_clip)
+        self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip)
+        self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip)
         self.T = env._max_episode_steps
         self.buffer = HERBuffer(size_s,
                                 size_a,
