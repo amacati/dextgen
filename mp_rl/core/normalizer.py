@@ -38,7 +38,7 @@ class Normalizer:
         self.lcount = torch.zeros(1, dtype=torch.float32, requires_grad=False)
         self.sum = torch.zeros(size, dtype=torch.float32, requires_grad=False)
         self.sum_sq = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.count = torch.zeros(1, dtype=torch.float32, requires_grad=False)
+        self.count = torch.ones(1, dtype=torch.float32, requires_grad=False)
         self.mean = torch.zeros(size, dtype=torch.float32, requires_grad=False)
         self.std = torch.ones(size, dtype=torch.float32, requires_grad=False)
         self.dist = False
