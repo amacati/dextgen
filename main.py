@@ -5,12 +5,11 @@ import logging
 from pathlib import Path
 
 import gym
-import torch.multiprocessing as mp
 import yaml
+from mpi4py import MPI
 
 import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.ddpg import DDPG
-from mp_rl.core.utils import init_process
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,42 +55,6 @@ def expand_args(args: argparse.Namespace):
         setattr(args, key, val)
 
 
-def launch_distributed_ddpg(args: argparse.Namespace):
-    """Launch multiple training processes as a DataDistributedParallel group.
-
-    Establishes the connection among processes for PyTorch and cleans up after processes exit.
-
-    Args:
-        args: User provided arguments namespace.
-    """
-    processes = []
-    mp.set_start_method("spawn")
-    for rank in range(args.nprocesses):
-        p = mp.Process(target=init_process,
-                       args=(rank, args.nprocesses, loglvls[args.loglvl], run_dist_ddpg, args))
-        p.start()
-        processes.append(p)
-    logging.info("Process spawn successful, awaiting join")
-    for p in processes:
-        p.join()
-    logger.info("Processes joined, training complete.")
-
-
-def run_dist_ddpg(rank: int, size: int, args: argparse.Namespace):
-    """Start the training in distributed mode on a process of the DDP process group.
-
-    Creates the gym and the DDPG module on each worker and starts the training.
-
-    Args:
-        rank: Process rank within the process group.
-        size: Process group world size.
-        args: User provided arguments namespace.
-    """
-    env = gym.make(args.env)
-    ddpg = DDPG(env, args, world_size=size, rank=rank, dist=True)
-    ddpg.train()
-
-
 if __name__ == "__main__":
     args = parse_args()
     expand_args(args)
@@ -104,9 +67,7 @@ if __name__ == "__main__":
     }
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
-    if hasattr(args, "nprocesses") and args.nprocesses > 1:
-        launch_distributed_ddpg(args)
-    else:
-        env = gym.make(args.env)
-        ddpg = DDPG(env, args)
-        ddpg.train()
+    env = gym.make(args.env)
+    comm = MPI.COMM_WORLD
+    ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
+    ddpg.train()

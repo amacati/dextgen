@@ -10,11 +10,11 @@ import time
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from tqdm import tqdm
 import gym
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from mpi4py import MPI
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.noise import GaussianNoise
@@ -73,7 +73,7 @@ class DDPG:
         self.rank = rank
         self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
         if dist:
-            self.init_ddp()
+            self.init_dist()
 
     def train(self):
         """Train a policy to solve the environment with DDPG.
@@ -186,9 +186,9 @@ class DDPG:
             success += info["is_success"]
         self.actor.train()
         if self.dist:
-            success_rate = torch.tensor([success / self.args.evals], dtype=torch.float32)
-            dist.all_reduce(success_rate)  # In-place op
-            return success_rate.item() / self.world_size
+            success_rate = np.array([success / self.args.evals])
+            MPI.COMM_WORLD.Allreduce(success_rate, success_rate, op=MPI.SUM)
+            return success_rate[0] / self.world_size
         return success / self.args.evals
 
     def save(self):
@@ -198,10 +198,7 @@ class DDPG:
         """
         if not self.PATH.is_dir():
             self.PATH.mkdir(parents=True, exist_ok=True)
-        if self.dist:
-            torch.save(self.actor.action_net.module.state_dict(), self.PATH / "actor.pt")
-        else:
-            torch.save(self.actor.action_net.state_dict(), self.PATH / "actor.pt")
+        torch.save(self.actor.action_net.state_dict(), self.PATH / "actor.pt")
         self.state_norm.save(self.PATH / "state_norm.pkl")
         self.goal_norm.save(self.PATH / "goal_norm.pkl")
 
@@ -244,10 +241,10 @@ class DDPG:
         x = np.concatenate((states, goals), axis=states.ndim - 1)
         return torch.as_tensor(x, dtype=torch.float32)
 
-    def init_ddp(self):
+    def init_dist(self):
         """Configure actor, critic and normalizers for distributed training."""
-        self.actor.init_ddp()
-        self.critic.init_ddp()
-        self.state_norm.init_ddp()
-        self.goal_norm.init_ddp()
+        self.actor.init_dist()
+        self.critic.init_dist()
+        self.state_norm.init_dist()
+        self.goal_norm.init_dist()
         self.dist = True

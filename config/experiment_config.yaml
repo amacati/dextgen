@@ -63,7 +63,6 @@ ObstacleReach-v0:
   evals: 10
   batch_size: 256
   buffer_size: 1000000
-  nprocesses: 1
   
   gamma: 0.98
   actor_lr: 0.001
@@ -92,7 +91,6 @@ UnevenPickAndPlace-v0:
   evals: 10
   batch_size: 256
   buffer_size: 1000000
-  nprocesses: 16
   
   gamma: 0.98
   actor_lr: 0.001

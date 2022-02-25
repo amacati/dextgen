@@ -1,14 +1,11 @@
 """Utility functions for the mp_rl.core module."""
-
-import os
 import logging
-from typing import Callable, Tuple, Any
+from typing import Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-
-import torch.distributed as dist
+from mpi4py import MPI
 
 logger = logging.getLogger(__name__)
 
@@ -43,52 +40,6 @@ def running_average(values: list, window: int = 50, mode: str = 'valid') -> floa
     return np.convolve(values, np.ones(window) / window, mode=mode)
 
 
-def init_process(rank: int, size: int, loglvl: int, fn: Callable, *args: Any, **kwargs: Any):
-    """Initialize a process with PyTorch's DDP process group and execute the provided function.
-
-    Processes should target this function to ensure DDP is initialized before any calls that
-    require the process group to be established.
-
-    Args:
-        rank: Process rank in the DDP process group.
-        size: Total DDP world size.
-        loglvl: Log level for Python's logging module in each process.
-        fn: The main process function. Gets called after all initializations are done.
-        args: Positional arguments for `fn`.
-        kwargs: Keyword arguments for `fn`.
-    """
-    logging.basicConfig()
-    logger.setLevel(loglvl)
-    # Set environment variables required for DDP discovery service
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29501"  # 29500 in use on lsr.ei.tum clusters
-    dist.init_process_group(backend="gloo", rank=rank, world_size=size)
-    logger.info(f"P{rank}: Torch distributed process group established")
-    num_threads = max((os.cpu_count() - 1) // size, 1)  # Take at max strictly less than all cores
-    torch.set_num_threads(num_threads)  # Limit PyTorch's core count to avoid self contention
-    fn(rank, size, *args, **kwargs)
-
-
-def ddp_poll_shutdown(shutdown: bool = False) -> bool:
-    """Poll a shutdown across the DDP process group.
-
-    All processes send 0 for continue or 1 for shutdown. Each process performs an all_reduce op. If
-    at least one process wants to shut down, the sum is > 0 and all processes receive the shutdown
-    flag.
-
-    Args:
-        shutdown: True if shutdown is requested, else False.
-
-    Returns:
-        True if one process requested a shutdown, else False.
-    """
-    voting = torch.tensor([shutdown], dtype=torch.int8)
-    dist.all_reduce(voting)  # All_reduce is in-place
-    if voting.item() > 0:
-        return True
-    return False
-
-
 def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
     """Unwrap an observation from a dictionary style OpenAI gym.
 
@@ -99,3 +50,65 @@ def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
         A tuple of separated observation, desired goal and achieved goal arrays.
     """
     return obs["observation"], obs["desired_goal"], obs["achieved_goal"]
+
+
+###############################
+# Taken from OpenAI baselines #
+###############################
+def sync_networks(network: torch.Module):
+    """Synchronize networks across MPI workers by broadcasting the weights of process 0.
+
+    Note:
+        In-place function.
+
+    Args:
+        network: PyTorch module that is synchronized across all workers.
+    """
+    flat_params = _get_flat_params_or_grads(network, mode='params')
+    MPI.COMM_WORLD.Bcast(flat_params, root=0)
+    _set_flat_params_or_grads(network, flat_params, mode='params')
+
+
+def sync_grads(network: torch.Module):
+    """Synchronize gradiends across MPI workers by allreduce.
+
+    Note:
+        In-place function. Does NOT average the gradients but sums them.
+
+    Args:
+        network: PyTorch module that synchronizes the parameter gradients.
+    """
+    flat_grads = _get_flat_params_or_grads(network, mode='grads')
+    MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, flat_grads, op=MPI.SUM)
+    _set_flat_params_or_grads(network, flat_grads, mode='grads')
+
+
+def _get_flat_params_or_grads(network: torch.Module, mode: str = "params") -> np.ndarray:
+    """Create a coalesced numpy array from the network parameters.
+
+    Args:
+        network: PyTorch module from which parameters are gathered.
+        mode: Toggles between weights and gradients. Either `data` or `grad`.
+
+    Returns:
+        A coalesced array of the network parameters.
+    """
+    attr = 'data' if mode == 'params' else 'grad'
+    return np.concatenate(
+        [getattr(param, attr).numpy().flatten() for param in network.parameters()])
+
+
+def _set_flat_params_or_grads(network: torch.Module, flat_params: np.ndarray, mode: str = "params"):
+    """Set the network parameters from a coalesced numpy array.
+
+    Args:
+        network: PyTorch module that gets overwritten.
+        flat_params: Flattened parameters as numpy array.
+        mode: Toggles between weights and gradients. Either `data` or `grad`.
+    """
+    attr = 'data' if mode == 'params' else 'grad'
+    pointer = 0
+    for param in network.parameters():
+        getattr(param, attr).copy_(
+            torch.tensor(flat_params[pointer:pointer + param.data.numel()]).view_as(param.data))
+        pointer += param.data.numel()
