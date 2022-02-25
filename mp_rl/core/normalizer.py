@@ -6,7 +6,7 @@ from pathlib import Path
 import pickle
 import numpy as np
 import torch
-import torch.distributed as dist
+from mpi4py import MPI
 
 
 class Normalizer:
@@ -25,20 +25,21 @@ class Normalizer:
             clip: Clipping value for normalized data.
         """
         self.size = size
-        self.eps2 = torch.ones(size, dtype=torch.float32, requires_grad=False) * eps**2
+        self.eps2 = np.ones(size, dtype=np.float32) * eps**2
         self.clip = clip
-        # Tensors for allreduce ops to transfer stats between processe via torch dist and Gloo.
+        # Tensors for allreduce ops to transfer stats between processe via MPI.
         # Local tensors hold stats from the current update, accumulate external stats in the
-        # all_reduce phase, transfer the accumulated values into the all-time tensors and reset to
+        # all_reduce phase, transfer the accumulated values into the all-time arrays and reset to
         # zero. Avoids including past stats from other processes as own values for the current run
-        self.lsum = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.lsum_sq = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.lcount = torch.zeros(1, dtype=torch.float32, requires_grad=False)
-        self.sum = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.sum_sq = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.count = torch.zeros(1, dtype=torch.float32, requires_grad=False)
-        self.mean = torch.zeros(size, dtype=torch.float32, requires_grad=False)
-        self.std = torch.ones(size, dtype=torch.float32, requires_grad=False)
+        self.lsum = np.zeros(size, dtype=np.float32)
+        self.lsum_sq = np.zeros(size, dtype=np.float32)
+        self.lcount = np.zeros(1, dtype=np.float32)
+        self.sum = np.zeros(size, dtype=np.float32)
+        self.sum_sq = np.zeros(size, dtype=np.float32)
+        self.count = np.zeros(1, dtype=np.float32)
+        self.mean = np.zeros(size, dtype=np.float32)
+        self.std = np.ones(size, dtype=np.float32)
+        self.coal_buffer = np.zeros(size * 2 + 1, dtype=np.float32)
         self.dist = False
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
@@ -54,9 +55,8 @@ class Normalizer:
         Returns:
             The normalized data. Preserves input data type.
         """
-        if isinstance(x, np.ndarray):
-            return np.clip((x - self.mean.numpy()) / self.std.numpy(), -self.clip, self.clip)
-        return torch.clip((x - self.mean) / self.std, -self.clip, self.clip)
+        return np.clip((x - self.mean) / self.std, -self.clip, self.clip)
+        # TODO: return torch.clip((x - self.mean) / self.std, -self.clip, self.clip)
 
     def update(self, x: np.ndarray):
         """Update the mean and variance estimate with new data.
@@ -71,20 +71,25 @@ class Normalizer:
             AssertionError: Shape check failed.
         """
         assert x.ndim != 3, "Expecting 3D arrays of shape (episodes, timestep, data dimension)!"
-        x = torch.as_tensor(x)
-        self.lsum = torch.sum(x, dim=0, dtype=torch.float32)
-        self.lsum_sq = torch.sum(x.pow(2), dim=0, dtype=torch.float32)
+        self.lsum = np.sum(x, axis=0, dtype=np.float32)
+        self.lsum_sq = np.sum(x**2, axis=0, dtype=np.float32)
         self.lcount[0] = x.shape[0]
         if self.dist:
-            # Coalesce tensors to reduce communication overhead of all_reduce. In-place op
-            dist.all_reduce_coalesced([self.lsum, self.lsum_sq, self.lcount])
+            # Coalesce tensors to reduce communication overhead of all_reduce
+            self.coal_buffer[0:self.size] = self.lsum
+            self.coal_buffer[self.size:self.size * 2] = self.lsum_sq
+            self.coal_buffer[self.size * 2] = self.lcount[0]
+            MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, self.coal_buffer, op=MPI.SUM)
+            self.lsum = self.coal_buffer[0:self.size]
+            self.lsum_sq = self.coal_buffer[self.size:self.size * 2]
+            self.lcount[0] = self.coal_buffer[self.size * 2]
         self._transfer_buffers()
         self.mean = self.sum / self.count
-        self.std = (self.sum_sq / self.count - (self.sum / self.count).pow(2))
-        torch.maximum(self.eps2, self.std, out=self.std)  # Numeric stability
-        torch.sqrt(self.std, out=self.std)
+        self.std = (self.sum_sq / self.count - (self.sum / self.count)**2)
+        np.maximum(self.eps2, self.std, out=self.std)  # Numeric stability
+        np.sqrt(self.std, out=self.std)
 
-    def init_ddp(self):
+    def init_dist(self):
         """Initialize distributed mode."""
         self.dist = True
 

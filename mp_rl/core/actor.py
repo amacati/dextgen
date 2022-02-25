@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 
-from mp_rl.core.utils import soft_update
+from mp_rl.core.utils import soft_update, sync_networks, sync_grads
 from mp_rl.core.noise import NoiseProcess
 
 
@@ -89,6 +89,8 @@ class Actor:
         """
         self.optim.zero_grad()
         loss.backward()
+        if self.dist:
+            sync_grads(self.action_net)
         self.optim.step()
 
     def target(self, states: torch.Tensor) -> torch.Tensor:
@@ -120,13 +122,13 @@ class Actor:
         """
         soft_update(self.action_net, self.target_net, tau)
 
-    def init_ddp(self):
+    def init_dist(self):
         """Initialize the action net as a DDP network and reload the target network."""
         self.dist = True
-        self.action_net = DDP(self.action_net)
-        # Target reloads state dict because DDP overwrites weights in process rank 1 to n with the
-        # weights of action_net from process rank 0
-        self.target_net.load_state_dict(self.action_net.module.state_dict())
+        sync_networks(self.action_net)
+        # Target reloads state dict because network sync overwrites weights in process rank 1 to n
+        # with the weights of action_net from process rank 0
+        self.target_net.load_state_dict(self.action_net.state_dict())
 
 
 class ActorNetwork(nn.Module):

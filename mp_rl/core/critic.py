@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from mp_rl.core.utils import soft_update
+from mp_rl.core.utils import soft_update, sync_networks, sync_grads
 
 
 class Critic:
@@ -62,6 +62,8 @@ class Critic:
         """
         self.optim.zero_grad()
         loss.backward()
+        if self.dist:
+            sync_grads(self.critic_net)
         self.optim.step()
 
     def update_target(self, tau: float):
@@ -72,12 +74,13 @@ class Critic:
         """
         soft_update(self.critic_net, self.target_net, tau)
 
-    def init_ddp(self):
+    def init_dist(self):
         """Initialize the critic net as a DDP network and reload the target network."""
-        self.critic_net = DDP(self.critic_net)
-        # Target reloads state dict because DDP overwrites weights in process rank 1 to n with the
-        # weights of action_net from process rank 0
-        self.target_net.load_state_dict(self.critic_net.module.state_dict())
+        self.dist = True
+        sync_networks(self.critic_net)
+        # Target reloads state dict because network sync overwrites weights in process rank 1 to n
+        # with the weights of action_net from process rank 0
+        self.target_net.load_state_dict(self.critic_net.state_dict())
 
 
 class CriticNetwork(nn.Module):
