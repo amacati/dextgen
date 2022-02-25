@@ -1,8 +1,9 @@
+tqdm==4.62.3
+mpi4py==3.0.3
 gym==0.21.0
 torch==1.10.1
-numpy==1.20.3
 mujoco_py==2.1.2.14
+numpy==1.20.3
 matplotlib==3.5.0
-tqdm==4.62.3
 PyYAML==6.0
-pytest==6.2.5  # Manually added to enable pytest runs in Dockerfile
+openmpi==4.1.1
