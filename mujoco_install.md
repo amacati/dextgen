@@ -75,15 +75,3 @@ If this error occures, you are missing libraries for the cython extension compil
 ## Done
 
 You should now be able to run mujoco_test.py
-
-## The easy way
-Install Docker and use the provided Dockerfile. If you want to train an agent instead of testing it, change the entrypoint
-to train.py. Example for testing with Docker:
-
-```$ docker build . -t rl```
-
-Wait for Docker to finish building the container, then do
-
-```docker run --rm rl <args>```
-
-, where < args > are the arguments passed to python's argparse.
