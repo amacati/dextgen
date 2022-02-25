@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 
 from mp_rl.core.utils import soft_update, sync_networks, sync_grads

@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 
 import gym
-import torch.multiprocessing as mp
 import yaml
 from mpi4py import MPI
 

@@ -1,8 +1,6 @@
 """Utility functions for the mp_rl.core module."""
-
-import os
 import logging
-from typing import Callable, Tuple, Any
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -54,33 +52,59 @@ def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
     return obs["observation"], obs["desired_goal"], obs["achieved_goal"]
 
 
-def sync_networks(network):
-    """
-    netowrk is the network you want to sync
+###############################
+# Taken from OpenAI baselines #
+###############################
+def sync_networks(network: torch.Module):
+    """Synchronize networks across MPI workers by broadcasting the weights of process 0.
+
+    Note:
+        In-place function.
+
+    Args:
+        network: PyTorch module that is synchronized across all workers.
     """
     flat_params = _get_flat_params_or_grads(network, mode='params')
     MPI.COMM_WORLD.Bcast(flat_params, root=0)
     _set_flat_params_or_grads(network, flat_params, mode='params')
 
 
-def sync_grads(network):
+def sync_grads(network: torch.Module):
+    """Synchronize gradiends across MPI workers by allreduce.
+
+    Note:
+        In-place function. Does NOT average the gradients but sums them.
+
+    Args:
+        network: PyTorch module that synchronizes the parameter gradients.
+    """
     flat_grads = _get_flat_params_or_grads(network, mode='grads')
     MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, flat_grads, op=MPI.SUM)
     _set_flat_params_or_grads(network, flat_grads, mode='grads')
 
 
-def _get_flat_params_or_grads(network, mode='params'):
-    """
-    include two kinds: grads and params
+def _get_flat_params_or_grads(network: torch.Module, mode: str = "params") -> np.ndarray:
+    """Create a coalesced numpy array from the network parameters.
+
+    Args:
+        network: PyTorch module from which parameters are gathered.
+        mode: Toggles between weights and gradients. Either `data` or `grad`.
+
+    Returns:
+        A coalesced array of the network parameters.
     """
     attr = 'data' if mode == 'params' else 'grad'
     return np.concatenate(
         [getattr(param, attr).numpy().flatten() for param in network.parameters()])
 
 
-def _set_flat_params_or_grads(network, flat_params, mode='params'):
-    """
-    include two kinds: grads and params
+def _set_flat_params_or_grads(network: torch.Module, flat_params: np.ndarray, mode: str = "params"):
+    """Set the network parameters from a coalesced numpy array.
+
+    Args:
+        network: PyTorch module that gets overwritten.
+        flat_params: Flattened parameters as numpy array.
+        mode: Toggles between weights and gradients. Either `data` or `grad`.
     """
     attr = 'data' if mode == 'params' else 'grad'
     pointer = 0

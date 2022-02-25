@@ -10,7 +10,6 @@ import time
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from tqdm import tqdm
 import gym
 import matplotlib.pyplot as plt
