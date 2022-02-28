@@ -38,7 +38,7 @@ class DDPG:
                  world_size: int = 1,
                  rank: int = 0,
                  dist: bool = False):
-        """Initialize the Actor, Critic, HERBuffer and torch's DDP if required.
+        """Initialize the Actor, Critic, HERBuffer and activate MPI synchronization if required.
 
         Args:
             env: OpenAI dictionary gym environment.

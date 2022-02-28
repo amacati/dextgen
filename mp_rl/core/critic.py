@@ -74,7 +74,7 @@ class Critic:
         soft_update(self.critic_net, self.target_net, tau)
 
     def init_dist(self):
-        """Initialize the critic net as a DDP network and reload the target network."""
+        """Synchronize the critic network across MPI workers and reload the target network."""
         self.dist = True
         sync_networks(self.critic_net)
         # Target reloads state dict because network sync overwrites weights in process rank 1 to n

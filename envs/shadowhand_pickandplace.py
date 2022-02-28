@@ -68,7 +68,7 @@ class ShadowHandPickAndPlace(envs.robot_env.RobotEnv, utils.EzPickle):
         goal += self.target_offset
         goal[2] = self.height_offset
         if self.target_in_the_air and self.np_random.uniform() < 0.5:
-            goal[2] += self.np_random.uniform(0, 0.45)
+            goal[2] += self.np_random.uniform(0.1, 0.45)
         return goal.copy()
 
     def _get_obs(self) -> Dict[str, np.ndarray]:

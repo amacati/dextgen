@@ -55,7 +55,7 @@ def unwrap_obs(obs: dict) -> Tuple[np.ndarray]:
 ###############################
 # Taken from OpenAI baselines #
 ###############################
-def sync_networks(network: torch.Module):
+def sync_networks(network: nn.Module):
     """Synchronize networks across MPI workers by broadcasting the weights of process 0.
 
     Note:
@@ -69,7 +69,7 @@ def sync_networks(network: torch.Module):
     _set_flat_params_or_grads(network, flat_params, mode='params')
 
 
-def sync_grads(network: torch.Module):
+def sync_grads(network: nn.Module):
     """Synchronize gradiends across MPI workers by allreduce.
 
     Note:
@@ -83,7 +83,7 @@ def sync_grads(network: torch.Module):
     _set_flat_params_or_grads(network, flat_grads, mode='grads')
 
 
-def _get_flat_params_or_grads(network: torch.Module, mode: str = "params") -> np.ndarray:
+def _get_flat_params_or_grads(network: nn.Module, mode: str = "params") -> np.ndarray:
     """Create a coalesced numpy array from the network parameters.
 
     Args:
@@ -98,7 +98,7 @@ def _get_flat_params_or_grads(network: torch.Module, mode: str = "params") -> np
         [getattr(param, attr).numpy().flatten() for param in network.parameters()])
 
 
-def _set_flat_params_or_grads(network: torch.Module, flat_params: np.ndarray, mode: str = "params"):
+def _set_flat_params_or_grads(network: nn.Module, flat_params: np.ndarray, mode: str = "params"):
     """Set the network parameters from a coalesced numpy array.
 
     Args:

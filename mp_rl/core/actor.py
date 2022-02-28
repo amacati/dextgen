@@ -122,7 +122,7 @@ class Actor:
         soft_update(self.action_net, self.target_net, tau)
 
     def init_dist(self):
-        """Initialize the action net as a DDP network and reload the target network."""
+        """Synchronize the actor network across MPI nodes and reload the target network."""
         self.dist = True
         sync_networks(self.action_net)
         # Target reloads state dict because network sync overwrites weights in process rank 1 to n

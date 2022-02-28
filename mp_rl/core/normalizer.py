@@ -13,7 +13,7 @@ class Normalizer:
     """Normalizer to maintain an estimate on the current data mean and variance.
 
     Used to normalize input data to zero mean and unit variance. Supports synchronization over
-    multiple processes via torch distributed.
+    multiple processes via MPI.
     """
 
     def __init__(self, size: int, world_size: int, eps: float = 1e-2, clip: float = np.inf):
@@ -21,11 +21,12 @@ class Normalizer:
 
         Args:
             size: Data dimension. Each dimensions mean and variance is tracked individually.
-            world_size: Torch distributed communication group size.
+            world_size: MPI communication group size.
             eps: Minimum variance value to ensure numeric stability. Has to be larger than 0.
             clip: Clipping value for normalized data.
         """
         self.size = size
+        self.world_size = world_size
         self.eps2 = np.ones(size, dtype=np.float32) * eps**2
         self.clip = clip
         # Tensors for allreduce ops to transfer stats between processe via MPI.
