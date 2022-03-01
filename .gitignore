@@ -9,3 +9,4 @@ saves/*/*.png
 /build
 /tests/test.py
 /.pytest_cache
+*.mp4

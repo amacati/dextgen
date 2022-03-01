@@ -96,6 +96,8 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
 
     def _sample_goal(self) -> np.ndarray:
         goal = self.np_random.uniform(self.c_low, self.c_high)
+        while goal_distance(self.initial_gripper_xpos[:3], goal) < 3 * self.distance_threshold:
+            goal = self.np_random.uniform(self.c_low, self.c_high)
         obstacle = self.np_random.uniform(self.c_low, self.c_high)
         while goal_distance(
                 self.initial_gripper_xpos[:3], obstacle) < self.obstacle_threshold or goal_distance(

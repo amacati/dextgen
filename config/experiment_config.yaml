@@ -80,7 +80,7 @@ ObstacleReach-v0:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
 
 UnevenPickAndPlace-v0:
