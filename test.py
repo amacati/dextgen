@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
                             "FetchReach-v1", "FetchPickAndPlace-v1", "ObstacleReach-v0",
                             "UnevenPickAndPlace-v0", "SeaClearPickAndPlace-v0",
                             "SizePickAndPlace-v0", "ShadowHandPickAndPlace-v0",
-                            "OrientPickAndPlace-v0"
+                            "OrientPickAndPlace-v0", "ShadowHandEigengrasp-v0"
                         ],
                         default="FetchReach-v1")
     parser.add_argument("--loglvl",
@@ -107,6 +107,8 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action = actor(torch.cat([state, goal]))
             next_obs, reward, done, info = env.step(action.numpy())
+            action = env.action_space.sample()
+            next_obs, reward, done, info = env.step(action)
             state, goal, _ = unwrap_obs(next_obs)
             early_stop = (early_stop + 1) if not reward else 0
             if record:

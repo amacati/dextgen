@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
                             "FetchReach-v1", "FetchPickAndPlace-v1", "ObstacleReach-v0",
                             "UnevenPickAndPlace-v0", "SeaClearPickAndPlace-v0",
                             "SizePickAndPlace-v0", "ShadowHandPickAndPlace-v0",
-                            "OrientPickAndPlace-v0"
+                            "OrientPickAndPlace-v0", "ShadowHandEigengrasp-v0"
                         ],
                         default="FetchReach-v1")
     parser.add_argument('--loglvl',
