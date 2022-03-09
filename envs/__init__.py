@@ -1,6 +1,5 @@
 """Init file registers environments to OpenAI's gym."""
 import gym
-from importlib_metadata import entry_points
 
 # Register OpenAI gym environments
 gym.envs.register(id='ObstacleReach-v0',
