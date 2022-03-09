@@ -11,6 +11,7 @@ import torch
 import gym
 from gym.wrappers.monitoring.video_recorder import VideoRecorder
 import mujoco_py
+import yaml
 import envs  # Import registers environments with gym  # noqa: F401
 
 from mp_rl.core.utils import unwrap_obs
@@ -62,7 +63,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--record", help="Record video flag", choices=["y", "n"], default="n")
     parser.add_argument("--ntests", help="Number of evaluation runs", default=10, type=int)
     args = parser.parse_args()
+    expand_args(args)
     return args
+
+
+def expand_args(args: argparse.Namespace):
+    """Expand the arguments namespace with settings from the main config file.
+
+    Config can be found at './config/experiment_config.yaml'. Each config must be named after their
+    gym name.
+
+    Args:
+        args: User provided arguments namespace.
+    """
+    path = Path(__file__).parent / "config" / "experiment_config.yaml"
+    with open(path, "r") as f:
+        config = yaml.load(f, yaml.SafeLoader)
+
+    if args.env not in config.keys():
+        raise KeyError(f"Environment config file is missing config for env '{args.env}'")
+    for key, val in config[args.env].items():
+        setattr(args, key, val)
 
 
 if __name__ == "__main__":

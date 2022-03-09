@@ -77,7 +77,6 @@ class ShadowHandEigengrasps(envs.robot_env.RobotEnv, utils.EzPickle):
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
 
-
     def _sample_goal(self) -> np.ndarray:
         goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(
             -self.target_range, self.target_range, size=3)
@@ -126,17 +125,17 @@ class ShadowHandEigengrasps(envs.robot_env.RobotEnv, utils.EzPickle):
         pos_ctrl, hand_ctrl = action[:3], action[3:]
 
         pos_ctrl *= 0.05  # limit maximum change in position
-        pos_ctrl[:2] = 0
         rot_ctrl = [1.0, 0.0, 1.0, 0.0]  # fixed rotation of the end effector as a quaternion
         action = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Transform hand controls to eigengrasps
+        hand_ctrl[:] = 1
         hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
         np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
 
         # Apply action to simulation.
         envs.utils.mocap_set_action(self.sim, action)
-        self.sim.data.ctrl[:] = self._act_center +  hand_ctrl * self._act_range
+        self.sim.data.ctrl[:] = self._act_center + hand_ctrl * self._act_range
         self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
                                         self._ctrl_range[:, 1])
 
@@ -189,7 +188,6 @@ class ShadowHandEigengrasps(envs.robot_env.RobotEnv, utils.EzPickle):
         self.sim.data.set_joint_qpos("object0:joint", object_qpos)
         self.sim.forward()
         return True
-
 
     def _render_callback(self):
         # Visualize target.
