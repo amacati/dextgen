@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
                             "FetchReach-v1", "FetchPickAndPlace-v1", "ObstacleReach-v0",
                             "UnevenPickAndPlace-v0", "SeaClearPickAndPlace-v0",
                             "SizePickAndPlace-v0", "ShadowHandPickAndPlace-v0",
-                            "OrientPickAndPlace-v0", "ShadowHandEigengrasp-v0"
+                            "OrientPickAndPlace-v0", "ShadowHandEigengrasps-v0"
                         ],
                         default="FetchReach-v1")
     parser.add_argument("--loglvl",
@@ -76,8 +76,10 @@ if __name__ == "__main__":
     }
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
-    env = gym.make(args.env)
-    T = env._max_episode_steps
+    if hasattr(args, "kwargs") and args.kwargs:
+        env = gym.make(args.env, **args.kwargs)
+    else:
+        env = gym.make(args.env)
     size_s = len(env.observation_space["observation"].low) + len(
         env.observation_space["desired_goal"].low)
     size_a = len(env.action_space.low)

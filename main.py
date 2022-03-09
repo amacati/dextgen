@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
                             "FetchReach-v1", "FetchPickAndPlace-v1", "ObstacleReach-v0",
                             "UnevenPickAndPlace-v0", "SeaClearPickAndPlace-v0",
                             "SizePickAndPlace-v0", "ShadowHandPickAndPlace-v0",
-                            "OrientPickAndPlace-v0", "ShadowHandEigengrasp-v0"
+                            "OrientPickAndPlace-v0", "ShadowHandEigengrasps-v0"
                         ],
                         default="FetchReach-v1")
     parser.add_argument('--loglvl',
@@ -67,7 +67,10 @@ if __name__ == "__main__":
     }
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
-    env = gym.make(args.env)
+    if hasattr(args, "kwargs") and args.kwargs:
+        env = gym.make(args.env, **args.kwargs)
+    else:
+        env = gym.make(args.env)
     comm = MPI.COMM_WORLD
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     ddpg.train()

@@ -1,5 +1,6 @@
 """Init file registers environments to OpenAI's gym."""
 import gym
+from importlib_metadata import entry_points
 
 # Register OpenAI gym environments
 gym.envs.register(id='ObstacleReach-v0',
@@ -28,4 +29,8 @@ gym.envs.register(id='ShadowHandEigengrasp-v0',
 
 gym.envs.register(id='OrientPickAndPlace-v0',
                   entry_point='envs.orient_pickandplace:OrientPickAndPlace',
+                  max_episode_steps=50)
+
+gym.envs.register(id='ShadowHandEigengrasps-v0',
+                  entry_point='envs.shadowhand_eigen:ShadowHandEigengrasps',
                   max_episode_steps=50)

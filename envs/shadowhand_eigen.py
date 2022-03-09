@@ -3,16 +3,20 @@ from pathlib import Path
 from typing import Dict
 from gym import utils
 import numpy as np
-import yaml
+import json
 import envs.robot_env
 import envs.utils
 import envs.rotations
 
 MODEL_XML_PATH = str(Path("shfetch", "shadowhand_pick_and_place.xml"))
-with open(Path(__file__).parent / "eigengrasps.yaml", "r") as f:
-    grasp_dict = yaml.safe_load(f)
-    assert all([len(value) == 20 for value in grasp_dict.values()])
-EIGENGRASPS = np.array([grasp_dict[i] for i in range(len(grasp_dict))])
+
+# The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
+# hand poses from the ContactPose dataset. For more information, see
+# https://github.com/amacati/sh_eigen  TODO: Make repository public
+with open(Path(__file__).parent / "eigengrasps.json", "r") as f:
+    eigengrasps = json.load(f)
+    assert all([len(value["joints"]) == 20 for value in eigengrasps.values()])
+EIGENGRASPS = np.array([eigengrasps[str(i)]["joints"] for i in range(len(eigengrasps))])
 
 DEFAULT_INITIAL_QPOS = {
     "robot0:slide0": 0.4049,  # Robot arm
@@ -46,11 +50,11 @@ DEFAULT_INITIAL_QPOS = {
 }
 
 
-class ShadowHandEigengrasp(envs.robot_env.RobotEnv, utils.EzPickle):
+class ShadowHandEigengrasps(envs.robot_env.RobotEnv, utils.EzPickle):
     """Environment for pick and place with the ShadowHand and eigengrasps."""
     EIGENGRASPS = EIGENGRASPS
 
-    def __init__(self, reward_type: str = "sparse", n_eigengrasps: int = 6):
+    def __init__(self, reward_type: str = "sparse", n_eigengrasps: int = 1):
         """Initialize the Mujoco sim."""
         self.c_low = (1.05, 0.4, 0.4)
         self.c_high = (1.55, 1.1, 0.4)
@@ -69,6 +73,10 @@ class ShadowHandEigengrasp(envs.robot_env.RobotEnv, utils.EzPickle):
                          n_actions=3 + n_eigengrasps,
                          initial_qpos=DEFAULT_INITIAL_QPOS)
         utils.EzPickle.__init__(self, reward_type=reward_type)
+        self._ctrl_range = self.sim.model.actuator_ctrlrange
+        self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
+        self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
+
 
     def _sample_goal(self) -> np.ndarray:
         goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(
@@ -106,7 +114,6 @@ class ShadowHandEigengrasp(envs.robot_env.RobotEnv, utils.EzPickle):
             object_velp.ravel(),
             object_velr.ravel(),
         ])
-
         return {
             "observation": obs.copy(),
             "achieved_goal": achieved_goal.copy(),
@@ -117,20 +124,21 @@ class ShadowHandEigengrasp(envs.robot_env.RobotEnv, utils.EzPickle):
         assert action.shape == (3 + self.n_eigengrasps,)
         action = (action.copy())  # ensure that we don't change the action outside of this scope
         pos_ctrl, hand_ctrl = action[:3], action[3:]
-        hand_ctrl = hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps]
-        np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
+
         pos_ctrl *= 0.05  # limit maximum change in position
+        pos_ctrl[:2] = 0
         rot_ctrl = [1.0, 0.0, 1.0, 0.0]  # fixed rotation of the end effector as a quaternion
         action = np.concatenate([pos_ctrl, rot_ctrl])
 
+        # Transform hand controls to eigengrasps
+        hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
+        np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
+
         # Apply action to simulation.
         envs.utils.mocap_set_action(self.sim, action)
-
-        ctrlrange = self.sim.model.actuator_ctrlrange
-        actuation_range = (ctrlrange[:, 1] - ctrlrange[:, 0]) / 2.0
-        actuation_center = (ctrlrange[:, 1] + ctrlrange[:, 0]) / 2.0
-        self.sim.data.ctrl[:] = actuation_center + hand_ctrl * actuation_range
-        self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, ctrlrange[:, 0], ctrlrange[:, 1])
+        self.sim.data.ctrl[:] = self._act_center +  hand_ctrl * self._act_range
+        self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
+                                        self._ctrl_range[:, 1])
 
     def _is_success(self, achieved_goal: np.ndarray, goal: np.ndarray) -> np.ndarray:
         d = envs.utils.goal_distance(achieved_goal, goal)
@@ -181,6 +189,7 @@ class ShadowHandEigengrasp(envs.robot_env.RobotEnv, utils.EzPickle):
         self.sim.data.set_joint_qpos("object0:joint", object_qpos)
         self.sim.forward()
         return True
+
 
     def _render_callback(self):
         # Visualize target.
