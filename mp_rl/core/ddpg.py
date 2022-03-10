@@ -133,9 +133,7 @@ class DDPG:
         with torch.no_grad():
             next_actions_T = self.actor.target(obs_next_T)
             next_q_T = self.critic.target(obs_next_T, next_actions_T)
-            next_q_T.detach()  # TODO: remove?
             rewards_T = rewards_T + self.args.gamma * next_q_T  # No dones in fixed length episode
-            rewards_T.detach()  # TODO: remove?
             # Clip to minimum reward possible, geometric sum from 0 to inf with gamma and -1 rewards
             torch.clip(rewards_T, -1 / (1 - self.args.gamma), 0, out=rewards_T)
         q_T = self.critic(obs_T, actions_T)

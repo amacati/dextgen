@@ -50,5 +50,5 @@ class OrientPickAndPlace(FetchEnv, utils.EzPickle):
         # Apply action to simulation.
         envs.utils.ctrl_set_action(self.sim, action)
         # mocap_set_action with quaternion is implemented as summing up vectors, does NOT account
-        # for quaternion specialness. TODO: Investigate if this needs to change
+        # for quaternion specialness
         envs.utils.mocap_set_action(self.sim, action)

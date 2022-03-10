@@ -63,7 +63,7 @@ class Actor:
             actions += self.noise_process.sample()
             np.clip(actions, -self.action_clip, self.action_clip, out=actions)  # In-place op
             random_actions = np.random.uniform(-self.action_clip, self.action_clip, actions.shape)
-            choice = np.random.binomial(1, self.eps, 1)[0]  # TODO: change
+            choice = np.random.rand() < self.eps
             actions += choice * (random_actions - actions)
         else:  # No random exploration moves
             np.clip(actions, -self.action_clip, self.action_clip, out=actions)

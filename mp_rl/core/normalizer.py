@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pickle
 import numpy as np
-import torch
 from mpi4py import MPI
 
 
@@ -17,7 +16,7 @@ class Normalizer:
     """
 
     def __init__(self, size: int, world_size: int, eps: float = 1e-2, clip: float = np.inf):
-        """Initialize local and global buffer tensors for distributed mode.
+        """Initialize local and global buffer arrays for distributed mode.
 
         Args:
             size: Data dimension. Each dimensions mean and variance is tracked individually.
@@ -29,10 +28,10 @@ class Normalizer:
         self.world_size = world_size
         self.eps2 = np.ones(size, dtype=np.float32) * eps**2
         self.clip = clip
-        # Tensors for allreduce ops to transfer stats between processe via MPI.
-        # Local tensors hold stats from the current update, accumulate external stats in the
-        # all_reduce phase, transfer the accumulated values into the all-time arrays and reset to
-        # zero. Avoids including past stats from other processes as own values for the current run
+        # Arrays for allreduce ops to transfer stats between processe via MPI. Local arrays hold
+        # stats from the current update, accumulate external stats in the all_reduce phase, transfer
+        # the accumulated values into the all-time arrays and reset to zero. This avoids including
+        # past stats from other processes as own values for the current run
         self.lsum = np.zeros(size, dtype=np.float32)
         self.lsum_sq = np.zeros(size, dtype=np.float32)
         self.lcount = np.zeros(1, dtype=np.float32)
@@ -48,17 +47,16 @@ class Normalizer:
         """Alias for `self.normalize`."""
         return self.normalize(x)
 
-    def normalize(self, x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+    def normalize(self, x: np.ndarray) -> np.ndarray:
         """Normalize the input data with the current mean and variance estimate.
 
         Args:
-            x: Input data array. Supports both numpy arrays and torch Tensors.
+            x: Input data array.
 
         Returns:
-            The normalized data. Preserves input data type.
+            The normalized data.
         """
         return np.clip((x - self.mean) / self.std, -self.clip, self.clip)
-        # TODO: return torch.clip((x - self.mean) / self.std, -self.clip, self.clip)
 
     def update(self, x: np.ndarray):
         """Update the mean and variance estimate with new data.

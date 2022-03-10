@@ -71,8 +71,8 @@ class ObstacleReach(FetchEnv, utils.EzPickle):
         object_pos = object_rot = object_velp = object_velr = object_rel_pos = np.zeros(0)
         gripper_state = robot_qpos[-2:]
         gripper_vel = robot_qvel[-2:] * dt  # change to a scalar if the gripper is made symmetric
+        # Redefine the achieved obstacle goal if the gripper entered the original one
         obstacle_region = self.goal[3:].copy()
-        # TODO: confirm that changing the obstacle is a good idea
         while goal_distance(obstacle_region, grip_pos) < self.obstacle_threshold:
             obstacle_region = self.np_random.uniform(-self.target_range, self.target_range, size=3)
         achieved_goal = np.concatenate([grip_pos.copy(), obstacle_region])
