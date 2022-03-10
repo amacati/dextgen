@@ -129,7 +129,6 @@ class ShadowHandEigengrasps(envs.robot_env.RobotEnv, utils.EzPickle):
         action = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Transform hand controls to eigengrasps
-        hand_ctrl[:] = 1
         hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
         np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
 
