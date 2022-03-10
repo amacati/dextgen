@@ -4,7 +4,7 @@ Assumes dictionary gym environments.
 """
 
 import argparse
-from typing import List, Union
+from typing import List
 from pathlib import Path
 import time
 
@@ -22,8 +22,6 @@ from mp_rl.core.actor import Actor
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
 from mp_rl.core.replay_buffer import HERBuffer, her_sampling, TrajectoryBuffer
-
-T = Union[np.ndarray, torch.Tensor]
 
 
 class DDPG:
