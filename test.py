@@ -4,7 +4,7 @@ import argparse
 import logging
 from pathlib import Path
 import time
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 import pickle
 import torch
@@ -19,12 +19,25 @@ from mp_rl.core.actor import ActorNetwork
 
 
 class MujocoVideoRecorder(VideoRecorder):
+    """Record videos in Mujoco with adaptive resolution based on the gym VideoRecoder class."""
 
-    def __init__(self, *args, resolution: Optional[Tuple[int]] = None, **kwargs):
+    def __init__(self, *args: Any, resolution: Optional[Tuple[int]] = None, **kwargs: Any):
+        """Initialize a recorder with specific resolution.
+
+        Args:
+            args: VideoRecorder arguments.
+            resolution: Resolution tuple.
+            kwargs: VideoRecorder keyword arguments.
+        """
         super().__init__(*args, **kwargs)
         self.resolution = resolution
 
-    def capture_frame(self):
+    def capture_frame(self) -> Any:
+        """Capture a Mujoco frame.
+
+        Returns:
+            The frame in the previously specified format.
+        """
         if self.resolution is None:
             return super().capture_frame()
         if not self.functional or self._closed:

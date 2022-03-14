@@ -9,5 +9,6 @@ saves/*/*.png
 /build
 /tests/test.py
 /.pytest_cache
+scripts
 *.mp4
 !envs/eigengrasps.json

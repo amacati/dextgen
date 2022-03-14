@@ -1,6 +1,4 @@
 """Normalizer class file."""
-
-from typing import Union
 from pathlib import Path
 
 import pickle

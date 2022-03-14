@@ -104,6 +104,13 @@ def goal_distance(goal_a: np.ndarray, goal_b: np.ndarray) -> np.ndarray:
 
 
 def map_sh2mujoco(joints: np.ndarray) -> np.ndarray:
+    """Map ShadowHand joint values to Mujoco's order.
+
+    SH order: Wrist, Thumb, FF, MF, RF, LF. Mujoco order: Wrist, FF, MF, LF, Thumb.
+
+    Returns:
+        A joint array with translated joint positions.
+    """
     mjoints = np.zeros_like(joints)
     mjoints[:2] = joints[:2]
     mjoints[2:15] = joints[7:]
