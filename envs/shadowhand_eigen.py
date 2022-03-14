@@ -137,19 +137,9 @@ class ShadowHandEigengrasps(envs.robot_env.RobotEnv, utils.EzPickle):
         pos_ctrl[:2] = self.initial_gripper_xpos[:2] - self.sim.data.get_site_xpos(
             "robot0:grip")[:2]
         action = np.concatenate([pos_ctrl, rot_ctrl])
-        print(self.sim.data.get_site_xpos("robot0:grip")[2])
-        if hand_ctrl == -1:
-            print("approach")
-            hand_ctrl = np.array(
-                [1, -1, 0, -1, -1, 0, -1, -1, 0, -1, -1, -1, 0, -1, -1, 0, 1, -1, -1, 0])
-        elif hand_ctrl == 1:
-            print("close")
-            hand_ctrl = -np.array(
-                [1, 1, 0, -.5, 0, 0, 0, 0, 0, -.5, -.5, -.5, 0, -.5, 1, 0, -1, 1, 1, 0])
-
         # Transform hand controls to eigengrasps
-        # hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
-        # np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
+        hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
+        np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
 
         # Apply action to simulation.
         envs.utils.mocap_set_action(self.sim, action)
