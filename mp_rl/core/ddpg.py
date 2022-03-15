@@ -112,7 +112,7 @@ class DDPG:
             av_success = self.eval_agent()
             if hasattr(self.env, "epoch_callback"):
                 assert callable(self.env.epoch_callback)
-                self.env.epoch_callback(epoch)
+                self.env.epoch_callback(epoch, self.args.epochs)
             if self.rank == 0:
                 ep_success.append(av_success)
                 ep_time.append(epoch_end - epoch_start)

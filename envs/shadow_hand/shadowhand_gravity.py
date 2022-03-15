@@ -70,14 +70,15 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
         self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
                                         self._ctrl_range[:, 1])
 
-    def epoch_callback(self, epoch: int):
-        """Increase environment gravity stepwise over 100 epochs.
+    def epoch_callback(self, epoch: int, max_epoch: int):
+        """Increase environment gravity stepwise after each epoch.
 
         Args:
             epoch: Current training epoch.
+            max_epoch: Maximum number of epochs.
         """
         # Assuming gravity increase over 100 epochs
-        self.sim.model.opt.gravity[-1] = max(min(1, epoch / 100), 0) * -9.81
+        self.sim.model.opt.gravity[-1] = max(min(1, epoch / max_epoch), 0) * -9.81
 
     def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
