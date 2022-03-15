@@ -91,7 +91,8 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
         object_qpos = self.sim.data.get_joint_qpos("object0:joint")
         assert object_qpos.shape == (7,)
         object_qpos[:2] = object_xpos
-        if np.random.rand() > 0.5:
+        # Stop random placement in the air when gravity approaches real value
+        if np.random.rand() > 0.5 and self.sim.model.opt.gravity[-1] < 5:
             object_qpos[2] += np.random.rand() * 0.2
         self.sim.data.set_joint_qpos("object0:joint", object_qpos)
         self.sim.forward()
