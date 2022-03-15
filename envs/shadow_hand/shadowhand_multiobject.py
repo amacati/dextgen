@@ -114,6 +114,17 @@ class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
         self.sim.forward()
         return True
 
+    def _reset_sim_grasp(self):
+        self.sim.set_state(self.initial_state_grasp)
+        for i in range(1, 3):
+            curr_obj_joint = "object" + str(i) + ":joint"
+            object_qpos = self.sim.data.get_joint_qpos(curr_obj_joint)
+            assert object_qpos.shape == (7,)
+            object_qpos[:2] = i * 0.1  # Move objects to sim origin without causing collision
+            self.sim.data.set_joint_qpos(curr_obj_joint, object_qpos)
+        self.sim.forward()
+        return True
+
     def _get_obs(self) -> Dict[str, np.ndarray]:
         curr_obj = "object" + str(self.curr_obj_id)
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")

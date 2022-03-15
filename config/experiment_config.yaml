@@ -46,3 +46,9 @@ ShadowHandMultiObject-v0:
   epochs: 1000
   kwargs:
     n_eigengrasps: 6
+    p_grasp_start: 0.5
+
+ShadowHandVariationalSize-v0:
+  epochs: 1000
+  kwargs:
+    p_grasp_start: 0.5
