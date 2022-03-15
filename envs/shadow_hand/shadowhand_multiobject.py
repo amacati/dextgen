@@ -53,7 +53,7 @@ class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
         self.n_eigengrasps = n_eigengrasps
         self.p_grasp_start = p_grasp_start
         n_actions = 3 + n_eigengrasps
-        initial_qpos = DEFAULT_INITIAL_QPOS
+        initial_qpos = DEFAULT_INITIAL_QPOS.copy()
         initial_qpos["object1:joint"] = [1.35, 0.63, 0.42, 1., 0, 0, 0]
         initial_qpos["object2:joint"] = [1.45, 0.53, 0.4, 1., 0, 0, 0]
         super().__init__(n_actions=n_actions,
@@ -89,6 +89,8 @@ class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
                                         self._ctrl_range[:, 1])
 
     def _reset_sim(self) -> bool:
+        if np.random.rand() < self.p_grasp_start:
+            return self._reset_sim_grasp()
         self.sim.set_state(self.initial_state)
         # Randomize start position of object.
         object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(

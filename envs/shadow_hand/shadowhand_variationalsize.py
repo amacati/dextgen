@@ -1,4 +1,4 @@
-"""ShadowHandPickAndPlace class file."""
+"""ShadowHandVariationalSize class file."""
 from gym import utils
 import numpy as np
 
@@ -8,8 +8,8 @@ import envs.rotations
 from envs.shadow_hand.shadowhand_base import ShadowHandBase
 
 
-class ShadowHandPickAndPlace(ShadowHandBase, utils.EzPickle):
-    """Environment for pick and place with the ShadowHand."""
+class ShadowHandVariationalSize(ShadowHandBase, utils.EzPickle):
+    """Environment for pick and place with the ShadowHand and variational cube size."""
 
     def __init__(self, reward_type: str = "sparse", p_grasp_start: float = 0.):
         """Initialize the Mujoco sim.
@@ -20,6 +20,8 @@ class ShadowHandPickAndPlace(ShadowHandBase, utils.EzPickle):
         """
         self.c_low = (1.05, 0.4, 0.4)
         self.c_high = (1.55, 1.1, 0.4)
+        self.cube_size = np.array([0.025, 0.025, 0.04])
+        self.cube_deviation = 0.01
         self.max_reset_steps = 100
         self.distance_threshold = 0.05
         self.target_in_the_air = True
@@ -51,3 +53,26 @@ class ShadowHandPickAndPlace(ShadowHandBase, utils.EzPickle):
         self.sim.data.ctrl[:] = self._act_center + hand_ctrl * self._act_range
         self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
                                         self._ctrl_range[:, 1])
+
+    def _reset_sim(self) -> bool:
+        if np.random.rand() < self.p_grasp_start:
+            # Reset object0 size to normal
+            self.sim.model.geom_size[-1] = self.cube_size
+            return self._reset_sim_grasp()
+        # Set object0 size to random
+        cube_pertubation = 2 * (np.random.rand(3) - 0.5) * self.cube_deviation
+        self.sim.model.geom_size[-1] = self.cube_size + cube_pertubation
+        self.sim.set_state(self.initial_state)
+        # Randomize start position of object.
+        object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(
+            -self.obj_range, self.obj_range, size=2)
+        while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
+            object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(
+                -self.obj_range, self.obj_range, size=2)
+        object_qpos = self.sim.data.get_joint_qpos("object0:joint")
+        assert object_qpos.shape == (7,)
+        object_qpos[:2] = object_xpos
+        object_qpos[2] += cube_pertubation[2]
+        self.sim.data.set_joint_qpos("object0:joint", object_qpos)
+        self.sim.forward()
+        return True
