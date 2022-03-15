@@ -121,6 +121,7 @@ ShadowHandEigengrasps-v0:
   buffer_size: 1000000
   kwargs:
     n_eigengrasps: 6
+    p_grasp_start: 0.5
   
   gamma: 0.98
   actor_lr: 0.001

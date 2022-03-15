@@ -143,8 +143,6 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action = actor(torch.cat([state, goal]))
             next_obs, reward, done, info = env.step(action.numpy())
-            action = env.action_space.sample()
-            next_obs, reward, done, info = env.step(action)
             state, goal, _ = unwrap_obs(next_obs)
             early_stop = (early_stop + 1) if not reward else 0
             if record:
