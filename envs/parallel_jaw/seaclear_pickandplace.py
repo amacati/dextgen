@@ -1,7 +1,7 @@
 """SeaClearPickAndPlace class file."""
 from pathlib import Path
 from gym import utils
-from envs.fetch import FetchEnv
+from envs.parallel_jaw.fetch import FetchEnv
 
 MODEL_XML_PATH = str(Path("fetch", "seaclear_pick_and_place.xml"))
 

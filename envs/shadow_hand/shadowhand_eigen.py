@@ -8,7 +8,7 @@ import json
 import envs.robot_env
 import envs.utils
 import envs.rotations
-from envs.shadowhand_base import ShadowHandBase
+from envs.shadow_hand.shadowhand_base import ShadowHandBase
 
 # The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
 # hand poses from the ContactPose dataset. For more information, see

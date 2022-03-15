@@ -1,29 +1,13 @@
+import pytest
 import gym
 import envs  # noqa: F401
 
 
 class TestEnv:
 
-    def test_obstacle_reach_env(self):
-        self.run_env(env_key="ObstacleReach-v0")
-
-    def test_uneven_pickandplace_env(self):
-        self.run_env(env_key="UnevenPickAndPlace-v0")
-
-    def test_seaclear_pickandplace_env(self):
-        self.run_env(env_key="SeaClearPickAndPlace-v0")
-
-    def test_size_pickandplace_env(self):
-        self.run_env(env_key="SizePickAndPlace-v0")
-
-    def test_shadowhand_pickandplace_env(self):
-        self.run_env(env_key="ShadowHandPickAndPlace-v0")
-
-    def test_shadowhand_eigengrasp_env(self):
-        self.run_env(env_key="ShadowHandEigengrasp-v0")
-
-    def orient_pickandplace_env(self):
-        self.run_env(env_key="OrientPickAndPlace-v0")
+    @pytest.mark.parametrize("env", envs.available_envs)
+    def test_env(self, env):
+        self.run_env(env)
 
     @staticmethod
     def run_env(env_key):

@@ -2,7 +2,7 @@
 from pathlib import Path
 from gym import utils
 import numpy as np
-from envs.fetch import FetchEnv
+from envs.parallel_jaw.fetch import FetchEnv
 import envs.utils
 
 MODEL_XML_PATH = str(Path("fetch", "pick_and_place.xml"))

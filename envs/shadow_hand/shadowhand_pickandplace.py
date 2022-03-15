@@ -7,7 +7,7 @@ import numpy as np
 import envs.robot_env
 import envs.utils
 import envs.rotations
-from envs.shadowhand_base import ShadowHandBase
+from envs.shadow_hand.shadowhand_base import ShadowHandBase
 
 MODEL_XML_PATH = str(Path("shfetch", "shadowhand_pick_and_place.xml"))
 

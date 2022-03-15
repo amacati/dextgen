@@ -5,7 +5,7 @@ from typing import Dict
 from gym import utils
 import envs.utils
 from envs.utils import goal_distance
-from envs.fetch import FetchEnv
+from envs.parallel_jaw.fetch import FetchEnv
 
 MODEL_XML_PATH = str(Path("fetch", "obstaclereach.xml"))
 
