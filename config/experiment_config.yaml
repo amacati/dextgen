@@ -52,7 +52,7 @@ FetchPickAndPlace-v1:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
 
 ObstacleReach-v0:
@@ -108,7 +108,7 @@ UnevenPickAndPlace-v0:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
 
 ShadowHandPickAndPlace-v0:
@@ -138,7 +138,7 @@ ShadowHandPickAndPlace-v0:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
 
 ShadowHandEigengrasps-v0:
@@ -169,7 +169,7 @@ ShadowHandEigengrasps-v0:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
 
 ShadowHandGravity-v0:
@@ -199,7 +199,7 @@ ShadowHandGravity-v0:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
 
 ShadowHandMultiObject-v0:
@@ -229,5 +229,5 @@ ShadowHandMultiObject-v0:
   grad_clip: 5.
   action_norm: 1.  # Action regularization
 
-  early_stop: 0.95
+  early_stop: 0.98
   save: True
