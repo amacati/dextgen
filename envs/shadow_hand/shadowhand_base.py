@@ -50,12 +50,16 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
                  n_actions: int,
                  reward_type: str = "sparse",
                  p_grasp_start: float = 0.,
-                 model_path=MODEL_XML_PATH):
+                 model_path: str = MODEL_XML_PATH,
+                 initial_qpos: dict = DEFAULT_INITIAL_QPOS):
         """Initialize the Mujoco sim.
 
         Params:
+            n_actions: Action space dimensionality.
             reward_type: Choice of reward formular.
             p_grasp_start: Fraction of episode starts with pregrasped objects.
+            model_path: Mujoco world file xml path.
+            initial_qpos: Initial poses of simulation objects.
         """
         self.c_low = (1.05, 0.4, 0.4)
         self.c_high = (1.55, 1.1, 0.4)
@@ -71,7 +75,7 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         super().__init__(model_path=model_path,
                          n_substeps=20,
                          n_actions=n_actions,
-                         initial_qpos=DEFAULT_INITIAL_QPOS)
+                         initial_qpos=initial_qpos)
         self._ctrl_range = self.sim.model.actuator_ctrlrange
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
@@ -239,4 +243,4 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         self.sim.forward()
 
     def epoch_callback(self, *_):
-        """Optional epoch callback for environment changes during training."""
+        """Execute optional callback after an epoch for environment changes during training."""

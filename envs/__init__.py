@@ -4,7 +4,7 @@ import gym
 available_envs = [
     'ObstacleReach-v0', 'UnevenPickAndPlace-v0', 'SeaClearPickAndPlace-v0', 'SizePickAndPlace-v0',
     'OrientPickAndPlace-v0', 'ShadowHandPickAndPlace-v0', 'ShadowHandEigengrasps-v0',
-    'ShadowHandGravity-v0'
+    'ShadowHandGravity-v0', 'ShadowHandMultiObject-v0'
 ]
 
 # Register OpenAI gym environments
@@ -38,4 +38,8 @@ gym.envs.register(id='ShadowHandEigengrasps-v0',
 
 gym.envs.register(id='ShadowHandGravity-v0',
                   entry_point='envs.shadow_hand.shadowhand_gravity:ShadowHandGravity',
+                  max_episode_steps=50)
+
+gym.envs.register(id='ShadowHandMultiObject-v0',
+                  entry_point='envs.shadow_hand.shadowhand_multiobject:ShadowHandMultiObject',
                   max_episode_steps=50)
