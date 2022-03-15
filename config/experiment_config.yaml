@@ -1,4 +1,4 @@
-FetchReach-v1:
+Default:
   epochs: 50
   cycles: 50
   rollouts: 2
@@ -6,97 +6,12 @@ FetchReach-v1:
   evals: 10
   batch_size: 256
   buffer_size: 1000000
-  
+
   gamma: 0.98
   actor_lr: 0.001
   critic_lr: 0.001
   tau: 0.05  # 1-tau is Polyak factor
-  
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
 
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.9
-  save: True
-
-FetchPickAndPlace-v1:
-  epochs: 50
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
-  nprocesses: 16
-  
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-  
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
-
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.98
-  save: True
-
-ObstacleReach-v0:
-  epochs: 50
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
-  
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-  
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
-
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.98
-  save: True
-
-UnevenPickAndPlace-v0:
-  epochs: 50
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
-  
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-  
   eps: 0.3  # Fraction of completely random actions
   mu: 0.15  # Ornstein-Uhlenbeck mu
   sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
@@ -113,121 +28,21 @@ UnevenPickAndPlace-v0:
 
 ShadowHandPickAndPlace-v0:
   epochs: 1000
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
   kwargs:
     p_grasp_start: 0.5
-  
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-  
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
-
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.98
-  save: True
 
 ShadowHandEigengrasps-v0:
   epochs: 1000
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
   kwargs:
     n_eigengrasps: 6
     p_grasp_start: 0.5
-  
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-  
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
-
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.98
-  save: True
 
 ShadowHandGravity-v0:
   epochs: 1000
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
   kwargs:
     n_eigengrasps: 6
-
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
-
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.98
-  save: True
 
 ShadowHandMultiObject-v0:
   epochs: 1000
-  cycles: 50
-  rollouts: 2
-  batches: 40
-  evals: 10
-  batch_size: 256
-  buffer_size: 1000000
   kwargs:
     n_eigengrasps: 6
-
-  gamma: 0.98
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.05  # 1-tau is Polyak factor
-
-  eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
-  k: 4  # Ratio of HER experience vs normal experience
-
-  action_clip: 1.
-  state_clip: 200.
-  goal_clip: 200.
-  grad_clip: 5.
-  action_norm: 1.  # Action regularization
-
-  early_stop: 0.98
-  save: True
