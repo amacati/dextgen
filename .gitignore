@@ -11,4 +11,4 @@ saves/*/*.png
 /.pytest_cache
 scripts
 *.mp4
-!envs/eigengrasps.json
+!envs/shadow_hand/eigengrasps.json
