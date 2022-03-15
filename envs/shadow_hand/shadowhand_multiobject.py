@@ -114,7 +114,7 @@ class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
         self.sim.forward()
         return True
 
-    def _reset_sim_grasp(self):
+    def _reset_sim_grasp(self) -> bool:
         self.sim.set_state(self.initial_state_grasp)
         for i in range(1, 3):
             curr_obj_joint = "object" + str(i) + ":joint"

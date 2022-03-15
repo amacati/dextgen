@@ -77,7 +77,6 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
             epoch: Current training epoch.
             max_epoch: Maximum number of epochs.
         """
-        # Assuming gravity increase over 100 epochs
         self.sim.model.opt.gravity[-1] = max(min(1, epoch / (0.75 * max_epoch)), 0) * -9.81
 
     def _reset_sim(self) -> bool:
