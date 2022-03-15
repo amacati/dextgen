@@ -110,6 +110,9 @@ class DDPG:
                 self.critic.update_target(self.args.tau)
             epoch_end = time.perf_counter()
             av_success = self.eval_agent()
+            if hasattr(self.env, "epoch_callback"):
+                assert callable(self.env.epoch_callback)
+                self.env.epoch_callback(epoch)
             if self.rank == 0:
                 ep_success.append(av_success)
                 ep_time.append(epoch_end - epoch_start)

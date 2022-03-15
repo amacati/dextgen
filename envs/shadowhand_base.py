@@ -46,7 +46,11 @@ DEFAULT_INITIAL_QPOS = {
 class ShadowHandBase(envs.robot_env.RobotEnv):
     """Base environment for pick and place with the ShadowHand."""
 
-    def __init__(self, n_actions: int, reward_type: str = "sparse", p_grasp_start: float = 0.):
+    def __init__(self,
+                 n_actions: int,
+                 reward_type: str = "sparse",
+                 p_grasp_start: float = 0.,
+                 model_path=MODEL_XML_PATH):
         """Initialize the Mujoco sim.
 
         Params:
@@ -64,7 +68,7 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         self.reward_type = reward_type
         self.obj_range = 0.15
         self.p_grasp_start = p_grasp_start
-        super().__init__(model_path=MODEL_XML_PATH,
+        super().__init__(model_path=model_path,
                          n_substeps=20,
                          n_actions=n_actions,
                          initial_qpos=DEFAULT_INITIAL_QPOS)
@@ -233,3 +237,6 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         site_id = self.sim.model.site_name2id("target0")
         self.sim.model.site_pos[site_id] = self.goal - sites_offset[0]
         self.sim.forward()
+
+    def epoch_callback(self, *_):
+        """Optional epoch callback for environment changes during training."""
