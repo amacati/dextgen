@@ -24,7 +24,10 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
 
     EIGENGRASPS = EIGENGRASPS
 
-    def __init__(self, reward_type: str = "sparse", n_eigengrasps: int = 1):
+    def __init__(self,
+                 reward_type: str = "sparse",
+                 n_eigengrasps: int = 1,
+                 n_increase_epochs: int = 100):
         """Initialize the Mujoco sim.
 
         Params:
@@ -43,9 +46,13 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
         self.obj_range = 0.15
         assert n_eigengrasps <= 20
         self.n_eigengrasps = n_eigengrasps
+        self.n_increase_epochs = n_increase_epochs
         n_actions = 3 + n_eigengrasps
         super().__init__(n_actions=n_actions, reward_type=reward_type, p_grasp_start=0)
-        utils.EzPickle.__init__(self, reward_type=reward_type, n_eigengrasps=n_eigengrasps)
+        utils.EzPickle.__init__(self,
+                                reward_type=reward_type,
+                                n_eigengrasps=n_eigengrasps,
+                                n_increase_epochs=n_increase_epochs)
         self.sim.model.opt.gravity[-1] = 0
 
     def _set_action(self, action: np.ndarray):
@@ -70,14 +77,14 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
         self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
                                         self._ctrl_range[:, 1])
 
-    def epoch_callback(self, epoch: int, max_epoch: int):
+    def epoch_callback(self, epoch: int):
         """Increase environment gravity stepwise after each epoch.
 
         Args:
             epoch: Current training epoch.
             max_epoch: Maximum number of epochs.
         """
-        self.sim.model.opt.gravity[-1] = max(min(1, epoch / (0.75 * max_epoch)), 0) * -9.81
+        self.sim.model.opt.gravity[-1] = max(min(1, epoch / (self.n_increase_epochs)), 0) * -9.81
 
     def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)

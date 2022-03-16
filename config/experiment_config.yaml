@@ -41,6 +41,7 @@ ShadowHandGravity-v0:
   epochs: 1000
   kwargs:
     n_eigengrasps: 6
+    n_increase_epochs: 100  # Number of episodes over which the gravity is increased from 0g to 1g
 
 ShadowHandMultiObject-v0:
   epochs: 1000

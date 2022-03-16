@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+import pytest
 import gym
 import yaml
 
@@ -9,16 +10,21 @@ from mp_rl.core.ddpg import DDPG
 
 
 class TestDDPG:
+    """Test DDPG learning on each environment for one epoch, one cycle.
 
-    def test_ddpg(self):
-        args = self.load_args()
+    Since MPI is not easily supported within Docker, only the non-distributed case is tested.
+    """
+
+    @pytest.mark.parametrize("env", envs.available_envs)
+    def test_ddpg(self, env):
+        args = self.load_args(env)
         env = gym.make(args.env)
         ddpg = DDPG(env, args)
         ddpg.train()
 
-    def load_args(self):
+    def load_args(self, env):
         args = argparse.Namespace()
-        args.env = "FetchReach-v1"
+        args.env = env
         path = Path(__file__).parents[1] / "config" / "experiment_config.yaml"
         with open(path, "r") as f:
             config = yaml.load(f, yaml.SafeLoader)
@@ -33,6 +39,8 @@ class TestDDPG:
                 setattr(args, key, val)
         args.epochs = 1
         args.cycles = 1
+        args.batches = 1
+        args.evals = 1
         return args
 
     @staticmethod
