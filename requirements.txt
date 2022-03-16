@@ -1,9 +1,10 @@
-torch==1.10.1
-matplotlib==3.5.0
+tqdm==4.62.3
+numpy==1.20.3
 mpi4py==3.0.3
 mujoco_py==2.1.2.14
-tqdm==4.62.3
-pytest==6.2.5
-numpy==1.20.3
 gym==0.21.0
+pytest==6.2.5
+pytest-mpi==0.6
+matplotlib==3.5.0
+torch==1.10.1
 PyYAML==6.0
