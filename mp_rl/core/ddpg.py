@@ -217,10 +217,9 @@ class DDPG:
     def save_models(self):
         """Save the actor network and the normalizers for testing and inference.
 
-        Saves are located under `/save/<env_name>/`.
+        Saves are located under `/save/<env_name>/`. Can only be called from rank 0.
         """
-        if not self.PATH.is_dir():
-            self.PATH.mkdir(parents=True, exist_ok=True)
+        assert self.rank == 0
         torch.save(self.actor.action_net.state_dict(), self.PATH / "actor.pt")
         self.state_norm.save(self.PATH / "state_norm.pkl")
         self.goal_norm.save(self.PATH / "goal_norm.pkl")
@@ -229,16 +228,14 @@ class DDPG:
         """Generate and save a plot from training statistics.
 
         Saves are located under `/save/<env_name>/`. Additional backup saves with the current
-        timestamp are created under `/save/<env_name>/.backup/<date>`.
+        timestamp are created under `/save/<env_name>/.backup/<date>`. Can only be called from rank
+        0.
 
         Args:
             ep_success: Episode agent evaluation success rate.
             ep_time: Episode training process time. Excludes the evaluation timing.
         """
-        if not self.PATH.is_dir():
-            self.PATH.mkdir(parents=True, exist_ok=True)
-        if not self.BACKUP_PATH.is_dir():
-            self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+        assert self.rank == 0
         fig, ax = plt.subplots(1, 2, figsize=(15, 4))
         ax[0].plot(ep_success)
         ax[0].set_xlabel('Episode')
@@ -258,7 +255,8 @@ class DDPG:
         """Save the current stats to a json file.
 
         Saves are located under `/save/<env_name>/`. Additional backup saves with the current
-        timestamp are created under `/save/<env_name>/.backup/<date>`.
+        timestamp are created under `/save/<env_name>/.backup/<date>`. Can only be called from rank
+        0.
 
         Args:
             ep_success: Episode evaluation success rate array.
@@ -271,12 +269,9 @@ class DDPG:
             "args": vars(self.args),
             "mpi": world_size
         }
-        if not self.PATH.is_dir():
-            self.PATH.mkdir(parents=True, exist_ok=True)
+        assert self.rank == 0
         with open(self.PATH / "stats.json", "w") as f:
             json.dump(stats, f)
-        if not self.BACKUP_PATH.is_dir():
-            self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
         with open(self.BACKUP_PATH / "stats.json", "w") as f:
             json.dump(stats, f)
 
