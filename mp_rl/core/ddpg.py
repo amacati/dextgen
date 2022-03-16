@@ -15,6 +15,7 @@ import gym
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from mpi4py import MPI
+import json
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.noise import GaussianNoise
@@ -119,13 +120,19 @@ class DDPG:
                 success_log.set_description_str("Current success rate: {:.3f}".format(av_success))
                 status_bar.update()
                 if self.args.save:
-                    self.save()
+                    self.save_models()
+                    self.save_plots(ep_success, ep_time)
+                    self.save_stats(ep_success, ep_time)
             if av_success > self.args.early_stop:
-                if self.rank == 0:
-                    self.generate_plots(ep_success, ep_time)
+                if self.rank == 0 and self.args.save:
+                    self.save_models()
+                    self.save_plots(ep_success, ep_time)
+                    self.save_stats(ep_success, ep_time)
                 return
-        if self.rank == 0:
-            self.generate_plots(ep_success, ep_time)
+        if self.rank == 0 and self.args.save:
+            self.save_models()
+            self.save_plots(ep_success, ep_time)
+            self.save_stats(ep_success, ep_time)
 
     def _train_agent(self):
         """Train the agent and critic network with experience sampled from the replay buffer."""
@@ -190,7 +197,7 @@ class DDPG:
             return success_rate[0] / self.world_size
         return success / self.args.evals
 
-    def save(self):
+    def save_models(self):
         """Save the actor network and the normalizers for testing and inference.
 
         Saves are located under `/save/<env_name>/`.
@@ -201,7 +208,7 @@ class DDPG:
         self.state_norm.save(self.PATH / "state_norm.pkl")
         self.goal_norm.save(self.PATH / "goal_norm.pkl")
 
-    def generate_plots(self, ep_success: List[float], ep_time: List[float]):
+    def save_plots(self, ep_success: List[float], ep_time: List[float]):
         """Generate and save a plot from training statistics.
 
         Saves are located under `/save/<env_name>/`.
@@ -225,6 +232,19 @@ class DDPG:
         ax[1].set_title('Episode compute times')
         ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(self.PATH / "stats.png")
+
+    def save_stats(self, ep_success, ep_time):
+        world_size = None if self.world_size == 1 else self.world_size
+        stats = {
+            "ep_success": ep_success,
+            "ep_time": ep_time,
+            "args": vars(self.args),
+            "mpi": world_size
+        }
+        if not self.PATH.is_dir():
+            self.PATH.mkdir(parents=True, exist_ok=True)
+        with open(self.PATH / "stats.json", "w") as f:
+            json.dump(stats, f)
 
     def wrap_obs(self, states: np.ndarray, goals: np.ndarray) -> torch.Tensor:
         """Wrap states and goals into a contingent input tensor.
