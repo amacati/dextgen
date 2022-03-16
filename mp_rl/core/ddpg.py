@@ -7,6 +7,7 @@ import argparse
 from typing import List
 from pathlib import Path
 import time
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -71,6 +72,7 @@ class DDPG:
         self.world_size = world_size
         self.rank = rank
         self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
+        self.BACKUP_PATH = self.PATH / ".backup" / datetime.now().strftime("%Y_%m_%d_%H_%M")
         if dist and world_size > 1:
             self.init_dist()
 
@@ -211,7 +213,8 @@ class DDPG:
     def save_plots(self, ep_success: List[float], ep_time: List[float]):
         """Generate and save a plot from training statistics.
 
-        Saves are located under `/save/<env_name>/`.
+        Saves are located under `/save/<env_name>/`. Additional backup saves with the current
+        timestamp are created under `/save/<env_name>/.backup/<date>`.
 
         Args:
             ep_success: Episode agent evaluation success rate.
@@ -219,6 +222,8 @@ class DDPG:
         """
         if not self.PATH.is_dir():
             self.PATH.mkdir(parents=True, exist_ok=True)
+        if not self.BACKUP_PATH.is_dir():
+            self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
         fig, ax = plt.subplots(1, 2, figsize=(15, 4))
         ax[0].plot(ep_success)
         ax[0].set_xlabel('Episode')
@@ -232,9 +237,13 @@ class DDPG:
         ax[1].set_title('Episode compute times')
         ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(self.PATH / "stats.png")
+        plt.savefig(self.BACKUP_PATH / "stats.png")
 
     def save_stats(self, ep_success: List[float], ep_time: List[float]):
         """Save the current stats to a json file.
+
+        Saves are located under `/save/<env_name>/`. Additional backup saves with the current
+        timestamp are created under `/save/<env_name>/.backup/<date>`.
 
         Args:
             ep_success: Episode evaluation success rate array.
@@ -250,6 +259,10 @@ class DDPG:
         if not self.PATH.is_dir():
             self.PATH.mkdir(parents=True, exist_ok=True)
         with open(self.PATH / "stats.json", "w") as f:
+            json.dump(stats, f)
+        if not self.BACKUP_PATH.is_dir():
+            self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+        with open(self.BACKUP_PATH / "stats.json", "w") as f:
             json.dump(stats, f)
 
     def wrap_obs(self, states: np.ndarray, goals: np.ndarray) -> torch.Tensor:
