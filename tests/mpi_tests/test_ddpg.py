@@ -14,6 +14,7 @@ from mp_rl.core.ddpg import DDPG
 def test_ddpg_mpi():
     comm = MPI.COMM_WORLD
     args = load_args("ShadowHandPickAndPlace-v0")
+    gym.make(args.env)
     env = gym.make(args.env)
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     ddpg.train()
@@ -38,4 +39,5 @@ def load_args(env):
     args.cycles = 1
     args.batches = 1
     args.evals = 1
+    args.save = False
     return args

@@ -1,6 +1,6 @@
 """Project setup file."""
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="mp_rl",
@@ -9,5 +9,5 @@ setup(
     author_email="martin.schuck@tum.de",
     description=("A multiprocessing reinforcement learning module for grasping."),
     keywords="RL MP DDPG DDP",
-    packages=['mp_rl', 'tests', 'envs'],
+    packages=find_packages(),
 )

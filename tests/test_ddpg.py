@@ -36,4 +36,5 @@ def load_args(env):
     args.cycles = 1
     args.batches = 1
     args.evals = 1
+    args.save = False
     return args
