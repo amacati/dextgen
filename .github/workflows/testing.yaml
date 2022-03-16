@@ -35,7 +35,7 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-      options: --user test
+      options: --user 1001
 
     steps:
       - name: Checkout code
