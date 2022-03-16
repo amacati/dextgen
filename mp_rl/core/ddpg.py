@@ -71,7 +71,7 @@ class DDPG:
         self.world_size = world_size
         self.rank = rank
         self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
-        if dist:
+        if dist and world_size > 1:
             self.init_dist()
 
     def train(self):
@@ -233,7 +233,13 @@ class DDPG:
         ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(self.PATH / "stats.png")
 
-    def save_stats(self, ep_success, ep_time):
+    def save_stats(self, ep_success: List[float], ep_time: List[float]):
+        """Save the current stats to a json file.
+
+        Args:
+            ep_success: Episode evaluation success rate array.
+            ep_time: Episode compute time array.
+        """
         world_size = None if self.world_size == 1 else self.world_size
         stats = {
             "ep_success": ep_success,

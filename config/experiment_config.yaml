@@ -25,6 +25,7 @@ Default:
 
   early_stop: 0.98
   save: True
+  seed: False  # Integer > 0 or False if no custom seed should be used
 
 ShadowHandPickAndPlace-v0:
   epochs: 1000

@@ -1,13 +1,30 @@
 """Train an agent on an OpenAI gym environment with DDPG and PyTorch's DDP."""
 
 import logging
+import random
 
 import gym
+import numpy as np
+import torch
 from mpi4py import MPI
 
 import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.ddpg import DDPG
 from parse_args import parse_args
+
+
+def set_seed(env: gym.Env, seed: int):
+    """Set the random seed of all relevant modules for reproducible experiments.
+
+    Args:
+        env: Gym environment.
+        seed: Seed used to set the seeds of all random number generators.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    env.seed(seed)
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -24,5 +41,8 @@ if __name__ == "__main__":
     else:
         env = gym.make(args.env)
     comm = MPI.COMM_WORLD
+    if args.seed:
+        assert isinstance(args.seed, int)
+        set_seed(env, args.seed + comm.Get_rank())
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     ddpg.train()
