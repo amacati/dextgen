@@ -34,16 +34,6 @@ class ShadowHandGravity(ShadowHandBase, utils.EzPickle):
             reward_type: Choice of reward formular.
             n_eigengrasps: Number of eigengrasp vectors the agent gets as action input.
         """
-        self.c_low = (1.05, 0.4, 0.4)
-        self.c_high = (1.55, 1.1, 0.4)
-        self.max_reset_steps = 100
-        self.distance_threshold = 0.05
-        self.target_in_the_air = True
-        self.target_range = 0.15
-        self.target_offset = 0.0
-        self.gripper_extra_height = 0.35
-        self.reward_type = reward_type
-        self.obj_range = 0.15
         assert n_eigengrasps <= 20
         self.n_eigengrasps = n_eigengrasps
         self.n_increase_epochs = n_increase_epochs

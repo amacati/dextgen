@@ -1,5 +1,9 @@
 FROM python:3.9
 
+# install MPI
+RUN apt-get update
+RUN apt-get install -y libopenmpi-dev openmpi-bin openmpi-doc
+
 RUN pip install --upgrade pip
 # Avoid cache miss after change in mount directory and no changes to reqirements.txt
 COPY requirements.txt /var

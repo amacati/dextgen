@@ -4,23 +4,25 @@ from pathlib import Path
 import pytest
 import gym
 import yaml
+from mpi4py import MPI
 
 import envs
 from mp_rl.core.ddpg import DDPG
 
 
-@pytest.mark.parametrize("env", envs.available_envs)
-def test_ddpg(env):
-    args = load_args(env)
+@pytest.mark.mpi
+def test_ddpg_mpi():
+    comm = MPI.COMM_WORLD
+    args = load_args("ShadowHandPickAndPlace-v0")
     env = gym.make(args.env)
-    ddpg = DDPG(env, args)
+    ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     ddpg.train()
 
 
 def load_args(env):
     args = argparse.Namespace()
     args.env = env
-    path = Path(__file__).parents[1] / "config" / "experiment_config.yaml"
+    path = Path(__file__).parents[2] / "config" / "experiment_config.yaml"
     with open(path, "r") as f:
         config = yaml.load(f, yaml.SafeLoader)
 

@@ -65,7 +65,6 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         self.c_high = (1.55, 1.1, 0.4)
         self.max_reset_steps = 100
         self.distance_threshold = 0.05
-        self.target_in_the_air = True
         self.target_range = 0.15
         self.target_offset = 0.0
         self.gripper_extra_height = 0.35
@@ -85,7 +84,7 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
             -self.target_range, self.target_range, size=3)
         goal += self.target_offset
         goal[2] = self.height_offset
-        if self.target_in_the_air and self.np_random.uniform() < 0.5:
+        if self.np_random.uniform() < 0.5:
             goal[2] += self.np_random.uniform(0.1, 0.45)
         return goal.copy()
 

@@ -18,19 +18,8 @@ class ShadowHandVariationalSize(ShadowHandBase, utils.EzPickle):
             reward_type: Choice of reward formular.
             p_grasp_start: Fraction of episode starts with pregrasped objects.
         """
-        self.c_low = (1.05, 0.4, 0.4)
-        self.c_high = (1.55, 1.1, 0.4)
         self.cube_size = np.array([0.025, 0.025, 0.04])
         self.cube_deviation = 0.01
-        self.max_reset_steps = 100
-        self.distance_threshold = 0.05
-        self.target_in_the_air = True
-        self.target_range = 0.15
-        self.target_offset = 0.0
-        self.gripper_extra_height = 0.35
-        self.reward_type = reward_type
-        self.obj_range = 0.15
-        self.p_grasp_start = p_grasp_start
         super().__init__(n_actions=23, reward_type=reward_type, p_grasp_start=p_grasp_start)
         utils.EzPickle.__init__(self, reward_type=reward_type, p_grasp_start=p_grasp_start)
 
