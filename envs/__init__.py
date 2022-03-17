@@ -5,7 +5,7 @@ available_envs = [
     'ObstacleReach-v0', 'UnevenPickAndPlace-v0', 'SeaClearPickAndPlace-v0', 'SizePickAndPlace-v0',
     'OrientPickAndPlace-v0', 'ShadowHandPickAndPlace-v0', 'ShadowHandEigengrasps-v0',
     'ShadowHandGravity-v0', 'ShadowHandMultiObject-v0', 'ShadowHandVariationalSize-v0',
-    'ShadowHandOrientation-v0'
+    'ShadowHandOrientation-v0', 'ShadowHandPretrain-v0'
 ]
 
 # Register OpenAI gym environments
@@ -52,4 +52,8 @@ gym.envs.register(
 
 gym.envs.register(id='ShadowHandOrientation-v0',
                   entry_point='envs.shadow_hand.shadowhand_orient:ShadowHandOrientation',
+                  max_episode_steps=50)
+
+gym.envs.register(id='ShadowHandPretrain-v0',
+                  entry_point='envs.shadow_hand.shadowhand_pretrain:ShadowHandPretrain',
                   max_episode_steps=50)

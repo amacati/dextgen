@@ -25,6 +25,7 @@ Default:
 
   early_stop: 0.98
   save: True
+  load_pretrained: False
   seed: False  # Integer > 0 or False if no custom seed should be used
 
 ShadowHandPickAndPlace-v0:
@@ -34,6 +35,7 @@ ShadowHandPickAndPlace-v0:
 
 ShadowHandEigengrasps-v0:
   epochs: 1000
+  load_pretrained: True
   kwargs:
     n_eigengrasps: 6
     p_grasp_start: 0.5
@@ -56,8 +58,11 @@ ShadowHandVariationalSize-v0:
     p_grasp_start: 0.5
 
 ShadowHandOrientation-v0:
-  epochs: 2
-  cycles: 1
+  epochs: 1000
   kwargs:
     p_grasp_start: 0.5
     n_eigengrasps: 6
+
+ShadowHandPretrain-v0:
+  kwargs:
+    p_grasp_start: 0.5

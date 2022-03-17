@@ -2,6 +2,7 @@
 
 import logging
 import random
+from pathlib import Path
 
 import gym
 import numpy as np
@@ -45,4 +46,8 @@ if __name__ == "__main__":
         assert isinstance(args.seed, int)
         set_seed(env, args.seed + comm.Get_rank())
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
+    if args.load_pretrained:
+        path = Path(__file__).parent / "saves" / "pretrained" / args.env
+        logger.info(f"Loading pretrained DDPG model from {path}")
+        ddpg.load_pretrained(path)
     ddpg.train()

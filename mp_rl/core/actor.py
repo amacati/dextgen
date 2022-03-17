@@ -1,5 +1,7 @@
 """Actor class and networks for DDPG."""
 
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -127,6 +129,17 @@ class Actor:
         sync_networks(self.action_net)
         # Target reloads state dict because network sync overwrites weights in process rank 1 to n
         # with the weights of action_net from process rank 0
+        self.target_net.load_state_dict(self.action_net.state_dict())
+
+    def load(self, path: Path):
+        """Load saved network weights for the actor and take care of syncronizations.
+
+        Args:
+            path: Path to the saved state dict.
+        """
+        self.action_net.load_state_dict(torch.load(path))
+        if self.dist:
+            sync_networks(self.action_net)
         self.target_net.load_state_dict(self.action_net.state_dict())
 
 

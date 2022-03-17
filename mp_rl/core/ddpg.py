@@ -4,7 +4,8 @@ Assumes dictionary gym environments.
 """
 
 import argparse
-from typing import List
+import logging
+from typing import List, Optional
 from pathlib import Path
 import time
 from datetime import datetime
@@ -24,6 +25,8 @@ from mp_rl.core.actor import Actor
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
 from mp_rl.core.replay_buffer import HERBuffer, her_sampling, TrajectoryBuffer
+
+logger = logging.getLogger(__name__)
 
 
 class DDPG:
@@ -214,15 +217,23 @@ class DDPG:
             return success_rate[0] / self.world_size
         return success / self.args.evals
 
-    def save_models(self):
-        """Save the actor network and the normalizers for testing and inference.
+    def save_models(self, path: Optional[Path] = None):
+        """Save the actor and critic network and the normalizers for testing and inference.
 
-        Saves are located under `/save/<env_name>/`. Can only be called from rank 0.
+        Saves are located under `/save/<env_name>/` by default. Only saves if called from rank 0,
+        returns without saving otherwise.
+
+        Args:
+            path: Path to the save directory.
         """
-        assert self.rank == 0
-        torch.save(self.actor.action_net.state_dict(), self.PATH / "actor.pt")
-        self.state_norm.save(self.PATH / "state_norm.pkl")
-        self.goal_norm.save(self.PATH / "goal_norm.pkl")
+        if self.rank != 0:
+            logger.warning(f"save_models called with rank {self.rank}. Exiting without save.")
+            return
+        path = path or self.PATH
+        torch.save(self.actor.action_net.state_dict(), path / "actor.pt")
+        torch.save(self.critic.critic_net.state_dict(), path / "critic.pt")
+        self.state_norm.save(path / "state_norm.pkl")
+        self.goal_norm.save(path / "goal_norm.pkl")
 
     def save_plots(self, ep_success: List[float], ep_time: List[float]):
         """Generate and save a plot from training statistics.
@@ -275,6 +286,15 @@ class DDPG:
             json.dump(stats, f)
         with open(self.BACKUP_PATH / "stats.json", "w") as f:
             json.dump(stats, f)
+
+    def load_pretrained(self, path: Path):
+        """Load pretrained networks for the actor, critic and normalizers."""
+        if not path.is_dir():
+            raise NotADirectoryError("Path must point to a valid directory.")
+        self.actor.load(path / "actor.pt")
+        self.critic.load(path / "critic.pt")
+        self.state_norm.load(path / "state_norm.pkl")
+        self.goal_norm.load(path / "goal_norm.pkl")
 
     def wrap_obs(self, states: np.ndarray, goals: np.ndarray) -> torch.Tensor:
         """Wrap states and goals into a contingent input tensor.

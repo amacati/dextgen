@@ -111,3 +111,15 @@ class Normalizer:
         """
         with open(path, "wb") as f:
             pickle.dump(self, f)
+
+    def load(self, path: Path):
+        """Load parameters from a pickle save of a normalizer.
+
+        Args:
+            path: Savefile path.
+        """
+        with open(path, "rb") as f:
+            normalizer = pickle.load(f)
+        assert normalizer.size == self.size
+        for attr in ["eps2", "lsum", "lsum_sq", "lcount", "sum", "sum_sq", "count", "mean", "std"]:
+            setattr(self, attr, getattr(normalizer, attr))
