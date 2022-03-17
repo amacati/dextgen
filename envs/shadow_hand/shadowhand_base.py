@@ -138,10 +138,10 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
 
     def _set_action(self, action: np.ndarray):
         if self.n_eigengrasps:
-            action = self._map_eigen_action(action)
+            action = self._map_eigengrasps(action)
         self._set_default_action(action)
 
-    def _map_eigen_action(self, action: np.ndarray) -> np.ndarray:
+    def _map_eigengrasps(self, action: np.ndarray) -> np.ndarray:
         """Map the action vector to eigengrasps and return the resulting array.
 
         Params:
@@ -150,9 +150,9 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         Returns:
             The transformed action vector.
         """
-        assert action.shape == (3 + self.n_eigengrasps,)
+        assert len(action) >= self.n_eigengrasps
         # Final concatenate creates new array, no need for safety copy here
-        pos_ctrl, hand_ctrl = action[:3], action[3:]
+        pos_ctrl, hand_ctrl = action[:-self.n_eigengrasps], action[-self.n_eigengrasps:]
         # Transform hand controls to eigengrasps
         hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
         np.clip(hand_ctrl, -1, 1, out=hand_ctrl)

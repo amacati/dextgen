@@ -54,3 +54,10 @@ ShadowHandVariationalSize-v0:
   epochs: 1000
   kwargs:
     p_grasp_start: 0.5
+
+ShadowHandOrientation-v0:
+  epochs: 2
+  cycles: 1
+  kwargs:
+    p_grasp_start: 0.5
+    n_eigengrasps: 6
