@@ -1,10 +1,9 @@
 """ShadowHandMultiObject class file."""
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from gym import utils
 import numpy as np
-import json
 
 import envs.robot_env
 import envs.utils
@@ -13,35 +12,23 @@ from envs.shadow_hand.shadowhand_base import ShadowHandBase, DEFAULT_INITIAL_QPO
 
 MODEL_XML_PATH = str(Path("shfetch", "shadowhand_multiobject.xml"))
 
-# The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
-# hand poses from the ContactPose dataset. For more information, see
-# https://github.com/amacati/sh_eigen  TODO: Make repository public
-with open(Path(__file__).parent / "eigengrasps.json", "r") as f:
-    eigengrasps = json.load(f)
-    assert all([len(value["joints"]) == 20 for value in eigengrasps.values()])
-EIGENGRASPS = np.array([eigengrasps[str(i)]["joints"] for i in range(len(eigengrasps))])
-
 
 class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
     """Environment for pick and place with the ShadowHand and eigengrasps."""
 
-    EIGENGRASPS = EIGENGRASPS
-
     def __init__(self,
                  reward_type: str = "sparse",
-                 n_eigengrasps: int = 1,
+                 n_eigengrasps: Optional[int] = None,
                  p_grasp_start: float = 0.):
         """Initialize the Mujoco sim.
 
         Params:
             reward_type: Choice of reward formular.
-            n_eigengrasps: Number of eigengrasp vectors the agent gets as action input.
+            n_eigengrasps: Optional number of eigengrasps for action transformation.
             p_grasp_start: Fraction of episode starts with pregrasped objects.
         """
         self.curr_obj_id = 0  # Necessary for initial observation call
-        assert n_eigengrasps <= 20
-        self.n_eigengrasps = n_eigengrasps
-        n_actions = 3 + n_eigengrasps
+        n_actions = 3 + (n_eigengrasps or 20)
         initial_qpos = DEFAULT_INITIAL_QPOS.copy()
         initial_qpos["object1:joint"] = [1.35, 0.63, 0.42, 1., 0, 0, 0]
         initial_qpos["object2:joint"] = [1.45, 0.53, 0.4, 1., 0, 0, 0]
@@ -49,33 +36,12 @@ class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
                          reward_type=reward_type,
                          p_grasp_start=p_grasp_start,
                          model_path=MODEL_XML_PATH,
-                         initial_qpos=initial_qpos)
+                         initial_qpos=initial_qpos,
+                         n_eigengrasps=n_eigengrasps)
         utils.EzPickle.__init__(self,
                                 reward_type=reward_type,
                                 n_eigengrasps=n_eigengrasps,
                                 p_grasp_start=p_grasp_start)
-
-    def _set_action(self, action: np.ndarray):
-        """Map the action vector to eigengrasps and write the resulting action to Mujoco.
-
-        Params:
-            Action: Action value vector.
-        """
-        assert action.shape == (3 + self.n_eigengrasps,)
-        action = (action.copy())  # ensure that we don't change the action outside of this scope
-        pos_ctrl, hand_ctrl = action[:3], action[3:]
-        pos_ctrl *= 0.05  # limit maximum change in position
-        rot_ctrl = [1.0, 0.0, 1.0, 0.0]  # fixed rotation of the end effector as a quaternion
-        action = np.concatenate([pos_ctrl, rot_ctrl])
-        # Transform hand controls to eigengrasps
-        hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
-        np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
-
-        # Apply action to simulation.
-        envs.utils.mocap_set_action(self.sim, action)
-        self.sim.data.ctrl[:] = self._act_center + hand_ctrl * self._act_range
-        self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
-                                        self._ctrl_range[:, 1])
 
     def _reset_sim(self) -> bool:
         if np.random.rand() < self.p_grasp_start:

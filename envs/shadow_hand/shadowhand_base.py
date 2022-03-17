@@ -1,15 +1,24 @@
 """ShadowHandBase class file."""
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 import copy
 
 import numpy as np
+import json
 
 import envs.robot_env
 import envs.utils
 import envs.rotations
 
 MODEL_XML_PATH = str(Path("shfetch", "shadowhand_pick_and_place.xml"))
+
+# The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
+# hand poses from the ContactPose dataset. For more information, see
+# https://github.com/amacati/sh_eigen  TODO: Make repository public
+with open(Path(__file__).parent / "eigengrasps.json", "r") as f:
+    eigengrasps = json.load(f)
+    assert all([len(value["joints"]) == 20 for value in eigengrasps.values()])
+EIGENGRASPS = np.array([eigengrasps[str(i)]["joints"] for i in range(len(eigengrasps))])
 
 DEFAULT_INITIAL_QPOS = {
     "robot0:slide0": 0.4049,  # Robot arm
@@ -46,12 +55,15 @@ DEFAULT_INITIAL_QPOS = {
 class ShadowHandBase(envs.robot_env.RobotEnv):
     """Base environment for pick and place with the ShadowHand."""
 
+    EIGENGRASPS = EIGENGRASPS
+
     def __init__(self,
                  n_actions: int,
                  reward_type: str = "sparse",
                  p_grasp_start: float = 0.,
                  model_path: str = MODEL_XML_PATH,
-                 initial_qpos: dict = DEFAULT_INITIAL_QPOS):
+                 initial_qpos: dict = DEFAULT_INITIAL_QPOS,
+                 n_eigengrasps: Optional[int] = None):
         """Initialize the Mujoco sim.
 
         Params:
@@ -60,6 +72,7 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
             p_grasp_start: Fraction of episode starts with pregrasped objects.
             model_path: Mujoco world file xml path.
             initial_qpos: Initial poses of simulation objects.
+            n_eigengrasps: Optional number of eigengrasps for action transformation.
         """
         self.c_low = (1.05, 0.4, 0.4)
         self.c_high = (1.55, 1.1, 0.4)
@@ -71,6 +84,8 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         self.reward_type = reward_type
         self.obj_range = 0.15
         self.p_grasp_start = p_grasp_start
+        self.n_eigengrasps = n_eigengrasps or 0  # 0 doesn't use eigengrasps
+        assert 0 <= self.n_eigengrasps < 21, "Only [0, 20] eigengrasps available for the ShadowHand"
         super().__init__(model_path=model_path,
                          n_substeps=20,
                          n_actions=n_actions,
@@ -122,7 +137,46 @@ class ShadowHandBase(envs.robot_env.RobotEnv):
         }
 
     def _set_action(self, action: np.ndarray):
-        raise NotImplementedError
+        if self.n_eigengrasps:
+            action = self._map_eigen_action(action)
+        self._set_default_action(action)
+
+    def _map_eigen_action(self, action: np.ndarray) -> np.ndarray:
+        """Map the action vector to eigengrasps and return the resulting array.
+
+        Params:
+            Action: Action value vector.
+
+        Returns:
+            The transformed action vector.
+        """
+        assert action.shape == (3 + self.n_eigengrasps,)
+        # Final concatenate creates new array, no need for safety copy here
+        pos_ctrl, hand_ctrl = action[:3], action[3:]
+        # Transform hand controls to eigengrasps
+        hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
+        np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
+        return np.concatenate((pos_ctrl, hand_ctrl))
+
+    def _set_default_action(self, action: np.ndarray):
+        """Map the action vector to the robot and write the resulting action to Mujoco.
+
+        Params:
+            Action: Action value vector.
+        """
+        assert action.shape == (23,)
+        action = action.copy()  # Ensure that we don't change the action outside of this scope
+        pos_ctrl, hand_ctrl = action[:3], action[3:]
+
+        pos_ctrl *= 0.05  # limit maximum change in position
+        rot_ctrl = [1.0, 0.0, 1.0, 0.0]  # fixed rotation of the end effector as a quaternion
+        action = np.concatenate([pos_ctrl, rot_ctrl])
+
+        # Apply action to simulation.
+        envs.utils.mocap_set_action(self.sim, action)
+        self.sim.data.ctrl[:] = self._act_center + hand_ctrl * self._act_range
+        self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
+                                        self._ctrl_range[:, 1])
 
     def _is_success(self, achieved_goal: np.ndarray, goal: np.ndarray) -> np.ndarray:
         d = envs.utils.goal_distance(achieved_goal, goal)

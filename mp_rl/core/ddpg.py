@@ -250,6 +250,7 @@ class DDPG:
         ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(self.PATH / "stats.png")
         plt.savefig(self.BACKUP_PATH / "stats.png")
+        plt.close()
 
     def save_stats(self, ep_success: List[float], ep_time: List[float]):
         """Save the current stats to a json file.
