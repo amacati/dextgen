@@ -71,6 +71,7 @@ class ShadowHandMultiObject(ShadowHandBase, utils.EzPickle):
 
     def _reset_sim_grasp(self) -> bool:
         self.sim.set_state(self.initial_state_grasp)
+        self.curr_obj_id = 0
         for i in range(1, 3):
             curr_obj_joint = "object" + str(i) + ":joint"
             object_qpos = self.sim.data.get_joint_qpos(curr_obj_joint)
