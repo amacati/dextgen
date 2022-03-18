@@ -53,7 +53,14 @@ DEFAULT_INITIAL_QPOS = {
 
 
 class ShadowHandBase(envs.robot_env.RobotEnv):
-    """Base environment for pick and place with the ShadowHand."""
+    """Base environment for pick and place with the ShadowHand.
+
+    Todo:
+        * Grasp Optimization interface:
+            o_id = self.sim.model.geom_name2id("object0")
+            ncon = self.sim.data.ncon
+            contacts = [c for c in self.sim.data.contact[:ncon] if o_id in (c.geom1, c.geom2)]
+"""
 
     EIGENGRASPS = EIGENGRASPS
 

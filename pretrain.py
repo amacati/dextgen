@@ -23,6 +23,8 @@ if __name__ == "__main__":
                         choices=["DEBUG", "INFO", "WARN", "ERROR"],
                         default="INFO")
     args = parser.parse_args()
+    target_env = args.env
+    args.env = "ShadowHandPretrain-v0"  # Overwrite env argument to protect experiment folders
 
     logger = logging.getLogger(__name__)
     loglvls = {
@@ -42,15 +44,15 @@ if __name__ == "__main__":
     for key, val in config["Default"].items():
         setattr(args, key, val)
 
-    if args.env not in config.keys():
-        logger.info(f"No specific config for {args.env} found, using defaults for all settings.")
+    if target_env not in config.keys():
+        logger.info(f"No specific config for {target_env} found, using defaults for all settings.")
     else:
-        for key, val in config[args.env].items():
+        for key, val in config[target_env].items():
             setattr(args, key, val)
-    if "ShadowHandPretrain-v0" not in config.keys():
+    if args.env not in config.keys():
         logger.info("No specific config for ShadowHandPretain-v0 found.")
     else:
-        for key, val in config["ShadowHandPretrain-v0"].items():
+        for key, val in config[args.env].items():
             if key == "kwargs":
                 setattr(args, "kwargs", args.kwargs | val)  # Append kwargs
             else:
@@ -58,10 +60,8 @@ if __name__ == "__main__":
 
     if hasattr(args, "kwargs") and args.kwargs:
         # Use kwargs for pretrain where applicable
-        print(args.kwargs)
         pt_args = inspect.signature(ShadowHandPretrain)
         kwargs = {key: val for key, val in args.kwargs.items() if key in pt_args.parameters.keys()}
-        print(kwargs)
         env = gym.make("ShadowHandPretrain-v0", **kwargs)
     else:
         env = gym.make("ShadowHandPretrain-v0")
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     ddpg.train()
 
-    path = Path(__file__).parent / "saves" / "pretrained" / args.env
+    path = Path(__file__).parent / "saves" / "pretrained" / target_env
     if ddpg.rank == 0:
         if not path.is_dir():
             path.mkdir(parents=True, exist_ok=True)

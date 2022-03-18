@@ -38,7 +38,7 @@ ShadowHandEigengrasps-v0:
   load_pretrained: True
   kwargs:
     n_eigengrasps: 6
-    p_grasp_start: 0.5
+    p_grasp_start: 0.0
 
 ShadowHandGravity-v0:
   epochs: 1000
@@ -60,7 +60,8 @@ ShadowHandVariationalSize-v0:
 ShadowHandOrientation-v0:
   epochs: 1000
   kwargs:
-    p_grasp_start: 0.5
+    p_rotation_start: 0.3
+    p_grasp_start: 0.5  # p_rotation_start applied first -> (1 - p_rotation_start) * p_grasp_start
     n_eigengrasps: 6
 
 ShadowHandPretrain-v0:
