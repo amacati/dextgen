@@ -251,6 +251,7 @@ class DDPG:
         ax[0].plot(ep_success)
         ax[0].set_xlabel('Episode')
         ax[0].set_ylabel('Success rate')
+        ax[0].set_ylim([0., 1.])
         ax[0].set_title('Agent performance over time')
         ax[0].xaxis.set_major_locator(MaxNLocator(integer=True))
 
