@@ -28,42 +28,43 @@ Default:
   load_pretrained: False
   seed: False  # Integer > 0 or False if no custom seed should be used
 
-ShadowHandPickAndPlace-v0:
+FlatSHAll-v0:
   epochs: 1000
   kwargs:
-    p_grasp_start: 0.5
+      n_eigengrasps: 6
 
-ShadowHandEigengrasps-v0:
+FlatSHCube-v0:
   epochs: 1000
   load_pretrained: True
   kwargs:
     n_eigengrasps: 6
-    p_grasp_start: 0.0
 
-ShadowHandGravity-v0:
+FlatSHCylinder-v0:
   epochs: 1000
   kwargs:
     n_eigengrasps: 6
-    n_increase_epochs: 100  # Number of episodes over which the gravity is increased from 0g to 1g
 
-ShadowHandMultiObject-v0:
+FlatSHSphere-v0:
   epochs: 1000
   kwargs:
     n_eigengrasps: 6
-    p_grasp_start: 0.5
 
-ShadowHandVariationalSize-v0:
+FlatSHMesh-v0:
   epochs: 1000
   kwargs:
-    p_grasp_start: 0.5
-
-ShadowHandOrientation-v0:
-  epochs: 1000
-  kwargs:
-    p_rotation_start: 0.3
-    p_grasp_start: 0.5  # p_rotation_start applied first -> (1 - p_rotation_start) * p_grasp_start
     n_eigengrasps: 6
 
-ShadowHandPretrain-v0:
+ObstacleSHCube-v0:
+  epochs: 1000
   kwargs:
-    p_grasp_start: 0.5
+    n_eigengrasps: 6
+
+UnevenSHCube-v0:
+  epochs: 1000
+  kwargs:
+    n_eigengrasps: 6
+
+UnevenSHMesh-v0:
+  epochs: 1000
+  kwargs:
+    n_eigengrasps: 6

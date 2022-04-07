@@ -1,0 +1,85 @@
+import random
+
+from gym import utils
+import numpy as np
+
+from envs.parallel_jaw.flat_base import FlatPJBase
+from envs.utils import reset_mocap_welds
+from envs.rotations import axisangle2quat, quatmultiply
+
+
+class FlatPJAll(FlatPJBase, utils.EzPickle):
+
+    def __init__(self, obj_size_range: float = 0):
+        FlatPJBase.__init__(self, obj_name="cube", obj_size_range=obj_size_range)
+        utils.EzPickle.__init__(self, obj_size_range=obj_size_range)
+
+    def _reset_sim(self) -> bool:
+        self._env_setup(self.initial_qpos)  # Rerun env setup to get new start poses for the robot
+        # Randomize start position of object
+        object_xpos = self.initial_gripper_xpos[:2]
+        while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
+            object_xpos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
+                -self.obj_range, self.obj_range, size=2)
+        # Random rotation already in `_env_setup`
+        object_qpos = self.sim.data.get_joint_qpos(self.obj_name + ":joint")
+        assert object_qpos.shape == (7,)
+        object_qpos[:2] = object_xpos
+        self.sim.data.set_joint_qpos(self.obj_name + ":joint", object_qpos)
+        self.sim.forward()
+        return True
+
+    def _env_setup(self, initial_qpos: np.ndarray):
+        self.obj_name = random.choice(("cube", "cylinder", "sphere", "mesh"))
+        self._modify_object_size()
+        for name, value in initial_qpos.items():
+            self.sim.data.set_joint_qpos(name, value)
+        reset_mocap_welds(self.sim)
+        self.sim.forward()
+        # Move end effector into position
+        self._set_gripper_initial_position()
+        # Sample new pose for object
+        object_pose = self._sample_object_pose()
+        self.sim.data.set_joint_qpos(self.obj_name + ":joint", object_pose)
+        for _ in range(10):
+            self.sim.step()
+        # Extract information for sampling goals.
+        self.initial_gripper_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
+        self.height_offset = self.sim.data.get_site_xpos("target0")[2]
+
+    def _set_gripper_initial_position(self):
+        if self.gripper_init_xpos is None:
+            self.gripper_init_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
+        gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height
+                                  ]) + self.gripper_init_xpos  # noqa: E124
+        dpos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range, size=2)
+        gripper_target[:2] += dpos  # Add random initial position change
+        gripper_rotation = np.array([1.0, 0.0, 1.0, 0.0])
+        drot = self.np_random.uniform(-1, 1, size=4)
+        gripper_rotation += (drot /
+                             np.linalg.norm(drot)) * 0.2  # Add random initial orientation change
+        gripper_rotation /= np.linalg.norm(gripper_rotation)  # Renormalize for quaternion
+        self.sim.data.set_mocap_pos("robot0:mocap", gripper_target)
+        self.sim.data.set_mocap_quat("robot0:mocap", gripper_rotation)
+
+    def _sample_object_pose(self) -> np.ndarray:
+        pose = self.sim.data.get_joint_qpos(self.obj_name + ":joint")
+        pose[:2] = self.sim.data.get_body_xpos("table0")[:2]
+        pose[2] = self.height
+        if self.obj_name == "cube":
+            q = self.np_random.rand(4)
+            q[1:3] = 0
+            q /= np.linalg.norm(q)
+        elif self.obj_name == "sphere":
+            q = np.array([1, 0, 0, 0])
+        elif self.obj_name in ("cylinder", "mesh"):
+            if self.np_random.rand() < 0.5:
+                qy = axisangle2quat(0, 1, 0, np.pi / 2)
+                qz = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
+                q = quatmultiply(qz, qy)
+            else:
+                q = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
+        else:
+            raise RuntimeError(f"Object {self.obj_name} not supported")
+        pose[3:7] = q
+        return pose

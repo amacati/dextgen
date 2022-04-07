@@ -122,3 +122,22 @@ def mat2euler(mat: np.ndarray) -> np.ndarray:
                              -np.arctan2(-mat[..., 0, 2], cy))
     euler[..., 0] = np.where(condition, -np.arctan2(mat[..., 1, 2], mat[..., 2, 2]), 0.0)
     return euler
+
+
+def quatmultiply(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
+    q = np.array([
+        q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
+        q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
+        q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
+        q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]
+    ])
+    return q / np.linalg.norm(q)
+
+
+def axisangle2quat(x: float, y: float, z: float, a: float):
+    sin_a = np.sin(a / 2.)
+    x *= sin_a
+    y *= sin_a
+    z *= sin_a
+    q = np.array([np.cos(a / 2.), x, y, z])
+    return q / np.linalg.norm(q)

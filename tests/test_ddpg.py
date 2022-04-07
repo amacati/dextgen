@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import random
 
 import pytest
 import gym
@@ -12,7 +13,10 @@ from mp_rl.core.ddpg import DDPG
 @pytest.mark.parametrize("env", envs.available_envs)
 def test_ddpg(env):
     args = load_args(env)
-    env = gym.make(args.env)
+    if hasattr(args, "kwargs"):
+        env = gym.make(args.env, **args.kwargs)
+    else:
+        env = gym.make(args.env)
     ddpg = DDPG(env, args)
     ddpg.train()
 
