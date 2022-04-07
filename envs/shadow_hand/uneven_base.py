@@ -11,15 +11,15 @@ MODEL_XML_PATH = str(Path("sh", "uneven_pick_and_place.xml"))
 
 class UnevenSHBase(FlatSHBase):
 
-    def __init__(self, obj_name: str, n_eigengrasps: Optional[int]):
+    def __init__(self, object_name: str, n_eigengrasps: Optional[int]):
         """Initialize a new flat environment.
 
         Args:
-            obj_name: Name of the manipulation object in Mujoco
+            object_name: Name of the manipulation object in Mujoco
             n_eigengrasps: Number of eigengrasps to use
         """
         super().__init__(model_xml_path=MODEL_XML_PATH,
-                         obj_name=obj_name,
+                         object_name=object_name,
                          n_eigengrasps=n_eigengrasps)
 
     def _env_setup(self, initial_qpos: np.ndarray):
@@ -27,45 +27,38 @@ class UnevenSHBase(FlatSHBase):
             self.sim.data.set_joint_qpos(name, value)
         envs.utils.reset_mocap_welds(self.sim)
         self.sim.forward()
-
-        if self.gripper_init_xpos is None:
-            self.gripper_init_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
-        # Move end effector into position.
-        gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height
-                                  ]) + self.gripper_init_xpos  # noqa: E124
-        dpos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range, size=2)
-        gripper_target[:2] += dpos  # Add random initial position change
-
-        gripper_rotation = np.array([1.0, 0.0, 1.0, 0.0])
-        drot = self.np_random.uniform(-1, 1, size=4)
-        gripper_rotation += (drot /
-                             np.linalg.norm(drot)) * 0.2  # Add random initial orientation change
-        gripper_rotation /= np.linalg.norm(gripper_rotation)  # Renormalize for quaternion
-        self.sim.data.set_mocap_pos("robot0:mocap", gripper_target)
-        self.sim.data.set_mocap_quat("robot0:mocap", gripper_rotation)
-
-        # Set a new object position
-        object_xpos = gripper_target[:2]
-        while np.linalg.norm(object_xpos - gripper_target[:2]) < 0.1:
-            object_xpos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
-                -self.obj_range, self.obj_range, size=2)
-        object_qpos = self.sim.data.get_joint_qpos(self.obj_name + ":joint")
-        assert object_qpos.shape == (7,)
-        object_qpos[:2] = object_xpos
-        object_qpos[2] = self.height
-        object_qpos[3:7] = (self.np_random.rand(4) - 0.5) * 2  # Random initial orientation
-        object_qpos[3:7] /= np.linalg.norm(object_qpos[3:7])
-        self.sim.data.set_joint_qpos(self.obj_name + ":joint", object_qpos)
+        # Save start positions on first run
+        if self.gripper_init_pos is None:
+            self.gripper_init_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+        if self.height_offset is None:
+            self.height_offset = self.sim.data.get_site_xpos("target0")[2]
+        # Move end effector into position
+        self._set_gripper_pose()
+        # Change object pose
+        self._set_object_pose()
+        # Run until the object has settled down
         t = 0
-        while np.linalg.norm(self.sim.data.get_site_xvelp(self.obj_name)) > 1e-2 or t < 10:
+        while np.linalg.norm(self.sim.data.get_site_xvelp(self.object_name)) > 1e-2 or t < 10:
             self.sim.step()
             t += 1
-        obj_pos = self.sim.data.get_site_xpos(self.obj_name)[:2]
-        if any(abs(obj_pos - self.sim.data.get_body_xpos("table0")[:2]) > self.obj_range):
+        object_pos = self.sim.data.get_site_xpos(self.object_name)[:2]
+        if any(abs(object_pos - self.sim.data.get_body_xpos("table0")[:2]) > self.object_range):
             return self._env_setup(initial_qpos)  # Retry if object is out of bounds
         # Extract information for sampling goals.
-        self.initial_gripper_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
-        self.height_offset = self.sim.data.get_site_xpos("target0")[2]
+        self.gripper_start_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+
+    def _set_object_pose(self):
+        object_pos = self.sim.data.get_body_xpos("table0")[:2]
+        while np.linalg.norm(object_pos - self.sim.data.get_mocap_pos("robot0:mocap")[:2]) < 0.1:
+            object_pos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
+                -self.object_range, self.object_range)
+        object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
+        assert object_pose.shape == (7,)
+        object_pose[:2] = object_pos
+        object_pose[2] = self.height_offset
+        object_pose[3:7] = (self.np_random.rand(4) - 0.5) * 2  # Random initial orientation
+        object_pose[3:7] /= np.linalg.norm(object_pose[3:7])
+        self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
 
     def _reset_sim(self):
         self._env_setup(self.initial_qpos)

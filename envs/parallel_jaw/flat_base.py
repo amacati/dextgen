@@ -11,11 +11,12 @@ MODEL_XML_PATH = str(Path("pj", "pick_and_place.xml"))
 
 class FlatPJBase(FlatBase):
 
-    def __init__(self, obj_name: str, obj_size_range: float = 0):
+    def __init__(self, object_name: str, object_size_range: float = 0):
         """Initialize a new flat environment.
 
         Args:
-            obj_name: Name of the manipulation object in Mujoco
+            object_name: Name of the manipulation object in Mujoco
+            object_size_range: Range of object size modification. If 0, modification is disabled.
         """
         initial_qpos = {
             "robot0:slide0": 0.4049,
@@ -28,11 +29,10 @@ class FlatPJBase(FlatBase):
         }
         super().__init__(model_xml_path=MODEL_XML_PATH,
                          gripper_extra_height=0.2,
-                         target_offset=0.,
                          initial_qpos=initial_qpos,
                          n_actions=8,
-                         obj_name=obj_name,
-                         obj_size_range=obj_size_range)
+                         object_name=object_name,
+                         object_size_range=object_size_range)
 
     def _set_action(self, action):
         assert action.shape == (self.n_actions,)
@@ -55,12 +55,12 @@ class FlatPJBase(FlatBase):
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
         grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
         robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
-        object_pos = self.sim.data.get_site_xpos(self.obj_name)
+        object_pos = self.sim.data.get_site_xpos(self.object_name)
         # rotations
-        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.obj_name))
+        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
         # velocities
-        object_velp = self.sim.data.get_site_xvelp(self.obj_name) * dt
-        object_velr = self.sim.data.get_site_xvelr(self.obj_name) * dt
+        object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
+        object_velr = self.sim.data.get_site_xvelr(self.object_name) * dt
         # gripper state
         object_rel_pos = object_pos - grip_pos
         object_velp -= grip_velp

@@ -57,14 +57,14 @@ class FlatSHBase(FlatBase):
     EIGENGRASPS = EIGENGRASPS
 
     def __init__(self,
-                 obj_name: str,
+                 object_name: str,
                  n_eigengrasps: Optional[int],
                  model_xml_path: str = MODEL_XML_PATH,
-                 obj_size_range: float = 0):
+                 object_size_range: float = 0):
         """Initialize a new flat environment.
 
         Args:
-            obj_name: Name of the manipulation object in Mujoco
+            object_name: Name of the manipulation object in Mujoco
             n_eigengrasps: Number of eigengrasps to use
             model_xml_path: Mujoco world xml file path
         """
@@ -72,12 +72,11 @@ class FlatSHBase(FlatBase):
         assert 0 <= self.n_eigengrasps < 21, "Only [0, 20] eigengrasps available for the ShadowHand"
         n_actions = 7 + n_eigengrasps or 20
         super().__init__(model_xml_path=model_xml_path,
-                         gripper_extra_height=0.35,
-                         target_offset=0.,
+                         gripper_extra_height=0.3,
                          initial_qpos=DEFAULT_INITIAL_QPOS,
                          n_actions=n_actions,
-                         obj_name=obj_name,
-                         obj_size_range=obj_size_range)
+                         object_name=object_name,
+                         object_size_range=object_size_range)
         self._ctrl_range = self.sim.model.actuator_ctrlrange
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
@@ -114,12 +113,12 @@ class FlatSHBase(FlatBase):
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
         grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
         robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
-        object_pos = self.sim.data.get_site_xpos(self.obj_name)
+        object_pos = self.sim.data.get_site_xpos(self.object_name)
         # rotations
-        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.obj_name))
+        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
         # velocities
-        object_velp = self.sim.data.get_site_xvelp(self.obj_name) * dt
-        object_velr = self.sim.data.get_site_xvelr(self.obj_name) * dt
+        object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
+        object_velr = self.sim.data.get_site_xvelr(self.object_name) * dt
         # gripper state
         object_rel_pos = object_pos - grip_pos
         object_velp -= grip_velp

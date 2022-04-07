@@ -1,6 +1,5 @@
 """Flat desk fetch base class file."""
-from typing import Union, Dict
-from pathlib import Path
+from typing import Dict
 
 import numpy as np
 
@@ -12,33 +11,31 @@ import envs.utils
 class FlatBase(envs.robot_env.RobotEnv):
     """Superclass for all flat desk environments."""
 
-    def __init__(self, model_xml_path: str, gripper_extra_height: float,
-                 target_offset: Union[float, np.ndarray], initial_qpos: dict, n_actions: int,
-                 obj_name, obj_size_range):
+    def __init__(self, model_xml_path: str, gripper_extra_height: float, initial_qpos: dict,
+                 n_actions: int, object_name, object_size_range):
         """Initialize a new flat environment.
 
         Args:
             model_xml_path: Path to the Mujoco xml description
             gripper_extra_height: additional height above the table when positioning the gripper
-            target_offset: offset of the target
             initial_qpos: a dictionary of joint names and values defining the initial configuration
             n_actions: Action state dimension
-            obj_name: Name of the manipulation object in Mujoco
-            obj_size_range: Range of object size modification. If 0, modification is disabled.
+            object_name: Name of the manipulation object in Mujoco
+            object_size_range: Range of object size modification. If 0, modification is disabled.
         """
         self.gripper_extra_height = gripper_extra_height
-        self.target_offset = target_offset
-        self.obj_range = np.array([0.1, 0.15])
-        self.target_range = 0.15
-        self.distance_threshold = 0.05
+        self.object_range = np.array([0.1, 0.15])  # Admissible object range from the table center
+        self.target_range = 0.15  # Admissible target range from the table center
+        self.target_threshold = 0.05  # Range tolerance for task completion
         self.n_actions = n_actions
-        self.obj_name = obj_name
-        self.gripper_init_range = 0.15
-        self.height = 0.43
+        self.object_name = object_name
+        self.gripper_init_pos = None  # Overwritten during first _env_reset() call
+        self.gripper_init_range = 0.15  # Admissable range from gripper_init_pos
+        self.gripper_start_pos = None  # Current starting position of the gripper
+        self.height_offset = None  # Overwritten during first _env_reset() call
         self.initial_qpos = initial_qpos
-        self.gripper_init_xpos = None  # Save once during init
-        self.obj_size_range = obj_size_range
-        self.obj_init_size = {}  # Save object sizes before modification
+        self.object_size_range = object_size_range
+        self.object_init_size = {}  # Save object sizes before modification
         super().__init__(
             model_path=model_xml_path,
             n_substeps=20,
@@ -55,7 +52,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         """
         # Compute distance between goal and the achieved goal.
         d = envs.utils.goal_distance(achieved_goal, goal)
-        return -(d > self.distance_threshold).astype(np.float32)
+        return -(d > self.target_threshold).astype(np.float32)
 
     def _set_action(self, action: np.ndarray):
         """`_set_action` is robot specific, implement in child classes."""
@@ -83,22 +80,25 @@ class FlatBase(envs.robot_env.RobotEnv):
 
     def _reset_sim(self) -> bool:
         self._env_setup(self.initial_qpos)  # Rerun env setup to get new start poses for the robot
-        # Randomize start position of object.
-        object_xpos = self.initial_gripper_xpos[:2]
-        while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
-            object_xpos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
-                -self.obj_range, self.obj_range, size=2)
-        object_qpos = self.sim.data.get_joint_qpos(self.obj_name + ":joint")
-        assert object_qpos.shape == (7,)
-        object_qpos[:2] = object_xpos
-        self.sim.data.set_joint_qpos(self.obj_name + ":joint", object_qpos)
+        # Randomize start position of object
+        object_pose = self._sample_object_pose()
+        self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
         self.sim.forward()
         return True
+
+    def _sample_object_pose(self) -> np.ndarray:
+        object_pos = self.gripper_start_pos[:2]
+        while np.linalg.norm(object_pos - self.gripper_start_pos[:2]) < 0.1:
+            object_pos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
+                -self.object_range, self.object_range)
+        object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
+        assert object_pose.shape == (7,)
+        object_pose[:2] = object_pos
+        return object_pose
 
     def _sample_goal(self) -> np.ndarray:
         goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
             -self.target_range, self.target_range, size=3)
-        goal += self.target_offset
         goal[2] = self.height_offset
         if self.np_random.uniform() < 0.5:
             goal[2] += self.np_random.uniform(0, 0.45)
@@ -106,7 +106,7 @@ class FlatBase(envs.robot_env.RobotEnv):
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal, desired_goal)
-        return (d < self.distance_threshold).astype(np.float32)
+        return (d < self.target_threshold).astype(np.float32)
 
     def _env_setup(self, initial_qpos: np.ndarray):
         self._modify_object_size()
@@ -114,45 +114,57 @@ class FlatBase(envs.robot_env.RobotEnv):
             self.sim.data.set_joint_qpos(name, value)
         envs.utils.reset_mocap_welds(self.sim)
         self.sim.forward()
-        if self.gripper_init_xpos is None:
-            self.gripper_init_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
-
-        # Move end effector into position.
-        gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height
-                                  ]) + self.gripper_init_xpos  # noqa: E124
-        dpos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range, size=2)
-        gripper_target[:2] += dpos  # Add random initial position change
-        gripper_rotation = np.array([1.0, 0.0, 1.0, 0.0])
-        drot = self.np_random.uniform(-1, 1, size=4)
-        gripper_rotation += (drot /
-                             np.linalg.norm(drot)) * 0.2  # Add random initial orientation change
-        gripper_rotation /= np.linalg.norm(gripper_rotation)  # Renormalize for quaternion
-        self.sim.data.set_mocap_pos("robot0:mocap", gripper_target)
-        self.sim.data.set_mocap_quat("robot0:mocap", gripper_rotation)
-        object_qpos = self.sim.data.get_joint_qpos(self.obj_name + ":joint")
-        object_qpos[:2] = self.sim.data.get_body_xpos("table0")[:2]
-        object_qpos[2] = self.height
-        self.sim.data.set_joint_qpos(self.obj_name + ":joint", object_qpos)
+        # Save start positions on first run
+        if self.gripper_init_pos is None:
+            self.gripper_init_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+        if self.height_offset is None:
+            self.height_offset = self.sim.data.get_site_xpos("target0")[2]
+        # Move end effector into position
+        self._set_gripper_pose()
+        # Change object pose
+        self._set_object_pose()
+        # Run sim
         for _ in range(10):
             self.sim.step()
-        # Extract information for sampling goals.
-        self.initial_gripper_xpos = self.sim.data.get_site_xpos("robot0:grip").copy()
-        self.height_offset = self.sim.data.get_site_xpos("target0")[2]
+        # Extract information for sampling goals
+        self.gripper_start_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+
+    def _set_gripper_pose(self):
+        gripper_pos = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height
+                               ]) + self.gripper_init_pos  # noqa: E124
+        d_pos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range, size=2)
+        gripper_pos[:2] += d_pos  # Add random initial position change
+        gripper_rot = np.array([1.0, 0.0, 1.0, 0.0])
+        d_rot = self.np_random.uniform(-1, 1, size=4)
+        gripper_rot += (d_rot /
+                        np.linalg.norm(d_rot)) * 0.2  # Add random initial orientation change
+        gripper_rot /= np.linalg.norm(gripper_rot)  # Renormalize for quaternion
+        self.sim.data.set_mocap_pos("robot0:mocap", gripper_pos)
+        self.sim.data.set_mocap_quat("robot0:mocap", gripper_rot)
+
+    def _set_object_pose(self):
+        object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
+        object_pose[:2] = self.sim.data.get_body_xpos("table0")[:2]
+        object_pose[2] = self.height_offset
+        self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
 
     def _modify_object_size(self):
-        if self.obj_size_range > 0:
-            # Reset object sizes first
-            for obj_name in self.obj_init_size.keys():
-                idx = self.sim.model.geom_name2id(obj_name)
-                self.sim.model.geom_size[idx] = self.obj_init_size[obj_name]
-            if self.obj_name == "mesh":
+        if self.object_size_range > 0:
+            # Reset previously modified object sizes first
+            for object_name in self.object_init_size.keys():
+                idx = self.sim.model.geom_name2id(object_name)
+                self.sim.model.geom_size[idx] = self.object_init_size[object_name]
+            if self.object_name == "mesh":
                 return
             # Set new model size
-            idx = self.sim.model.geom_name2id(self.obj_name)
-            if self.obj_name not in self.obj_init_size.keys():  # Add original size before modifying
-                self.obj_init_size[self.obj_name] = self.sim.model.geom_size[idx].copy()
-            if self.obj_name in ("cube", "cylinder", "sphere"):
-                dsize = self.np_random.uniform(-self.obj_size_range, self.obj_size_range, size=3)
-                self.sim.model.geom_size[idx] = self.obj_init_size[self.obj_name] + dsize
+            idx = self.sim.model.geom_name2id(self.object_name)
+            # Save original size before modifying
+            if self.object_name not in self.object_init_size.keys():
+                self.object_init_size[self.object_name] = self.sim.model.geom_size[idx].copy()
+            if self.object_name in ("cube", "cylinder", "sphere"):
+                dsize = self.np_random.uniform(-self.object_size_range,
+                                               self.object_size_range,
+                                               size=3)
+                self.sim.model.geom_size[idx] = self.object_init_size[self.object_name] + dsize
             else:
-                raise RuntimeError(f"Object {self.obj_name} not supported")
+                raise RuntimeError(f"Object {self.object_name} not supported")
