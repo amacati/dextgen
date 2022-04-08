@@ -1,14 +1,21 @@
+from pathlib import Path
+
 from gym import utils
 import numpy as np
 
 from envs.parallel_jaw.flat_base import FlatPJBase
 from envs.rotations import quatmultiply, axisangle2quat
 
+MODEL_XML_PATH = str(Path("pj", "flat_pj_cylinder.xml"))
+
 
 class FlatPJCylinder(FlatPJBase, utils.EzPickle):
 
     def __init__(self, p_rot: float = 0.75, object_size_range: float = 0):
-        FlatPJBase.__init__(self, object_name="cylinder", object_size_range=object_size_range)
+        FlatPJBase.__init__(self,
+                            object_name="cylinder",
+                            model_xml_path=MODEL_XML_PATH,
+                            object_size_range=object_size_range)
         self.p_rot = p_rot
         utils.EzPickle.__init__(self, p_rot=p_rot, object_size_range=object_size_range)
 

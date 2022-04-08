@@ -1,15 +1,21 @@
+from pathlib import Path
+
 from gym import utils
 import numpy as np
 
 from envs.parallel_jaw.flat_base import FlatPJBase
 from envs.rotations import axisangle2quat, quatmultiply
-from envs.utils import reset_mocap_welds
+
+MODEL_XML_PATH = str(Path("pj", "flat_pj_mesh.xml"))
 
 
 class FlatPJMesh(FlatPJBase, utils.EzPickle):
 
     def __init__(self, object_size_range: float = 0):
-        FlatPJBase.__init__(self, object_name="mesh", object_size_range=object_size_range)
+        FlatPJBase.__init__(self,
+                            object_name="mesh",
+                            model_xml_path=MODEL_XML_PATH,
+                            object_size_range=object_size_range)
         utils.EzPickle.__init__(self, object_size_range=object_size_range)
 
     def _env_setup(self, initial_qpos: np.ndarray):

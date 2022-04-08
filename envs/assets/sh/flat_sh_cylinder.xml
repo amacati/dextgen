@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mujoco>
-	<compiler angle="radian" coordinate="local" meshdir="../stls/shfetch" texturedir="../textures"></compiler>
+	<compiler angle="radian" coordinate="local" meshdir="../stls/sh" texturedir="../textures"></compiler>
 	<option timestep="0.002">
 		<flag warmstart="enable"></flag>
 	</option>
@@ -29,11 +29,11 @@
 		<body pos="1.3 0.75 0.2" name="table0">
 			<geom size="0.25 0.35 0.2" type="box" mass="2000" material="table_mat" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 		</body>
-		
-		<body name="object0" pos="0.025 0.025 0.025">
-			<joint name="object0:joint" type="free" damping="0.01"></joint>
-			<geom size="0.025 0.025 0.04" type="box" condim="3" name="object0" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<site name="object0" pos="0 0 0" size="0.02 0.02 0.02" rgba="1 0 0 1" type="sphere"></site>
+
+		<body name="cylinder" pos="-0.1 0.1 0.025">
+			<joint name="cylinder:joint" type="free" damping="0.01"></joint>
+			<geom size="0.025 0.025" type="cylinder" condim="3" name="cylinder" material="block_mat" mass="2"></geom>
+			<site name="cylinder" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 
 		<light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 0 4" dir="0 0 -1" name="light0"></light>

@@ -1,16 +1,21 @@
+from pathlib import Path
+from typing import Optional
+
 from gym import utils
 import numpy as np
 
 from envs.shadow_hand.flat_base import FlatSHBase
 from envs.rotations import axisangle2quat, quatmultiply
-from envs.utils import reset_mocap_welds
+
+MODEL_XML_PATH = str(Path("sh", "flat_sh_mesh.xml"))
 
 
 class FlatSHMesh(FlatSHBase, utils.EzPickle):
 
-    def __init__(self, n_eigengrasps: int, object_size_range: float = 0):
+    def __init__(self, n_eigengrasps: Optional[int] = None, object_size_range: float = 0):
         FlatSHBase.__init__(self,
                             object_name="mesh",
+                            model_xml_path=MODEL_XML_PATH,
                             n_eigengrasps=n_eigengrasps,
                             object_size_range=object_size_range)
         utils.EzPickle.__init__(self,

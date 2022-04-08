@@ -1,13 +1,20 @@
+from pathlib import Path
+
 from gym import utils
 import numpy as np
 
 from envs.parallel_jaw.flat_base import FlatPJBase
 
+MODEL_XML_PATH = str(Path("pj", "flat_pj_cube.xml"))
+
 
 class FlatPJCube(FlatPJBase, utils.EzPickle):
 
     def __init__(self, object_size_range: float = 0):
-        FlatPJBase.__init__(self, object_name="cube", object_size_range=object_size_range)
+        FlatPJBase.__init__(self,
+                            object_name="cube",
+                            model_xml_path=MODEL_XML_PATH,
+                            object_size_range=object_size_range)
         utils.EzPickle.__init__(self, object_size_range=object_size_range)
 
     def _sample_object_pose(self) -> np.ndarray:

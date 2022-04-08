@@ -8,12 +8,12 @@ import envs
 from envs.utils import goal_distance
 from envs.shadow_hand.flat_base import FlatSHBase
 
-MODEL_XML_PATH = str(Path("sh", "obstacle_pick_and_place.xml"))
+MODEL_XML_PATH = str(Path("sh", "obstacle_sh_cube.xml"))
 
 
 class ObstacleSHCube(FlatSHBase, utils.EzPickle):
 
-    def __init__(self, n_eigengrasps: Optional[int]):
+    def __init__(self, n_eigengrasps: Optional[int] = None):
         """Initialize a new flat environment.
 
         Args:
@@ -21,8 +21,8 @@ class ObstacleSHCube(FlatSHBase, utils.EzPickle):
             n_eigengrasps: Number of eigengrasps to use
         """
         self.obstacle_threshold = 0.1
-        super().__init__(model_xml_path=MODEL_XML_PATH,
-                         object_name="cube",
+        super().__init__(object_name="cube",
+                         model_xml_path=MODEL_XML_PATH,
                          n_eigengrasps=n_eigengrasps)
         utils.EzPickle.__init__(self, n_eigengrasps=n_eigengrasps)
 

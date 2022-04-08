@@ -1,4 +1,6 @@
 import random
+from typing import Optional
+from pathlib import Path
 
 from gym import utils
 import numpy as np
@@ -6,12 +8,15 @@ import numpy as np
 from envs.shadow_hand.flat_base import FlatSHBase
 from envs.rotations import quatmultiply, axisangle2quat
 
+MODEL_XML_PATH = str(Path("sh", "flat_sh_all.xml"))
+
 
 class FlatSHAll(FlatSHBase, utils.EzPickle):
 
-    def __init__(self, n_eigengrasps: int, object_size_range: float = 0):
+    def __init__(self, n_eigengrasps: Optional[int] = None, object_size_range: float = 0):
         FlatSHBase.__init__(self,
                             object_name="cube",
+                            model_xml_path=MODEL_XML_PATH,
                             n_eigengrasps=n_eigengrasps,
                             object_size_range=object_size_range)
         utils.EzPickle.__init__(self,

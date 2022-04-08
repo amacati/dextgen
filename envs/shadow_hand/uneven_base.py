@@ -1,29 +1,32 @@
 from typing import Optional
-from pathlib import Path
+import logging
 
 import numpy as np
 
 import envs
 from envs.shadow_hand.flat_base import FlatSHBase
 
-MODEL_XML_PATH = str(Path("sh", "uneven_pick_and_place.xml"))
+logger = logging.getLogger(__name__)
 
 
 class UnevenSHBase(FlatSHBase):
 
-    def __init__(self, object_name: str, n_eigengrasps: Optional[int]):
+    def __init__(self, object_name: str, model_xml_path: str, n_eigengrasps: Optional[int] = None):
         """Initialize a new flat environment.
 
         Args:
             object_name: Name of the manipulation object in Mujoco
             n_eigengrasps: Number of eigengrasps to use
         """
-        super().__init__(model_xml_path=MODEL_XML_PATH,
-                         object_name=object_name,
+        super().__init__(object_name=object_name,
+                         model_xml_path=model_xml_path,
                          n_eigengrasps=n_eigengrasps)
 
     def _env_setup(self, initial_qpos: np.ndarray):
         for name, value in initial_qpos.items():
+            if name not in self.sim.model.joint_names:
+                logger.warning(f"Joint {name} present in initial_qpos, but not in Mujoco!")
+                continue
             self.sim.data.set_joint_qpos(name, value)
         envs.utils.reset_mocap_welds(self.sim)
         self.sim.forward()

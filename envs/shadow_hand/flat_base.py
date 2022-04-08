@@ -7,8 +7,6 @@ import json
 import envs
 from envs.flat_base import FlatBase
 
-MODEL_XML_PATH = str(Path("sh", "pick_and_place.xml"))
-
 # The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
 # hand poses from the ContactPose dataset. For more information, see
 # https://github.com/amacati/sh_eigen  TODO: Make repository public
@@ -58,19 +56,19 @@ class FlatSHBase(FlatBase):
 
     def __init__(self,
                  object_name: str,
-                 n_eigengrasps: Optional[int],
-                 model_xml_path: str = MODEL_XML_PATH,
+                 model_xml_path: str,
+                 n_eigengrasps: Optional[int] = None,
                  object_size_range: float = 0):
         """Initialize a new flat environment.
 
         Args:
             object_name: Name of the manipulation object in Mujoco
-            n_eigengrasps: Number of eigengrasps to use
             model_xml_path: Mujoco world xml file path
+            n_eigengrasps: Number of eigengrasps to use
         """
         self.n_eigengrasps = n_eigengrasps or 0
         assert 0 <= self.n_eigengrasps < 21, "Only [0, 20] eigengrasps available for the ShadowHand"
-        n_actions = 7 + n_eigengrasps or 20
+        n_actions = 7 + (n_eigengrasps or 20)
         super().__init__(model_xml_path=model_xml_path,
                          gripper_extra_height=0.3,
                          initial_qpos=DEFAULT_INITIAL_QPOS,

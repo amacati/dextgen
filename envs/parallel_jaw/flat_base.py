@@ -1,21 +1,19 @@
 from typing import Dict
-from pathlib import Path
 
 import numpy as np
 
 import envs
 from envs.flat_base import FlatBase
 
-MODEL_XML_PATH = str(Path("pj", "pick_and_place.xml"))
-
 
 class FlatPJBase(FlatBase):
 
-    def __init__(self, object_name: str, object_size_range: float = 0):
+    def __init__(self, object_name: str, model_xml_path: str, object_size_range: float = 0):
         """Initialize a new flat environment.
 
         Args:
-            object_name: Name of the manipulation object in Mujoco
+            object_name: Name of the manipulation object in Mujoco.
+            model_xml_path: Path to the Mujoco xml world file.
             object_size_range: Range of object size modification. If 0, modification is disabled.
         """
         initial_qpos = {
@@ -27,7 +25,7 @@ class FlatPJBase(FlatBase):
             "sphere:joint": [.1, .1, .025, 1., 0, 0, 0],
             "mesh:joint": [-.1, -.1, .025, 1., 0, 0, 0]
         }
-        super().__init__(model_xml_path=MODEL_XML_PATH,
+        super().__init__(model_xml_path=model_xml_path,
                          gripper_extra_height=0.2,
                          initial_qpos=initial_qpos,
                          n_actions=8,
