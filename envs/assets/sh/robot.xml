@@ -73,7 +73,7 @@
 										<body euler="0 0 0" name="robot0:gripper_link" pos="0.1664 0 0">
 
                                             <!-- Shadow hand begin -->
-                                            <body name="robot0:hand mount" pos="-0.25 0.0 0." euler="1.5707 1.5707 0">
+                                            <body name="robot0:hand_mount" pos="-0.25 0.0 0." euler="1.5707 1.5707 0">
                                                 <inertial mass="0.1" pos="0 0 0" diaginertia="0.001 0.001 0.001"></inertial>
                                                 <body childclass="robot0:asset_class" name="robot0:forearm" pos="0 0.01 0" euler="0 0 0">
                                                     <inertial pos="0.001 -0.002 0.29" quat="0.982 -0.016 0 -0.188" mass="4" diaginertia="0.01 0.01 0.0075"></inertial>

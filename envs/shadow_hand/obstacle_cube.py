@@ -61,6 +61,10 @@ class ObstacleSHCube(FlatSHBase, utils.EzPickle):
     def _sample_goal(self) -> np.ndarray:
         goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
             -self.target_range, self.target_range, size=3)
+        while np.linalg.norm(
+                self.sim.data.get_joint_qpos(self.object_name + ":joint")[:2] - goal[:2]) < 0.1:
+            goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
+                -self.target_range, self.target_range, size=3)
         goal[2] = self.height_offset
         if self.np_random.uniform() < 0.5:
             goal[2] += self.np_random.uniform(0, 0.45)

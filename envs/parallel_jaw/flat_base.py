@@ -1,9 +1,12 @@
+import logging
 from typing import Dict
 
 import numpy as np
 
 import envs
 from envs.flat_base import FlatBase
+
+logger = logging.getLogger(__name__)
 
 
 class FlatPJBase(FlatBase):
@@ -38,6 +41,9 @@ class FlatPJBase(FlatBase):
         pos_ctrl, rot_ctrl, gripper_ctrl = action[:3], action[3:7], action[7]
 
         pos_ctrl *= 0.05  # limit maximum change in position
+        if np.linalg.norm(rot_ctrl) == 0:
+            logger.warning("Zero quaternion encountered, setting to robot gripper orientation")
+            rot_ctrl = self.sim.data.get_body_xquat("robot0:gripper_link")
         rot_ctrl /= np.linalg.norm(rot_ctrl)  # Norm quaternion
         rot_ctrl *= 0.05  # limit maximum change in orientation
         gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
@@ -55,6 +61,7 @@ class FlatPJBase(FlatBase):
         robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         # rotations
+        grip_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat("robot0:grip"))
         object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
         # velocities
         object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
@@ -66,16 +73,18 @@ class FlatPJBase(FlatBase):
         gripper_vel = (robot_qvel[-2:] * dt)  # change to a scalar if the gripper is made symmetric
 
         achieved_goal = np.squeeze(object_pos.copy())
+
         obs = np.concatenate([
             grip_pos,
+            grip_rot,
+            gripper_state,
+            grip_velp,
+            gripper_vel,  # TODO: Possibly remove
             object_pos.ravel(),
             object_rel_pos.ravel(),
-            gripper_state,
             object_rot.ravel(),
             object_velp.ravel(),
             object_velr.ravel(),
-            grip_velp,
-            gripper_vel,
         ])
 
         return {

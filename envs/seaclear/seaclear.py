@@ -55,6 +55,7 @@ class SeaClear(FlatBase):
         robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         # rotations
+        grip_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat("robot0:grip"))
         object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
         # velocities
         object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
@@ -68,14 +69,15 @@ class SeaClear(FlatBase):
         achieved_goal = np.squeeze(object_pos.copy())
         obs = np.concatenate([
             grip_pos,
+            grip_rot,
+            gripper_state,
+            grip_velp,
+            gripper_vel,
             object_pos.ravel(),
             object_rel_pos.ravel(),
-            gripper_state,
             object_rot.ravel(),
             object_velp.ravel(),
             object_velr.ravel(),
-            grip_velp,
-            gripper_vel,
         ])
 
         return {

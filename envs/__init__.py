@@ -4,7 +4,9 @@ import gym
 available_envs = [
     "FlatPJCube-v0", "FlatPJSphere-v0", "FlatPJCylinder-v0", "FlatPJMesh-v0", "FlatPJAll-v0",
     "FlatSHCube-v0", "FlatSHCylinder-v0", "FlatSHSphere-v0", "FlatSHMesh-v0", "FlatSHAll-v0",
-    "UnevenSHCube-v0", "ObstacleSHCube-v0", "SeaClear-v0"
+    "UnevenSHCube-v0", "UnevenSHMesh-v0", "FlatBarrettCube-v0", "FlatBarrettCylinder-v0",
+    "FlatBarrettSphere-v0", "FlatBarrettMesh-v0", "FlatBarrettAll-v0", "UnevenBarrettCube-v0",
+    "UnevenBarrettMesh-v0", "ObstacleSHCube-v0", "SeaClear-v0"
 ]
 
 # Register OpenAI gym environments
@@ -58,6 +60,34 @@ gym.envs.register(id="UnevenSHMesh-v0",
 
 gym.envs.register(id="ObstacleSHCube-v0",
                   entry_point="envs.shadow_hand.obstacle_cube:ObstacleSHCube",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatBarrettCube-v0",
+                  entry_point="envs.barrett.flat_cube:FlatBarrettCube",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatBarrettCylinder-v0",
+                  entry_point="envs.barrett.flat_cylinder:FlatBarrettCylinder",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatBarrettSphere-v0",
+                  entry_point="envs.barrett.flat_sphere:FlatBarrettSphere",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatBarrettMesh-v0",
+                  entry_point="envs.barrett.flat_mesh:FlatBarrettMesh",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatBarrettAll-v0",
+                  entry_point="envs.barrett.flat_all:FlatBarrettAll",
+                  max_episode_steps=50)
+
+gym.envs.register(id="UnevenBarrettCube-v0",
+                  entry_point="envs.barrett.uneven_cube:UnevenBarrettCube",
+                  max_episode_steps=50)
+
+gym.envs.register(id="UnevenBarrettMesh-v0",
+                  entry_point="envs.barrett.uneven_mesh:UnevenBarrettMesh",
                   max_episode_steps=50)
 
 gym.envs.register(id="SeaClear-v0",

@@ -1,5 +1,5 @@
 """Flat desk fetch base class file."""
-from typing import Dict
+from typing import Dict, List, Optional
 import logging
 
 import numpy as np
@@ -14,8 +14,14 @@ logger = logging.getLogger(__name__)
 class FlatBase(envs.robot_env.RobotEnv):
     """Superclass for all flat desk environments."""
 
-    def __init__(self, model_xml_path: str, gripper_extra_height: float, initial_qpos: dict,
-                 n_actions: int, object_name, object_size_range):
+    def __init__(self,
+                 model_xml_path: str,
+                 gripper_extra_height: float,
+                 initial_qpos: dict,
+                 n_actions: int,
+                 object_name,
+                 object_size_range,
+                 initial_gripper: Optional[List] = None):
         """Initialize a new flat environment.
 
         Args:
@@ -35,8 +41,9 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.gripper_init_pos = None  # Overwritten during first _env_reset() call
         self.gripper_init_range = 0.15  # Admissable range from gripper_init_pos
         self.gripper_start_pos = None  # Current starting position of the gripper
-        self.height_offset = None  # Overwritten during first _env_reset() call
+        self.height_offset = 0.43
         self.initial_qpos = initial_qpos
+        self.initial_gripper = initial_gripper
         self.object_size_range = object_size_range
         self.object_init_size = {}  # Save object sizes before modification
         super().__init__(
@@ -102,6 +109,10 @@ class FlatBase(envs.robot_env.RobotEnv):
     def _sample_goal(self) -> np.ndarray:
         goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
             -self.target_range, self.target_range, size=3)
+        while np.linalg.norm(
+                self.sim.data.get_joint_qpos(self.object_name + ":joint")[:2] - goal[:2]) < 0.1:
+            goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
+                -self.target_range, self.target_range, size=3)
         goal[2] = self.height_offset
         if self.np_random.uniform() < 0.5:
             goal[2] += self.np_random.uniform(0, 0.45)
@@ -123,14 +134,15 @@ class FlatBase(envs.robot_env.RobotEnv):
         # Save start positions on first run
         if self.gripper_init_pos is None:
             self.gripper_init_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
-        if self.height_offset is None:
-            self.height_offset = self.sim.data.get_site_xpos("target0")[2]
         # Move end effector into position
         self._set_gripper_pose()
         # Change object pose
         self._set_object_pose()
         # Run sim
         for _ in range(10):
+            if self.initial_gripper:
+                self.sim.data.ctrl[:] = self.initial_gripper
+            self._get_viewer(mode="human").render()
             self.sim.step()
         # Extract information for sampling goals
         self.gripper_start_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
@@ -142,8 +154,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         gripper_pos[:2] += d_pos  # Add random initial position change
         gripper_rot = np.array([1.0, 0.0, 1.0, 0.0])
         d_rot = self.np_random.uniform(-1, 1, size=4)
-        gripper_rot += (d_rot /
-                        np.linalg.norm(d_rot)) * 0.2  # Add random initial orientation change
+        # gripper_rot += (d_rot / np.linalg.norm(d_rot)) * 0.2  # Add random initial rotation change
         gripper_rot /= np.linalg.norm(gripper_rot)  # Renormalize for quaternion
         self.sim.data.set_mocap_pos("robot0:mocap", gripper_pos)
         self.sim.data.set_mocap_quat("robot0:mocap", gripper_rot)

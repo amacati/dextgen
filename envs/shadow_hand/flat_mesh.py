@@ -37,5 +37,5 @@ class FlatSHMesh(FlatSHBase, utils.EzPickle):
         self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
         # Remove mesh from initial_qpos to keep the modified joint position
         modified_qpos = initial_qpos.copy()
-        modified_qpos.pop("mesh", None)
+        modified_qpos.pop("mesh:joint", None)
         super()._env_setup(modified_qpos)

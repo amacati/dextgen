@@ -8,12 +8,10 @@ import json
 import envs
 from envs.flat_base import FlatBase
 
-# The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
-# hand poses from the ContactPose dataset. For more information, see
-# https://github.com/amacati/sh_eigen  TODO: Make repository public
+# Eigengrasps for barrett are designed by hand
 with open(Path(__file__).parent / "eigengrasps.json", "r") as f:
     eigengrasps = json.load(f)
-    assert all([len(value["joints"]) == 20 for value in eigengrasps.values()])
+    assert all([len(value["joints"]) == 4 for value in eigengrasps.values()])
 EIGENGRASPS = np.array([eigengrasps[str(i)]["joints"] for i in range(len(eigengrasps))])
 
 DEFAULT_INITIAL_QPOS = {
@@ -24,41 +22,22 @@ DEFAULT_INITIAL_QPOS = {
     "robot0:slide0": 0.4049,  # Robot arm
     "robot0:slide1": 0.48,
     "robot0:slide2": 0.0,
-    "robot0:WRJ1": -0.1651,  # ShadowHand
-    "robot0:WRJ0": -0.3197,
-    "robot0:FFJ3": 0.1434,
-    "robot0:FFJ2": 0.3202,
-    "robot0:FFJ1": 0.7126,
-    "robot0:FFJ0": 0.6705,
-    "robot0:MFJ3": 0.0002,
-    "robot0:MFJ2": 0.3152,
-    "robot0:MFJ1": 0.7659,
-    "robot0:MFJ0": 0.7323,
-    "robot0:RFJ3": 0.0003,
-    "robot0:RFJ2": 0.3674,
-    "robot0:RFJ1": 0.7119,
-    "robot0:RFJ0": 0.6699,
-    "robot0:LFJ4": 0.0525,
-    "robot0:LFJ3": -0.1361,
-    "robot0:LFJ2": 0.3987,
-    "robot0:LFJ1": 0.7415,
-    "robot0:LFJ0": 0.7040,
-    "robot0:THJ4": 0.0036,
-    "robot0:THJ3": 0.5506,
-    "robot0:THJ2": -0.0145,
-    "robot0:THJ1": -0.0015,
-    "robot0:THJ0": -0.7894,
+    "robot0:bhand_finger1_prox_joint": 1.5708,
+    "robot0:bhand_finger2_prox_joint": 1.5708,
+    "robot0:bhand_finger1_med_joint": 1.22173,
+    "robot0:bhand_finger2_med_joint": 1.22173,
+    "robot0:bhand_finger3_med_joint": 1.22173,
+    "robot0:bhand_finger1_dist_joint": 0.40724,
+    "robot0:bhand_finger2_dist_joint": 0.40724,
+    "robot0:bhand_finger3_dist_joint": 0.40724,
 }
 
-DEFAULT_INITIAL_GRIPPER = [
-    -0.1651, -0.3197, 0.1434, 0.3202, 0.7126, 0.0002, 0.3152, 0.7659, 0.0003, 0.3674, 0.7119,
-    0.0525, -0.1361, 0.3987, 0.7415, 0.0036, 0.5506, -0.0145, -0.0015, -0.7894
-]
+DEFAULT_INITIAL_GRIPPER = [1.5708, 1.22173, 1.22173, 1.22173]
 
 logger = logging.getLogger(__name__)
 
 
-class FlatSHBase(FlatBase):
+class FlatBarrettBase(FlatBase):
 
     EIGENGRASPS = EIGENGRASPS
 
@@ -75,10 +54,10 @@ class FlatSHBase(FlatBase):
             n_eigengrasps: Number of eigengrasps to use
         """
         self.n_eigengrasps = n_eigengrasps or 0
-        assert 0 <= self.n_eigengrasps < 21, "Only [0, 20] eigengrasps available for the ShadowHand"
-        n_actions = 7 + (n_eigengrasps or 20)
+        assert 0 <= self.n_eigengrasps < 5, "Only [0, 4] eigengrasps available for the Barrett hand"
+        n_actions = 7 + (n_eigengrasps or 4)
         super().__init__(model_xml_path=model_xml_path,
-                         gripper_extra_height=0.35,
+                         gripper_extra_height=0.3,
                          initial_qpos=DEFAULT_INITIAL_QPOS,
                          initial_gripper=DEFAULT_INITIAL_GRIPPER,
                          n_actions=n_actions,
@@ -93,7 +72,7 @@ class FlatSHBase(FlatBase):
         action = (action.copy())  # ensure that we don't change the action outside of this scope
         if self.n_eigengrasps:
             action = self._map_eigengrasps(action)
-        assert action.shape == (27,)  # At this point, the action should always have full dimension
+        assert action.shape == (11,)  # At this point, the action should always have full dimension
         pos_ctrl, rot_ctrl, hand_ctrl = action[:3], action[3:7], action[7:]
 
         pos_ctrl *= 0.05  # limit maximum change in position
@@ -113,7 +92,8 @@ class FlatSHBase(FlatBase):
     def _map_eigengrasps(self, action):
         pos_ctrl, hand_ctrl = action[:-self.n_eigengrasps], action[-self.n_eigengrasps:]
         # Transform hand controls to eigengrasps
-        hand_ctrl = envs.utils.map_sh2mujoco(hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps])
+        hand_ctrl = hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps]
+        logger.warning("Using eigengrasps with barrett hand")
         np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
         return np.concatenate((pos_ctrl, hand_ctrl))
 
@@ -133,7 +113,7 @@ class FlatSHBase(FlatBase):
         # gripper state
         object_rel_pos = object_pos - grip_pos
         object_velp -= grip_velp
-        hand_state = robot_qpos[-24:]
+        hand_state = robot_qpos[-8:]  # 2 prox, 3 med, 3 dist joints
 
         achieved_goal = np.squeeze(object_pos.copy())
         obs = np.concatenate([

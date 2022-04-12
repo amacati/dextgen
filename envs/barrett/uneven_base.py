@@ -4,12 +4,12 @@ import logging
 import numpy as np
 
 import envs
-from envs.shadow_hand.flat_base import FlatSHBase
+from envs.barrett.flat_base import FlatBarrettBase
 
 logger = logging.getLogger(__name__)
 
 
-class UnevenSHBase(FlatSHBase):
+class UnevenBarrettBase(FlatBarrettBase):
 
     def __init__(self, object_name: str, model_xml_path: str, n_eigengrasps: Optional[int] = None):
         """Initialize a new flat environment.
