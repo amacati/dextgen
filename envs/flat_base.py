@@ -142,7 +142,6 @@ class FlatBase(envs.robot_env.RobotEnv):
         for _ in range(10):
             if self.initial_gripper:
                 self.sim.data.ctrl[:] = self.initial_gripper
-            self._get_viewer(mode="human").render()
             self.sim.step()
         # Extract information for sampling goals
         self.gripper_start_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
