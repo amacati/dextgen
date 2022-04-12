@@ -93,7 +93,6 @@ class FlatBarrettBase(FlatBase):
         pos_ctrl, hand_ctrl = action[:-self.n_eigengrasps], action[-self.n_eigengrasps:]
         # Transform hand controls to eigengrasps
         hand_ctrl = hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps]
-        logger.warning("Using eigengrasps with barrett hand")
         np.clip(hand_ctrl, -1, 1, out=hand_ctrl)
         return np.concatenate((pos_ctrl, hand_ctrl))
 

@@ -126,7 +126,6 @@ class FlatBase(envs.robot_env.RobotEnv):
         self._modify_object_size()
         for name, value in initial_qpos.items():
             if name not in self.sim.model.joint_names:
-                logger.warning(f"Joint {name} present in initial_qpos, but not in Mujoco!")
                 continue
             self.sim.data.set_joint_qpos(name, value)
         envs.utils.reset_mocap_welds(self.sim)
