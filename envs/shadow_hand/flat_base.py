@@ -61,6 +61,7 @@ logger = logging.getLogger(__name__)
 class FlatSHBase(FlatBase):
 
     EIGENGRASPS = EIGENGRASPS
+    gripper_type = "SH"
 
     def __init__(self,
                  object_name: str,

@@ -14,11 +14,11 @@
 			<site name="obstacle0" pos="0 0 1" size="0.1 0.1 0.1" rgba="1 1 0 1" type="sphere"></site>
 		</body>
 
-		<geom name="floor1" pos="0 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1"></geom>
-		<geom name="floor2" pos="-0.5 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1"></geom>
-		<geom name="floor3" pos="-1 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1"></geom>
-		<geom name="floor4" pos="0.5 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1"></geom>
-		<geom name="floor5" pos="1 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1"></geom>
+		<geom name="floor1" pos="0 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+		<geom name="floor2" pos="-0.5 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+		<geom name="floor3" pos="-1 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+		<geom name="floor4" pos="0.5 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+		<geom name="floor5" pos="1 0 -0.97" euler="1.5708 0 0" type="cylinder" size="1 1" condim="3" rgba="0.76 0.7 0.5 1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 		<include file="robot.xml"></include>
 
 		<body name="can" pos="0 0 0">

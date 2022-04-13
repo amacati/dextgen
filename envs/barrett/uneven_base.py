@@ -65,5 +65,6 @@ class UnevenBarrettBase(FlatBarrettBase):
         self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
 
     def _reset_sim(self):
+        self.sim.set_state(self.initial_state)
         self._env_setup(self.initial_qpos)
         return True

@@ -89,6 +89,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.sim.forward()
 
     def _reset_sim(self) -> bool:
+        self.sim.set_state(self.initial_state)
         self._env_setup(self.initial_qpos)  # Rerun env setup to get new start poses for the robot
         # Randomize start position of object
         object_pose = self._sample_object_pose()
@@ -97,7 +98,8 @@ class FlatBase(envs.robot_env.RobotEnv):
         return True
 
     def _sample_object_pose(self) -> np.ndarray:
-        object_pos = self.gripper_start_pos[:2]
+        object_pos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
+            -self.object_range, self.object_range)
         while np.linalg.norm(object_pos - self.gripper_start_pos[:2]) < 0.1:
             object_pos = self.sim.data.get_body_xpos("table0")[:2] + self.np_random.uniform(
                 -self.object_range, self.object_range)

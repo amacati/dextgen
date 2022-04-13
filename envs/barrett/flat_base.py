@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 class FlatBarrettBase(FlatBase):
 
     EIGENGRASPS = EIGENGRASPS
+    gripper_type = "Barrett"
 
     def __init__(self,
                  object_name: str,

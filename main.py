@@ -47,7 +47,7 @@ if __name__ == "__main__":
         set_seed(env, args.seed + comm.Get_rank())
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     if args.load_pretrained:
-        path = Path(__file__).parent / "saves" / "pretrained" / args.env
+        path = Path(__file__).parent / "saves" / "pretrain" / env.gripper_type
         logger.info(f"Loading pretrained DDPG model from {path}")
         ddpg.load_pretrained(path)
     ddpg.train()

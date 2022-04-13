@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 class FlatPJBase(FlatBase):
 
+    gripper_type = "PJ"
+
     def __init__(self, object_name: str, model_xml_path: str, object_size_range: float = 0):
         """Initialize a new flat environment.
 

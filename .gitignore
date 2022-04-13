@@ -12,3 +12,4 @@ saves/**/*.png
 scripts
 *.mp4
 !envs/shadow_hand/eigengrasps.json
+!envs/barrett/eigengrasps.json
