@@ -5,7 +5,7 @@ from gym import utils
 import numpy as np
 
 from envs.barrett.flat_base import FlatBarrettBase
-from envs.rotations import axisangle2quat, quatmultiply
+from envs.rotations import axisangle2quat, quat_mul
 
 MODEL_XML_PATH = str(Path("barrett", "flat_barrett_mesh.xml"))
 
@@ -30,7 +30,7 @@ class FlatBarrettMesh(FlatBarrettBase, utils.EzPickle):
         if self.np_random.rand() < 1:
             rot_y = axisangle2quat(0, 1, 0, np.pi / 2)
             rot_z = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
-            object_rot = quatmultiply(rot_z, rot_y)
+            object_rot = quat_mul(rot_z, rot_y)
         else:
             object_rot = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
         object_pose[3:7] = object_rot

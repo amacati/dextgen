@@ -6,7 +6,7 @@ from gym import utils
 import numpy as np
 
 from envs.shadow_hand.flat_base import FlatSHBase
-from envs.rotations import quatmultiply, axisangle2quat
+from envs.rotations import quat_mul, axisangle2quat
 
 MODEL_XML_PATH = str(Path("sh", "flat_sh_all.xml"))
 
@@ -41,7 +41,7 @@ class FlatSHAll(FlatSHBase, utils.EzPickle):
             if self.np_random.rand() < 0.5:
                 rot_y = axisangle2quat(0, 1, 0, np.pi / 2)
                 rot_z = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
-                object_rot = quatmultiply(rot_z, rot_y)
+                object_rot = quat_mul(rot_z, rot_y)
             else:
                 object_rot = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
         else:

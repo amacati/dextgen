@@ -13,7 +13,7 @@ from mp_rl.core.ddpg import DDPG
 @pytest.mark.mpi
 def test_ddpg_mpi():
     comm = MPI.COMM_WORLD
-    args = load_args("ShadowHandPickAndPlace-v0")
+    args = load_args(envs.available_envs[0])
     gym.make(args.env)
     env = gym.make(args.env)
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)

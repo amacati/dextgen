@@ -5,7 +5,7 @@ from gym import utils
 import numpy as np
 
 from envs.barrett.flat_base import FlatBarrettBase
-from envs.rotations import axisangle2quat, quatmultiply
+from envs.rotations import axisangle2quat, quat_mul
 
 MODEL_XML_PATH = str(Path("barrett", "flat_barrett_cylinder.xml"))
 
@@ -33,7 +33,7 @@ class FlatBarrettCylinder(FlatBarrettBase, utils.EzPickle):
         if self.np_random.rand() < self.p_rot:
             y_rot = axisangle2quat(0, 1, 0, np.pi / 2)
             z_rot = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
-            object_rot = quatmultiply(z_rot, y_rot)
+            object_rot = quat_mul(z_rot, y_rot)
         else:
             object_rot = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
         object_pose[3:7] = object_rot

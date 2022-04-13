@@ -5,7 +5,7 @@ from gym import utils
 import numpy as np
 
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import axisangle2quat, quatmultiply
+from envs.rotations import axisangle2quat, quat_mul
 
 MODEL_XML_PATH = str(Path("pj", "flat_pj_all.xml"))
 
@@ -37,7 +37,7 @@ class FlatPJAll(FlatPJBase, utils.EzPickle):
             if self.np_random.rand() < 0.5:
                 rot_y = axisangle2quat(0, 1, 0, np.pi / 2)
                 rot_z = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
-                object_rot = quatmultiply(rot_z, rot_y)
+                object_rot = quat_mul(rot_z, rot_y)
             else:
                 object_rot = axisangle2quat(0, 0, 1, self.np_random.rand() * np.pi)
         else:

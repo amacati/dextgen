@@ -124,14 +124,49 @@ def mat2euler(mat: np.ndarray) -> np.ndarray:
     return euler
 
 
-def quatmultiply(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
-    q = np.array([
-        q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
-        q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
-        q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
-        q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]
-    ])
-    return q / np.linalg.norm(q)
+def euler2quat(euler):
+    """Convert Euler Angles to Quaternions.  See rotation.py for notes"""
+    euler = np.asarray(euler, dtype=np.float64)
+    assert euler.shape[-1] == 3, f"Invalid shape euler {euler}"
+
+    ai, aj, ak = euler[..., 2] / 2, -euler[..., 1] / 2, euler[..., 0] / 2
+    si, sj, sk = np.sin(ai), np.sin(aj), np.sin(ak)
+    ci, cj, ck = np.cos(ai), np.cos(aj), np.cos(ak)
+    cc, cs = ci * ck, ci * sk
+    sc, ss = si * ck, si * sk
+
+    quat = np.empty(euler.shape[:-1] + (4,), dtype=np.float64)
+    quat[..., 0] = cj * cc + sj * ss
+    quat[..., 3] = cj * sc - sj * cs
+    quat[..., 2] = -(cj * ss + sj * cc)
+    quat[..., 1] = cj * cs - sj * sc
+    return quat
+
+
+def quat_mul(q0, q1):
+    assert q0.shape == q1.shape
+    assert q0.shape[-1] == 4
+    assert q1.shape[-1] == 4
+
+    w0 = q0[..., 0]
+    x0 = q0[..., 1]
+    y0 = q0[..., 2]
+    z0 = q0[..., 3]
+
+    w1 = q1[..., 0]
+    x1 = q1[..., 1]
+    y1 = q1[..., 2]
+    z1 = q1[..., 3]
+
+    w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1
+    x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1
+    y = w0 * y1 + y0 * w1 + z0 * x1 - x0 * z1
+    z = w0 * z1 + z0 * w1 + x0 * y1 - y0 * x1
+    q = np.array([w, x, y, z])
+    if q.ndim == 2:
+        q = q.swapaxes(0, 1)
+    assert q.shape == q0.shape
+    return q
 
 
 def axisangle2quat(x: float, y: float, z: float, a: float):
