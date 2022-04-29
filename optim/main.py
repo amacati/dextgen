@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import time
 import itertools
@@ -40,10 +41,11 @@ grad_c = grad(c)
 ####################################################################################################
 def objective(x, grad):
     if grad.size > 0:
-        grad[:] = force_grad(x)
-    return np.asarray(force_reserve(x)).item()
+        grad[:] = force_grad(x) + homogeneous_forces_grad(x)
+    return np.asarray(force_reserve(x)).item() + np.asarray(homogeneous_force(x)).item()
 
 
+@jit
 def force_reserve(x):
     nc = len(x) // 4
     force_res = 0
@@ -109,26 +111,38 @@ def force_norm(x):
 force_norm_grad = jit(jacfwd(force_norm))
 
 
+def homogeneous_forces_contraint(x: np.ndarray, grad: np.ndarray):
+    if grad.size > 0:
+        grad[:] = homogeneous_forces_grad(x)
+    return np.asarray(homogeneous_force(x)).item()
+
+
+@jit
+def homogeneous_force(x):
+    fnorm = force_norm(x)
+    return jnp.sum((fnorm - jnp.mean(fnorm))**2)
+
+
+homogeneous_forces_grad = jit(grad(homogeneous_force))
+
+
 def generate_angle_constraint(i):
     _idx = i * 4
 
     @jit
-    def force_angle(x):
+    def force_angle_s(x):
         fc = x[_idx + 2:_idx + 4]
-        normf = jnp.linalg.norm(fc)
-        alpha = jnp.arccos(jnp.dot(fc / normf, sides[contact_points[i]["side"]]["normal"]))
-        return alpha
+        normf = fc / jnp.linalg.norm(fc)
+        crossp = jnp.cross(sides[contact_points[i]["side"]]["normal"], normf)
+        return crossp
 
-    force_angle_grad = jit(grad(force_angle))
+    force_angle_s_grad = jit(grad(force_angle_s))
 
     def angle_constraint(x, grad):
-        angle = np.asarray(force_angle(x)).item()
+        angle = np.asarray(force_angle_s(x)).item()
         if grad.size > 0:
-            if angle == 0:  # Zero gradient continuation for alpha == 0 to avoid nans
-                grad[:] = 0
-            else:
-                grad[:] = force_angle_grad(x)
-        return angle - alpha_max
+            grad[:] = force_angle_s_grad(x)
+        return angle - alpha_max_s
 
     return angle_constraint
 
@@ -156,7 +170,6 @@ def distance_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
 @jit
 def distance(x):
     pts = x.reshape(-1, 4)[:, :2]
-    hcb.id_print(jnp.array([jnp.linalg.norm(x[0] - x[1]) for x in itertools.combinations(pts, 2)]))
     return min_dist - jnp.array(
         [jnp.linalg.norm(x[0] - x[1]) for x in itertools.combinations(pts, 2)])
 
@@ -168,15 +181,16 @@ if __name__ == "__main__":
     config.update("jax_debug_nans", True)
 
     com = np.array([0, 0])
-    alpha_max = np.pi / 2
+    alpha_max = np.pi / 4
+    alpha_max_s = np.sin(alpha_max)
     alpha_max_t = np.tan(alpha_max)
     fmax = 1
     fmin = 0.1 * fmax
     min_dist = 0.2
 
     cp0 = {"pos": np.array([0, -1]), "f": np.array([0, 1]), "side": 0}
-    cp1 = {"pos": np.array([0.5, 1]), "f": np.array([0, -0.75]), "side": 2}
-    cp2 = {"pos": np.array([-0.5, 1]), "f": np.array([0, -0.25]), "side": 2}
+    cp1 = {"pos": np.array([0.0, 1]), "f": np.array([0, -0.75]), "side": 2}
+    cp2 = {"pos": np.array([-0.0, 1]), "f": np.array([0, -0.25]), "side": 2}
     contact_points = [cp0, cp1, cp2]
     ncp = len(contact_points)
 
@@ -212,11 +226,13 @@ if __name__ == "__main__":
     pts = xinit.reshape(-1, 4)[:, :2]
     pts2 = pts.reshape(pts.shape[0], 1, pts.shape[1])
 
-    opt = nlopt.opt(nlopt.AUGLAG, len(xinit))
     localopt = nlopt.opt(nlopt.LD_MMA, len(xinit))
     localopt.set_lower_bounds(-1)
     localopt.set_upper_bounds(1)
-    localopt.set_xtol_rel(1e-4)
+    localopt.set_xtol_rel(1e-3)
+
+    opt = nlopt.opt(nlopt.AUGLAG, len(xinit))
+    opt.set_xtol_rel(1e-3)
     opt.set_local_optimizer(localopt)
     opt.set_min_objective(objective)
     opt.add_inequality_constraint(generate_angle_constraint(0))
@@ -228,10 +244,10 @@ if __name__ == "__main__":
     opt.add_inequality_mconstraint(maximum_force_constraints, np.ones(3) * 1e-6)
     opt.add_inequality_mconstraint(minimum_force_constraints, np.ones(3) * 1e-6)
     #opt.add_inequality_mconstraint(distance_constraints, np.ones(ncp*(ncp-1)//2)*1e-6)
+    #opt.add_equality_constraint(homogeneous_forces_contraint, 100)
     opt.set_lower_bounds(-1)
     opt.set_upper_bounds(1)
 
-    opt.set_xtol_rel(1e-4)
     tstart = time.perf_counter()
     xmin = opt.optimize(xinit)
     tend = time.perf_counter()
