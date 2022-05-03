@@ -10,6 +10,7 @@ from constraints import generate_maximum_force_constraints, generate_minimum_for
 from constraints import generate_moments_constraints, generate_sphere_constraint
 from constraints import _sum_of_forces_jax
 from objective import generate_objective
+from geometry import generate_sphere_normal, generate_sphere_normals
 
 if __name__ == "__main__":
     config.update("jax_enable_x64", True)
