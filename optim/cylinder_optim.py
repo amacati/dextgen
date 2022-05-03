@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 
 from constraints import generate_angle_constraint, generate_disk_constraints, generate_distance_constraints, force_constraints, generate_lateral_surface_constraints
 from constraints import generate_maximum_force_constraints, generate_minimum_force_constraints
-from constraints import generate_moments_constraints, generate_sphere_constraint
-from constraints import _sum_of_forces_jax
+from constraints import generate_moments_constraints, _sum_of_forces_jax
 from objective import generate_objective
 from geometry import generate_cylinder_normal, generate_cylinder_normals
 

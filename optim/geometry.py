@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 from jax import jit
 import numpy as np
-from jax.experimental import host_callback as hcb
 
 
 def generate_sphere_normals(com):
