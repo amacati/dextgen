@@ -33,8 +33,7 @@ Default:
   load_pretrained: False
   seed: False  # Integer > 0 or False if no custom seed should be used
 
-
-
+# Environment specific configurations. Arguments overwrite the default config.
 FlatSHAll-v0:
   epochs: 1000
   kwargs:
@@ -81,6 +80,13 @@ SeaClear-v0:
 
 FlatBarrettReduced-v0:
   actor_net_type: "DDP"
+
+FlatBarrettSphere-v0:
+  actor_net_type: "DDP"
+  # grip_pos (0:3), grip_rot (3:9), grip_state (9:17), grip_velp (17:20), object_pos (20:23),
+  # object_rel_pos (23:26), object_rot (26:32), object_rel_rot (32:38), object_velp (38:41),
+  # object_velr (41:44)
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
 
 FlatPJOrient-v0:
   actor_net_type: "PosePolicyNet"

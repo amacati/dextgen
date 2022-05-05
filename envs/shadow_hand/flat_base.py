@@ -140,19 +140,19 @@ class FlatSHBase(FlatBase):
         # gripper state
         grip_state = robot_qpos[-24:]
 
-        achieved_goal = np.squeeze(object_pos.copy())
+        achieved_goal = object_pos
 
         obs = np.concatenate([
             grip_pos,
             grip_rot,
             grip_state,
             grip_velp,
-            object_pos.ravel(),
-            object_rel_pos.ravel(),
-            object_rot.ravel(),
+            object_pos,
+            object_rel_pos,
+            object_rot,
             object_rel_rot,
-            object_velp.ravel(),
-            object_velr.ravel(),
+            object_velp,
+            object_velr,
         ])
         return {
             "observation": obs.copy(),

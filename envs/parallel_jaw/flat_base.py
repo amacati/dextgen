@@ -78,7 +78,7 @@ class FlatPJBase(FlatBase):
         # gripper state
         grip_state = robot_qpos[-2:]
 
-        achieved_goal = np.squeeze(object_pos.copy())
+        achieved_goal = object_pos
 
         obs = np.concatenate([
             grip_pos,
