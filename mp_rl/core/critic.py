@@ -11,21 +11,29 @@ from mp_rl.core.utils import soft_update, sync_networks, sync_grads
 class Critic:
     """Critic class encapsulating the critic and training process for the DDPG critic."""
 
-    def __init__(self, size_s: int, size_a: int, lr: float, grad_clip: float = np.inf):
+    def __init__(self,
+                 size_s: int,
+                 size_a: int,
+                 nlayers: int,
+                 layer_width: int,
+                 lr: float,
+                 grad_clip: float = np.inf):
         """Initialize the critic, the critic network and create its target as an exact copy.
 
         Args:
             size_s: Critic network input state size. If the input consists of a state and a
                 goal, the size is equal to their sum.
             size_a: Critic network input action size.
+            nlayers: Number of network layers.
+            layer_width: Number of nodes per layer. Does not influence input and output size.
             lr: Critic network learning rate.
             grad_clip: Gradient clipping value for optimizer steps.
         """
-        self.critic_net = CriticNetwork(size_s, size_a)
+        self.critic_net = CriticNetwork(size_s, size_a, nlayers, layer_width)
         self.optim = torch.optim.Adam(self.critic_net.parameters(), lr=lr)
         self.size_s = size_s
         self.size_a = size_a
-        self.target_net = CriticNetwork(size_s, size_a)
+        self.target_net = CriticNetwork(size_s, size_a, nlayers, layer_width)
         self.target_net.load_state_dict(self.critic_net.state_dict())
         self.grad_clip = grad_clip
         self.dist = False
@@ -97,18 +105,23 @@ class Critic:
 class CriticNetwork(nn.Module):
     """State action critic network for the critic."""
 
-    def __init__(self, size_s: int, size_a: int):
+    def __init__(self, size_s: int, size_a: int, nlayers: int, layer_width: int):
         """Initialize the network.
 
         Args:
             size_s: Input layer size.
             size_a: Output layer size.
+            nlayers: Number of network layers.
+            layer_width: Number of nodes per layer. Does not influence input and output size.
         """
         super().__init__()
-        self.l1 = nn.Linear(size_s + size_a, 256)
-        self.l2 = nn.Linear(256, 256)
-        self.l3 = nn.Linear(256, 256)
-        self.l4 = nn.Linear(256, 1)
+        self.layers = nn.ModuleList()
+        for i in range(nlayers):
+            size_in = size_s + size_a if i == 0 else layer_width
+            size_out = 1 if i == nlayers - 1 else layer_width
+            self.layers.append(nn.Linear(size_in, size_out))
+            if i != nlayers - 1:  # Last layer doesn't get an activation function
+                self.layers.append(nn.ReLU())
 
     def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         """Compute the network forward pass.
@@ -120,7 +133,7 @@ class CriticNetwork(nn.Module):
         Returns:
             The network output.
         """
-        x = torch.relu(self.l1(torch.cat([state, action], dim=1)))
-        x = torch.relu(self.l2(x))
-        x = torch.relu(self.l3(x))
-        return self.l4(x)
+        x = torch.cat([state, action], dim=1)
+        for layer in self.layers:
+            x = layer(x)
+        return x

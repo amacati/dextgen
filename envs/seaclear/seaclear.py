@@ -1,3 +1,4 @@
+"""SeaClear submarine environment module."""
 from typing import Dict
 from pathlib import Path
 
@@ -5,13 +6,14 @@ import numpy as np
 
 import envs
 from envs.flat_base import FlatBase
-from envs.rotations import axisangle2quat
+from envs.rotations import axisangle2quat, mat2embedding
 from envs.utils import goal_distance
 
 MODEL_XML_PATH = str(Path("seaclear", "seaclear.xml"))
 
 
 class SeaClear(FlatBase):
+    """SeaClear submarine environment class."""
 
     def __init__(self):
         """Initialize a new flat environment.
@@ -31,11 +33,10 @@ class SeaClear(FlatBase):
                          object_size_range=0)
         self.target_range = 0.3
 
-    def _set_action(self, action):
+    def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
         action = (action.copy())  # ensure that we don't change the action outside of this scope
         pos_ctrl, rot_ctrl, gripper_ctrl = action[:3], action[3], action[4]
-        pos_ctrl[2] = -0.1
         pos_ctrl *= 0.05  # limit maximum change in position
         pos_ctrl += self.mocap_offset
         rot_ctrl = axisangle2quat(0, 0, 1, np.pi * rot_ctrl)
@@ -50,34 +51,37 @@ class SeaClear(FlatBase):
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
-        dt = self.sim.nsubsteps * self.sim.model.opt.timestep
-        grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
         robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
         object_pos = self.sim.data.get_site_xpos(self.object_name)
+        object_rel_pos = object_pos - grip_pos
         # rotations
-        grip_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat("robot0:grip"))
-        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
+        grip_rot_mat = self.sim.data.get_site_xmat("robot0:grip")
+        object_rot_mat = self.sim.data.get_site_xmat(self.object_name)
+        grip_rot = mat2embedding(grip_rot_mat)
+        object_rot = mat2embedding(object_rot_mat)
+        object_rel_rot = mat2embedding(grip_rot_mat.T @ object_rot_mat)
         # velocities
+        dt = self.sim.nsubsteps * self.sim.model.opt.timestep
+        grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
         object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
         object_velr = self.sim.data.get_site_xvelr(self.object_name) * dt
-        # gripper state
-        object_rel_pos = object_pos - grip_pos
         object_velp -= grip_velp
-        gripper_state = robot_qpos[-2:]
-        gripper_vel = (robot_qvel[-2:] * dt)  # change to a scalar if the gripper is made symmetric
+        # gripper state
+        grip_state = robot_qpos[-2:]
 
         achieved_goal = np.squeeze(object_pos.copy())
+
         obs = np.concatenate([
             grip_pos,
             grip_rot,
-            gripper_state,
+            grip_state,
             grip_velp,
-            gripper_vel,
-            object_pos.ravel(),
-            object_rel_pos.ravel(),
-            object_rot.ravel(),
-            object_velp.ravel(),
-            object_velr.ravel(),
+            object_pos,
+            object_rel_pos,
+            object_rot,
+            object_rel_rot,
+            object_velp,
+            object_velr,
         ])
 
         return {
@@ -93,12 +97,8 @@ class SeaClear(FlatBase):
             achieved_goal: Achieved goal.
             goal: Desired goal.
         """
-        if goal.ndim == 2:
-            goal_d = goal_distance(achieved_goal[:, :3], goal[:, :3])
-            obstacle_d = goal_distance(achieved_goal[:, 3:6], goal[:, 3:6])
-        else:
-            goal_d = goal_distance(achieved_goal[:3], goal[:3])
-            obstacle_d = goal_distance(achieved_goal[3:6], goal[3:6])
+        goal_d = goal_distance(achieved_goal[..., :3], goal[..., :3])
+        obstacle_d = goal_distance(achieved_goal[..., 3:6], goal[..., 3:6])
         goal_reward = -(goal_d > self.target_threshold).astype(np.float32)
         obstacle_reward = -(obstacle_d > self._obs_threshold).astype(np.float32)
         return goal_reward + obstacle_reward

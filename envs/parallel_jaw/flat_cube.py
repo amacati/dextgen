@@ -1,3 +1,4 @@
+"""FlatPJCube environment module."""
 from pathlib import Path
 
 from gym import utils
@@ -9,8 +10,14 @@ MODEL_XML_PATH = str(Path("pj", "flat_pj_cube.xml"))
 
 
 class FlatPJCube(FlatPJBase, utils.EzPickle):
+    """FlatPJCube environment class."""
 
     def __init__(self, object_size_range: float = 0):
+        """Initialize a parallel jaw cube environment.
+
+        Args:
+            object_size_range: Optional range to enlarge/shrink object sizes.
+        """
         FlatPJBase.__init__(self,
                             object_name="cube",
                             model_xml_path=MODEL_XML_PATH,

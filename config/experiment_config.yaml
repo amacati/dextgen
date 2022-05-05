@@ -1,5 +1,5 @@
 Default:
-  epochs: 50
+  epochs: 1000
   cycles: 50
   rollouts: 2
   batches: 40
@@ -22,11 +22,18 @@ Default:
   goal_clip: 200.
   grad_clip: 5.
   action_norm: 1.  # Action regularization
+  actor_net_type: "PosePolicyNet"
+  actor_net_nlayers: 4
+  actor_net_layer_width: 256
+  critic_net_nlayers: 4
+  critic_net_layer_width: 256
 
   early_stop: 0.98
   save: True
   load_pretrained: False
   seed: False  # Integer > 0 or False if no custom seed should be used
+
+
 
 FlatSHAll-v0:
   epochs: 1000
@@ -68,3 +75,20 @@ UnevenSHMesh-v0:
   epochs: 1000
   kwargs:
     n_eigengrasps: 6
+
+SeaClear-v0:
+  actor_net_type: "DDP"
+
+FlatBarrettReduced-v0:
+  actor_net_type: "DDP"
+
+FlatPJOrient-v0:
+  actor_net_type: "PosePolicyNet"
+  # goal_pos (0:3), goal_rot (3:9)
+  goal_norm_idx: [0, 1, 2]
+  # grip_pos (0:3), grip_rot (3:9), grip_state (9:11), grip_velp (11:14), object_pos (14:17),
+  # object_rel_pos (17:20), object_rot (20:26), object_rel_rot (26:32), object_velp (32:35),
+  # object_velr (35:38)
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+  actor_net_nlayers: 4
+  actor_net_layer_width: 256

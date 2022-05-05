@@ -124,8 +124,17 @@ def mat2euler(mat: np.ndarray) -> np.ndarray:
     return euler
 
 
-def euler2quat(euler):
-    """Convert Euler Angles to Quaternions.  See rotation.py for notes"""
+def euler2quat(euler: np.ndarray) -> np.ndarray:
+    """Convert Euler Angles to Quaternions.
+
+    See rotation.py for notes.
+
+    Args:
+        euler: Array of euler angles.
+
+    Returns:
+        An array of quaternions.
+    """
     euler = np.asarray(euler, dtype=np.float64)
     assert euler.shape[-1] == 3, f"Invalid shape euler {euler}"
 
@@ -143,7 +152,97 @@ def euler2quat(euler):
     return quat
 
 
-def quat_mul(q0, q1):
+def mat2quat(mat: np.ndarray) -> np.ndarray:
+    """Convert Rotation Matrices to Quaternions.
+
+    See rotation.py for notes.
+
+    Args:
+        mat: Array of rotations matrices.
+
+    Returns:
+        An array of quaternions.
+    """
+    mat = np.asarray(mat, dtype=np.float64)
+    assert mat.shape[-2:] == (3, 3), f"Invalid shape matrix {mat}"
+
+    Qxx, Qyx, Qzx = mat[..., 0, 0], mat[..., 0, 1], mat[..., 0, 2]
+    Qxy, Qyy, Qzy = mat[..., 1, 0], mat[..., 1, 1], mat[..., 1, 2]
+    Qxz, Qyz, Qzz = mat[..., 2, 0], mat[..., 2, 1], mat[..., 2, 2]
+    # Fill only lower half of symmetric matrix
+    K = np.zeros(mat.shape[:-2] + (4, 4), dtype=np.float64)
+    K[..., 0, 0] = Qxx - Qyy - Qzz
+    K[..., 1, 0] = Qyx + Qxy
+    K[..., 1, 1] = Qyy - Qxx - Qzz
+    K[..., 2, 0] = Qzx + Qxz
+    K[..., 2, 1] = Qzy + Qyz
+    K[..., 2, 2] = Qzz - Qxx - Qyy
+    K[..., 3, 0] = Qyz - Qzy
+    K[..., 3, 1] = Qzx - Qxz
+    K[..., 3, 2] = Qxy - Qyx
+    K[..., 3, 3] = Qxx + Qyy + Qzz
+    K /= 3.0
+    # TODO: vectorize this -- probably could be made faster
+    q = np.empty(K.shape[:-2] + (4,))
+    it = np.nditer(q[..., 0], flags=["multi_index"])
+    while not it.finished:
+        # Use Hermitian eigenvectors, values for speed
+        vals, vecs = np.linalg.eigh(K[it.multi_index])
+        # Select largest eigenvector, reorder to w,x,y,z quaternion
+        q[it.multi_index] = vecs[[3, 0, 1, 2], np.argmax(vals)]
+        # Prefer quaternion with positive w
+        # (q * -1 corresponds to same rotation as q)
+        if q[it.multi_index][0] < 0:
+            q[it.multi_index] *= -1
+        it.iternext()
+    return q
+
+
+def quat2mat(quat: np.ndarray) -> np.ndarray:
+    """Convert Quaternions to Euler Angles.
+
+    See rotation.py for notes.
+
+    Args:
+        quat: Array of quaternions.
+
+    Returns:
+        An array of euler angles.
+    """
+    quat = np.asarray(quat, dtype=np.float64)
+    assert quat.shape[-1] == 4, f"Invalid shape quat {quat}"
+
+    w, x, y, z = quat[..., 0], quat[..., 1], quat[..., 2], quat[..., 3]
+    Nq = np.sum(quat * quat, axis=-1)
+    s = 2.0 / Nq
+    X, Y, Z = x * s, y * s, z * s
+    wX, wY, wZ = w * X, w * Y, w * Z
+    xX, xY, xZ = x * X, x * Y, x * Z
+    yY, yZ, zZ = y * Y, y * Z, z * Z
+
+    mat = np.empty(quat.shape[:-1] + (3, 3), dtype=np.float64)
+    mat[..., 0, 0] = 1.0 - (yY + zZ)
+    mat[..., 0, 1] = xY - wZ
+    mat[..., 0, 2] = xZ + wY
+    mat[..., 1, 0] = xY + wZ
+    mat[..., 1, 1] = 1.0 - (xX + zZ)
+    mat[..., 1, 2] = yZ - wX
+    mat[..., 2, 0] = xZ - wY
+    mat[..., 2, 1] = yZ + wX
+    mat[..., 2, 2] = 1.0 - (xX + yY)
+    return np.where((Nq > _FLOAT_EPS)[..., np.newaxis, np.newaxis], mat, np.eye(3))
+
+
+def quat_mul(q0: np.ndarray, q1: np.ndarray) -> np.ndarray:
+    """Multiply Quaternions.
+
+    Args:
+        q0: First array of quaternions.
+        q1: Second array of quaternions.
+
+    Returns:
+        The multiplied quaternions.
+    """
     assert q0.shape == q1.shape
     assert q0.shape[-1] == 4
     assert q1.shape[-1] == 4
@@ -169,10 +268,145 @@ def quat_mul(q0, q1):
     return q
 
 
-def axisangle2quat(x: float, y: float, z: float, a: float):
+def quat_conjugate(q: np.array) -> np.array:
+    """Conjugate Quaternions.
+
+    Args:
+        q: Array of quaternions.
+
+    Returns:
+        The conjugated quaternions.
+    """
+    inv_q = -q
+    inv_q[..., 0] *= -1
+    return inv_q
+
+
+def axisangle2quat(x: float, y: float, z: float, a: float) -> np.ndarray:
+    """Convert a single axis-angle to a Quaternion.
+
+    Args:
+        x: X-axis component.
+        y: Y-axis component.
+        z: Z-axis component.
+        a: Angle around the axis in radians.
+
+    Returns:
+        The quaternion.
+    """
     sin_a = np.sin(a / 2.)
     x *= sin_a
     y *= sin_a
     z *= sin_a
     q = np.array([np.cos(a / 2.), x, y, z])
     return q / np.linalg.norm(q)
+
+
+def quat2embedding(quat: np.ndarray) -> np.ndarray:
+    """Convert Quaternions to Embeddings.
+
+    Args:
+        quat: An array of quaternions.
+
+    Returns:
+        The embeddings.
+    """
+    assert quat.shape[-1] == 4
+    return mat2embedding(quat2mat(quat))
+
+
+def embedding2quat(embedding: np.ndarray, regularize: bool = False) -> np.ndarray:
+    """Convert Embeddings to Quaternions.
+
+    The embeddings are assumed to have the form [a11, a12, a13, a21, a22, a23].
+
+    Args:
+        embedding: An array of embeddings.
+        regularize: If True, the embedding is regularized to a proper embedding before conversion.
+
+    Returns:
+        The quaternions.
+    """
+    assert embedding.shape[-1] == 6
+    if regularize:
+        b1 = embedding[..., 0:3] / np.linalg.norm(embedding[..., 0:3], axis=-1, keepdims=True)
+        # np.sum for batched dot product
+        b2 = embedding[..., 3:6] - (np.sum(b1 * embedding[..., 3:6], axis=-1, keepdims=True) * b1)
+        b2 /= np.linalg.norm(b2, axis=-1, keepdims=True)
+    else:
+        b1 = embedding[..., 0:3]
+        b2 = embedding[..., 3:6]
+    b3 = np.cross(b1, b2, axis=-1)
+
+    Qxx, Qyx, Qzx = b1[..., 0], b2[..., 0], b3[..., 0]
+    Qxy, Qyy, Qzy = b1[..., 1], b2[..., 1], b3[..., 1]
+    Qxz, Qyz, Qzz = b1[..., 2], b2[..., 2], b3[..., 2]
+    # Fill only lower half of symmetric matrix
+    K = np.zeros(embedding.shape[:-1] + (4, 4), dtype=np.float64)
+    K[..., 0, 0] = Qxx - Qyy - Qzz
+    K[..., 1, 0] = Qyx + Qxy
+    K[..., 1, 1] = Qyy - Qxx - Qzz
+    K[..., 2, 0] = Qzx + Qxz
+    K[..., 2, 1] = Qzy + Qyz
+    K[..., 2, 2] = Qzz - Qxx - Qyy
+    K[..., 3, 0] = Qyz - Qzy
+    K[..., 3, 1] = Qzx - Qxz
+    K[..., 3, 2] = Qxy - Qyx
+    K[..., 3, 3] = Qxx + Qyy + Qzz
+    K /= 3.0
+    q = np.empty(K.shape[:-2] + (4,))
+    it = np.nditer(q[..., 0], flags=["multi_index"])
+    while not it.finished:
+        # Use Hermitian eigenvectors, values for speed
+        vals, vecs = np.linalg.eigh(K[it.multi_index])
+        # Select largest eigenvector, reorder to w,x,y,z quaternion
+        q[it.multi_index] = vecs[[3, 0, 1, 2], np.argmax(vals)]
+        # Prefer quaternion with positive w
+        # (q * -1 corresponds to same rotation as q)
+        if q[it.multi_index][0] < 0:
+            q[it.multi_index] *= -1
+        it.iternext()
+    return q
+
+
+def embedding2mat(embedding: np.ndarray, regularize: bool = False) -> np.ndarray:
+    """Convert Embeddings to Rotation Matrices.
+
+    The embeddings are assumed to have the form [a11, a12, a13, a21, a22, a23].
+
+    Args:
+        embedding: An array of embeddings.
+        regularize: If True, the embedding is regularized to a proper embedding before conversion.
+
+    Returns:
+        The rotation matrices.
+    """
+    assert embedding.shape[-1] == 6
+    if regularize:
+        b1 = embedding[..., 0:3] / np.linalg.norm(embedding[..., 0:3], axis=-1, keepdims=True)
+        # np.sum for batched dot product
+        b2 = embedding[..., 3:6] - (np.sum(b1 * embedding[..., 3:6], axis=-1, keepdims=True) * b1)
+        b2 /= np.linalg.norm(b2, axis=-1, keepdims=True)
+    else:
+        b1 = embedding[..., 0:3]
+        b2 = embedding[..., 3:6]
+    b3 = np.cross(b1, b2, axis=-1)
+
+    mat = np.empty(embedding.shape[:-1] + (3, 3), dtype=np.float64)
+    mat[..., 0, 0], mat[..., 0, 1], mat[..., 0, 2] = b1[..., 0], b2[..., 0], b3[..., 0]
+    mat[..., 1, 0], mat[..., 1, 1], mat[..., 1, 2] = b1[..., 1], b2[..., 1], b3[..., 1]
+    mat[..., 2, 0], mat[..., 2, 1], mat[..., 2, 2] = b1[..., 2], b2[..., 2], b3[..., 2]
+    return mat
+
+
+def mat2embedding(mat: np.ndarray) -> np.ndarray:
+    """Convert Rotation Matrices to Embeddings.
+
+    Args:
+        mat: An array of rotation matrices.
+
+    Returns:
+        The embeddings.
+    """
+    assert mat.shape[-2:] == (3, 3)
+    return np.concatenate((mat[..., :, 0], mat[..., :, 1]), axis=-1)

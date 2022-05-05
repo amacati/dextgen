@@ -1,3 +1,4 @@
+"""FlatPJMesh environment module."""
 from pathlib import Path
 
 from gym import utils
@@ -10,8 +11,14 @@ MODEL_XML_PATH = str(Path("pj", "flat_pj_mesh.xml"))
 
 
 class FlatPJMesh(FlatPJBase, utils.EzPickle):
+    """FlatPJMesh environment class."""
 
     def __init__(self, object_size_range: float = 0):
+        """Initialize a parallel jaw mesh environment.
+
+        Args:
+            object_size_range: Optional range to enlarge/shrink object sizes.
+        """
         FlatPJBase.__init__(self,
                             object_name="mesh",
                             model_xml_path=MODEL_XML_PATH,

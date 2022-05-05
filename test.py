@@ -13,7 +13,7 @@ import mujoco_py
 import envs  # Import registers environments with gym  # noqa: F401
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.actor import ActorNetwork
+from mp_rl.core.actor import PosePolicyNet, DDP
 from parse_args import parse_args
 
 
@@ -69,7 +69,12 @@ if __name__ == "__main__":
     size_s = len(env.observation_space["observation"].low) + len(
         env.observation_space["desired_goal"].low)
     size_a = len(env.action_space.low)
-    actor = ActorNetwork(size_s, size_a)
+    if args.actor_net_type == "DDP":
+        actor = DDP(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
+    elif args.actor_net_type == "PosePolicyNet":
+        actor = PosePolicyNet(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
+    else:
+        raise KeyError(f"Actor network type {args.actor_net_type} not supported")
     path = Path(__file__).parent / "saves" / args.env
     actor.load_state_dict(torch.load(path / "actor.pt"))
     with open(path / "state_norm.pkl", "rb") as f:
@@ -89,9 +94,8 @@ if __name__ == "__main__":
         done = False
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
-            state, goal = torch.as_tensor(state,
-                                          dtype=torch.float32), torch.as_tensor(goal,
-                                                                                dtype=torch.float32)
+            state = torch.as_tensor(state, dtype=torch.float32)
+            goal = torch.as_tensor(goal, dtype=torch.float32)
             with torch.no_grad():
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)

@@ -6,7 +6,8 @@ available_envs = [
     "FlatSHCube-v0", "FlatSHCylinder-v0", "FlatSHSphere-v0", "FlatSHMesh-v0", "FlatSHAll-v0",
     "UnevenSHCube-v0", "UnevenSHMesh-v0", "FlatBarrettCube-v0", "FlatBarrettCylinder-v0",
     "FlatBarrettSphere-v0", "FlatBarrettMesh-v0", "FlatBarrettAll-v0", "UnevenBarrettCube-v0",
-    "UnevenBarrettMesh-v0", "ObstacleSHCube-v0", "SeaClear-v0"
+    "UnevenBarrettMesh-v0", "ObstacleSHCube-v0", "SeaClear-v0", "FlatBarrettReduced-v0",
+    "FlatPJOrient-v0"
 ]
 
 # Register OpenAI gym environments
@@ -92,4 +93,12 @@ gym.envs.register(id="UnevenBarrettMesh-v0",
 
 gym.envs.register(id="SeaClear-v0",
                   entry_point="envs.seaclear.seaclear:SeaClear",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatBarrettReduced-v0",
+                  entry_point="envs.barrett.flat_reduced:FlatBarrettReduced",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatPJOrient-v0",
+                  entry_point="envs.parallel_jaw.flat_orient:FlatPJOrient",
                   max_episode_steps=50)

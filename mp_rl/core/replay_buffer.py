@@ -29,7 +29,7 @@ class ReplayBuffer(ABC):
 
 
 class TrajectoryBuffer:
-    """Trajectory buffer to hold a single trajectory of fixed time horizon from one run."""
+    """Trajectory buffer to hold a single trajectory of fixed time horizon from a single episode."""
 
     def __init__(self, size_s: int, size_a: int, size_g: int, T: int):
         """Initialize the buffers for states, actions, goals and achieved goals.

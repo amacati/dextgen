@@ -1,3 +1,4 @@
+"""FlatSHMesh environment module."""
 from pathlib import Path
 from typing import Optional
 
@@ -11,8 +12,15 @@ MODEL_XML_PATH = str(Path("sh", "flat_sh_mesh.xml"))
 
 
 class FlatSHMesh(FlatSHBase, utils.EzPickle):
+    """FlatSHMesh environment class."""
 
     def __init__(self, n_eigengrasps: Optional[int] = None, object_size_range: float = 0):
+        """Initialize a ShadowHand mesh environment.
+
+        Args:
+            n_eigengrasps: Number of eigengrasps to use.
+            object_size_range: Optional range to enlarge/shrink object sizes.
+        """
         FlatSHBase.__init__(self,
                             object_name="mesh",
                             model_xml_path=MODEL_XML_PATH,

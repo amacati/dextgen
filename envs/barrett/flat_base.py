@@ -1,3 +1,4 @@
+"""FlatBarrett environment base module."""
 import logging
 from typing import Dict, Optional
 from pathlib import Path
@@ -7,6 +8,7 @@ import json
 
 import envs
 from envs.flat_base import FlatBase
+from envs.rotations import mat2quat, mat2embedding
 
 # Eigengrasps for barrett are designed by hand
 with open(Path(__file__).parent / "eigengrasps.json", "r") as f:
@@ -38,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 class FlatBarrettBase(FlatBase):
+    """FlatBarrett environment base class."""
 
     EIGENGRASPS = EIGENGRASPS
     gripper_type = "Barrett"
@@ -47,16 +50,17 @@ class FlatBarrettBase(FlatBase):
                  model_xml_path: str,
                  n_eigengrasps: Optional[int] = None,
                  object_size_range: float = 0):
-        """Initialize a new flat environment.
+        """Initialize a flat BarrettHand environment.
 
         Args:
-            object_name: Name of the manipulation object in Mujoco
-            model_xml_path: Mujoco world xml file path
-            n_eigengrasps: Number of eigengrasps to use
+            object_name: Name of the manipulation object in Mujoco.
+            model_xml_path: Mujoco world xml file path.
+            n_eigengrasps: Number of eigengrasps to use.
+            object_size_range: Optional range to enlarge/shrink object sizes.
         """
         self.n_eigengrasps = n_eigengrasps or 0
         assert 0 <= self.n_eigengrasps < 5, "Only [0, 4] eigengrasps available for the Barrett hand"
-        n_actions = 7 + (n_eigengrasps or 4)
+        n_actions = 12 + (n_eigengrasps or 4)
         super().__init__(model_xml_path=model_xml_path,
                          gripper_extra_height=0.3,
                          initial_qpos=DEFAULT_INITIAL_QPOS,
@@ -68,19 +72,16 @@ class FlatBarrettBase(FlatBase):
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
 
-    def _set_action(self, action):
+    def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
         action = (action.copy())  # ensure that we don't change the action outside of this scope
         if self.n_eigengrasps:
             action = self._map_eigengrasps(action)
-        assert action.shape == (11,)  # At this point, the action should always have full dimension
-        pos_ctrl, rot_ctrl, hand_ctrl = action[:3], action[3:7], action[7:]
+        assert action.shape == (16,)  # At this point, the action should always have full dimension
+        pos_ctrl, rot_ctrl, hand_ctrl = action[:3], action[3:12], action[12:]
 
         pos_ctrl *= 0.05  # limit maximum change in position
-        if np.linalg.norm(rot_ctrl) == 0:
-            logger.warning("Zero quaternion encountered, setting to robot gripper orientation")
-            rot_ctrl = self.sim.data.get_body_xquat("robot0:gripper_link")
-        rot_ctrl /= np.linalg.norm(rot_ctrl)  # Norm quaternion
+        rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
         rot_ctrl *= 0.05  # limit maximum change in orientation
         action = np.concatenate([pos_ctrl, rot_ctrl])
 
@@ -90,7 +91,7 @@ class FlatBarrettBase(FlatBase):
         self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
                                         self._ctrl_range[:, 1])
 
-    def _map_eigengrasps(self, action):
+    def _map_eigengrasps(self, action: np.ndarray) -> np.ndarray:
         pos_ctrl, hand_ctrl = action[:-self.n_eigengrasps], action[-self.n_eigengrasps:]
         # Transform hand controls to eigengrasps
         hand_ctrl = hand_ctrl @ self.EIGENGRASPS[:self.n_eigengrasps]
@@ -100,30 +101,35 @@ class FlatBarrettBase(FlatBase):
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
-        dt = self.sim.nsubsteps * self.sim.model.opt.timestep
-        grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
         robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
         object_pos = self.sim.data.get_site_xpos(self.object_name)
+        object_rel_pos = object_pos - grip_pos
         # rotations
-        grip_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat("robot0:grip"))
-        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
+        grip_rot_mat = self.sim.data.get_site_xmat("robot0:grip")
+        object_rot_mat = self.sim.data.get_site_xmat(self.object_name)
+        grip_rot = mat2embedding(grip_rot_mat)
+        object_rot = mat2embedding(object_rot_mat)
+        object_rel_rot = mat2embedding(grip_rot_mat.T @ object_rot_mat)
         # velocities
+        dt = self.sim.nsubsteps * self.sim.model.opt.timestep
+        grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
         object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
         object_velr = self.sim.data.get_site_xvelr(self.object_name) * dt
-        # gripper state
-        object_rel_pos = object_pos - grip_pos
         object_velp -= grip_velp
-        hand_state = robot_qpos[-8:]  # 2 prox, 3 med, 3 dist joints
+        # gripper state
+        grip_state = robot_qpos[-8:]  # 2 prox, 3 med, 3 dist joints
 
         achieved_goal = np.squeeze(object_pos.copy())
+
         obs = np.concatenate([
             grip_pos,
             grip_rot,
-            hand_state,
+            grip_state,
             grip_velp,
             object_pos.ravel(),
             object_rel_pos.ravel(),
             object_rot.ravel(),
+            object_rel_rot,
             object_velp.ravel(),
             object_velr.ravel(),
         ])

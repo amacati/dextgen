@@ -1,3 +1,4 @@
+"""FlatBarrettCylinder environment module."""
 from pathlib import Path
 from typing import Optional
 
@@ -11,11 +12,19 @@ MODEL_XML_PATH = str(Path("barrett", "flat_barrett_cylinder.xml"))
 
 
 class FlatBarrettCylinder(FlatBarrettBase, utils.EzPickle):
+    """FlatBarrettCylinder environment class."""
 
     def __init__(self,
                  n_eigengrasps: Optional[int] = None,
                  p_rot: float = 0.5,
                  object_size_range: float = 0):
+        """Initialize a BarrettHand cylinder environment.
+
+        Args:
+            n_eigengrasps: Number of eigengrasps to use.
+            p_rot: Ratio of laying cylinders in the episodes.
+            object_size_range: Optional range to enlarge/shrink object sizes.
+        """
         FlatBarrettBase.__init__(self,
                                  object_name="cylinder",
                                  model_xml_path=MODEL_XML_PATH,

@@ -1,3 +1,4 @@
+"""UnevenSH environment base module."""
 from typing import Optional
 import logging
 
@@ -10,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class UnevenSHBase(FlatSHBase):
+    """UnevenSH environment base class."""
 
     def __init__(self, object_name: str, model_xml_path: str, n_eigengrasps: Optional[int] = None):
-        """Initialize a new flat environment.
+        """Initialize an uneven ShadowHand environment.
 
         Args:
             object_name: Name of the manipulation object in Mujoco
@@ -22,7 +24,7 @@ class UnevenSHBase(FlatSHBase):
                          model_xml_path=model_xml_path,
                          n_eigengrasps=n_eigengrasps)
 
-    def _env_setup(self, initial_qpos: np.ndarray):
+    def _env_setup(self, initial_qpos: np.ndarray) -> None:
         for name, value in initial_qpos.items():
             if name not in self.sim.model.joint_names:
                 continue
@@ -64,7 +66,7 @@ class UnevenSHBase(FlatSHBase):
         object_pose[3:7] /= np.linalg.norm(object_pose[3:7])
         self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
 
-    def _reset_sim(self):
+    def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
         self._env_setup(self.initial_qpos)
         return True

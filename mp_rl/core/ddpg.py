@@ -24,7 +24,7 @@ from mp_rl.core.noise import GaussianNoise
 from mp_rl.core.actor import Actor
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
-from mp_rl.core.replay_buffer import HERBuffer, her_sampling, TrajectoryBuffer
+from mp_rl.core.replay_buffer import HERBuffer, TrajectoryBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +57,15 @@ class DDPG:
         size_g = len(env.observation_space["desired_goal"].low)
         # noise_process = OrnsteinUhlenbeckNoise(args.mu, args.sigma, size_a)
         noise_process = GaussianNoise(0, args.sigma, size_a)
-        self.actor = Actor(size_s + size_g, size_a, noise_process, args.actor_lr, args.eps,
+        self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
+                           args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
                            args.action_clip, args.grad_clip)
-        self.critic = Critic(size_s + size_g, size_a, args.critic_lr, args.grad_clip)
-        self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip)
-        self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip)
+        self.critic = Critic(size_s + size_g, size_a, args.critic_net_nlayers,
+                             args.critic_net_layer_width, args.critic_lr, args.grad_clip)
+        state_norm_idx = getattr(args, "state_norm_idx", None)
+        goal_norm_idx = getattr(args, "goal_norm_idx", None)
+        self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip, idx=state_norm_idx)
+        self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip, idx=goal_norm_idx)
         self.T = env._max_episode_steps
         self.buffer = HERBuffer(size_s,
                                 size_a,
@@ -188,9 +192,7 @@ class DDPG:
             It is unclear if sampling the goals from HER is necessary, or if the unmodified
             trajectory can be used. This should be investigated and simplified if possible.
         """
-        buffers = [np.expand_dims(ep_buffer[x], axis=0) for x in ("s", "a", "g", "ag")]
-        states, _, _, _, goals = her_sampling(*buffers, self.T, self.buffer.p_her,
-                                              self.env.compute_reward)
+        states, goals = ep_buffer.buffer["s"], ep_buffer.buffer["g"]
         self.state_norm.update(states)
         self.goal_norm.update(goals)
 

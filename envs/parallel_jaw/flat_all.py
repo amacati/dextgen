@@ -1,3 +1,4 @@
+"""FlatPJAll environment module."""
 import random
 from pathlib import Path
 
@@ -11,8 +12,14 @@ MODEL_XML_PATH = str(Path("pj", "flat_pj_all.xml"))
 
 
 class FlatPJAll(FlatPJBase, utils.EzPickle):
+    """FlatPJAll environment class."""
 
     def __init__(self, object_size_range: float = 0):
+        """Initialize a flat parallel jaw base environment.
+
+        Args:
+            object_size_range: Optional range to enlarge/shrink object sizes.
+        """
         FlatPJBase.__init__(self,
                             object_name="cube",
                             model_xml_path=MODEL_XML_PATH,

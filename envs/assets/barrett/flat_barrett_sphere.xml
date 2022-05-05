@@ -18,11 +18,4 @@
 			<site name="sphere" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 	</worldbody>
-
-	<actuator>
-		<position ctrllimited="true" ctrlrange="0 3.1406" joint="robot0:bhand_finger1_prox_joint" kp="1000" name="robot0:bhand_finger1_prox_joint" user="1"></position>
-		<position ctrllimited="true" ctrlrange="0 2.44346" joint="robot0:bhand_finger1_med_joint" kp="1000" name="robot0:bhand_finger1_med_joint" user="1"></position>
-		<position ctrllimited="true" ctrlrange="0 2.44346" joint="robot0:bhand_finger2_med_joint" kp="1000" name="robot0:bhand_finger2_med_joint" user="1"></position>
-		<position ctrllimited="true" ctrlrange="0 2.44346" joint="robot0:bhand_finger3_med_joint" kp="1000" name="robot0:bhand_finger3_med_joint" user="1"></position>
-	</actuator>
 </mujoco>

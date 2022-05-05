@@ -1,3 +1,4 @@
+"""FlatPJSphere environment module."""
 from pathlib import Path
 
 from gym import utils
@@ -8,8 +9,14 @@ MODEL_XML_PATH = str(Path("pj", "flat_pj_sphere.xml"))
 
 
 class FlatPJSphere(FlatPJBase, utils.EzPickle):
+    """FlatPJSphere environment class."""
 
     def __init__(self, object_size_range: float = 0):
+        """Initialize a parallel jaw sphere environment.
+
+        Args:
+            object_size_range: Optional range to enlarge/shrink object sizes.
+        """
         FlatPJBase.__init__(self,
                             object_name="sphere",
                             model_xml_path=MODEL_XML_PATH,

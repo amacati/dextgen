@@ -1,10 +1,10 @@
+"""ObstacleSHCube environment module."""
 from typing import Optional, Dict
 from pathlib import Path
 
 import numpy as np
 from gym import utils
 
-import envs
 from envs.utils import goal_distance
 from envs.shadow_hand.flat_base import FlatSHBase
 
@@ -12,9 +12,10 @@ MODEL_XML_PATH = str(Path("sh", "obstacle_sh_cube.xml"))
 
 
 class ObstacleSHCube(FlatSHBase, utils.EzPickle):
+    """ObstacleSHCube environment class."""
 
     def __init__(self, n_eigengrasps: Optional[int] = None):
-        """Initialize a new flat environment.
+        """Initialize a ShadowHand cube environment with an obstacle to avoid.
 
         Args:
             object_name: Name of the manipulation object in Mujoco
@@ -48,36 +49,33 @@ class ObstacleSHCube(FlatSHBase, utils.EzPickle):
             goal: Desired goal.
         """
         # Compute distance between goal and the achieved goal.
-        if goal.ndim == 2:
-            goal_d = goal_distance(achieved_goal[:, :3], goal[:, :3])
-            obstacle_d = goal_distance(achieved_goal[:, 3:6], goal[:, 3:6])
-        else:
-            goal_d = goal_distance(achieved_goal[:3], goal[:3])
-            obstacle_d = goal_distance(achieved_goal[3:6], goal[3:6])
+        goal_d = goal_distance(achieved_goal[..., :3], goal[..., :3])
+        obstacle_d = goal_distance(achieved_goal[..., 3:6], goal[..., 3:6])
         goal_reward = -(goal_d > self.target_threshold).astype(np.float32)
         obstacle_reward = -(obstacle_d > self.obstacle_threshold).astype(np.float32)
         return goal_reward + obstacle_reward
 
     def _sample_goal(self) -> np.ndarray:
-        goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
-            -self.target_range, self.target_range, size=3)
-        while np.linalg.norm(
-                self.sim.data.get_joint_qpos(self.object_name + ":joint")[:2] - goal[:2]) < 0.1:
-            goal = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
-                -self.target_range, self.target_range, size=3)
+        table_pos = self.sim.data.get_body_xpos("table0")[:3]
+        object_pos = self.sim.data.get_site_xpos(self.object_name)[:3]
+        goal = table_pos.copy()
+        goal[:2] += self.np_random.uniform(-self.target_range, self.target_range, size=2)
+        while np.linalg.norm(object_pos[:2] - goal[:2]) < 0.1:
+            goal = table_pos[:3].copy()
+            goal[:2] += self.np_random.uniform(-self.target_range, self.target_range, size=2)
+            print(goal, object_pos)
         goal[2] = self.height_offset
         if self.np_random.uniform() < 0.5:
-            goal[2] += self.np_random.uniform(0, 0.45)
+            goal[2] += self.np_random.uniform(0, self.goal_max_height)
         # Sample obstacle outside of hand and obstacle
-        obstacle = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
-            -self.target_range, self.target_range, size=3)
+        obstacle = table_pos.copy()
+        obstacle[:2] += self.np_random.uniform(-self.target_range, self.target_range, size=2)
         obstacle[2] = self.height_offset
-        object_xpos = self.sim.data.get_site_xpos(self.object_name)
         while goal_distance(obstacle, goal) < 0.15 or goal_distance(
                 self.gripper_start_pos, obstacle) < 0.15 or goal_distance(obstacle,
-                                                                          object_xpos) < 0.15:
-            obstacle = self.sim.data.get_body_xpos("table0")[:3] + self.np_random.uniform(
-                -self.target_range, self.target_range, size=3)
+                                                                          object_pos) < 0.15:
+            obstacle = table_pos.copy()
+            obstacle[:2] += self.np_random.uniform(-self.target_range, self.target_range, size=2)
             obstacle[2] = self.height_offset
         return np.concatenate((goal, obstacle))
 
@@ -86,38 +84,9 @@ class ObstacleSHCube(FlatSHBase, utils.EzPickle):
         return (d < self.target_threshold).astype(np.float32)
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
-        # positions
-        grip_pos = self.sim.data.get_site_xpos("robot0:grip")
-        dt = self.sim.nsubsteps * self.sim.model.opt.timestep
-        grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
-        robot_qpos, robot_qvel = envs.utils.robot_get_obs(self.sim)
-        object_pos = self.sim.data.get_site_xpos(self.object_name)
-        # rotations
-        object_rot = envs.rotations.mat2euler(self.sim.data.get_site_xmat(self.object_name))
-        # velocities
-        object_velp = self.sim.data.get_site_xvelp(self.object_name) * dt
-        object_velr = self.sim.data.get_site_xvelr(self.object_name) * dt
-        # gripper state
-        object_rel_pos = object_pos - grip_pos
-        object_velp -= grip_velp
-        hand_state = robot_qpos[-24:]
-
-        achieved_goal = np.squeeze(object_pos.copy())
-        obs = np.concatenate([
-            grip_pos,
-            grip_velp,
-            hand_state,
-            object_pos.ravel(),
-            object_rel_pos.ravel(),
-            object_rot.ravel(),
-            object_velp.ravel(),
-            object_velr.ravel(),
-        ])
-        return {
-            "observation": obs.copy(),
-            "achieved_goal": np.concatenate((achieved_goal, self.goal[3:6])),
-            "desired_goal": self.goal.copy(),
-        }
+        obs = super()._get_obs()
+        obs["achieved_goal"] = np.concatenate((obs["achieved_goal"], self.goal[3:6]))
+        return obs
 
     def _render_callback(self):
         # Visualize target.

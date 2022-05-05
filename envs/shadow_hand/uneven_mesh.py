@@ -1,3 +1,4 @@
+"""UnevenSHMesh environment module."""
 from typing import Optional
 from pathlib import Path
 
@@ -9,8 +10,14 @@ MODEL_XML_PATH = str(Path("sh", "uneven_sh_mesh.xml"))
 
 
 class UnevenSHMesh(UnevenSHBase, utils.EzPickle):
+    """UnevenSHMesh environment class."""
 
     def __init__(self, n_eigengrasps: Optional[int] = None):
+        """Initialize a ShadowHand mesh environment with uneven ground.
+
+        Args:
+            n_eigengrasps: Number of eigengrasps to use.
+        """
         UnevenSHBase.__init__(self,
                               object_name="mesh",
                               model_xml_path=MODEL_XML_PATH,
