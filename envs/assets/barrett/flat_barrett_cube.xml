@@ -14,7 +14,7 @@
 				
 		<body name="cube" pos="0.1 -0.1 0.025">
 			<joint name="cube:joint" type="free" damping="0.01"></joint>
-			<geom size="0.025 0.025 0.025" type="box" condim="3" name="cube" material="block_mat" mass="2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.025 0.025 0.025" type="box" condim="3" name="cube" material="block_mat" mass="0.5" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="cube" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 	</worldbody>

@@ -14,14 +14,14 @@
 				
 		<body name="mesh" pos="-0.1 -0.1 0.025">
 			<joint name="mesh:joint" type="free" damping="0.01"></joint>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0171 0" type="box" condim="3" name="cube1" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0228 0.0057" pos="0 0.0228 0.0255" type="box" condim="3" name="cube2" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0399 0.0" type="box" condim="3" name="cube3" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0171 0.0057" pos="0 0.0513 -0.0255" type="box" condim="3" name="cube4" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0627 0" type="box" condim="3" name="cube5" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0285 0.0057" pos="0 0.0855 0.0255" type="box" condim="3" name="cube6" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0855 0" type="box" condim="3" name="cube7" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.1083 0" type="box" condim="3" name="cube8" material="blue" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0171 0" type="box" condim="3" name="cube1" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0228 0.0057" pos="0 0.0228 0.0255" type="box" condim="3" name="cube2" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0399 0.0" type="box" condim="3" name="cube3" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0171 0.0057" pos="0 0.0513 -0.0255" type="box" condim="3" name="cube4" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0627 0" type="box" condim="3" name="cube5" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0285 0.0057" pos="0 0.0855 0.0255" type="box" condim="3" name="cube6" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0855 0" type="box" condim="3" name="cube7" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.1083 0" type="box" condim="3" name="cube8" material="blue" mass="0.1" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="mesh" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 	</worldbody>
