@@ -60,7 +60,7 @@ if __name__ == "__main__":
     opt.add_inequality_mconstraint(generate_maximum_force_constraints(fmax), np.ones(ncp) * 1e-6)
     opt.add_inequality_mconstraint(generate_distance_constraints(min_dist),
                                    np.ones(ncp * (ncp - 1) // 2) * 1e-6)
-    #opt.add_equality_constraint(homogeneous_forces_contraint, 100)
+    # opt.add_equality_constraint(homogeneous_forces_contraint, 100)
     opt.set_lower_bounds(-3)
     opt.set_upper_bounds(3)
 
