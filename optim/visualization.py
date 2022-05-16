@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def visualize_cylinder(object_description, contact_points=None):
+def visualize_cylinder(object_description, contact_info):
     radius = object_description["radius"]
     length = object_description["length"]
     com = object_description["com"]
@@ -48,7 +48,7 @@ def visualize_cylinder(object_description, contact_points=None):
     return fig, ax
 
 
-def visualize_cube(object_description):
+def visualize_cube(object_description, contact_info):
     surfaces = object_description["surfaces"]
     com = object_description["com"]
 
@@ -75,7 +75,7 @@ def visualize_cube(object_description):
     return fig, ax
 
 
-def visualize_sphere(object_description):
+def visualize_sphere(object_description, contact_info):
     com = object_description["com"]
     radius = object_description["radius"]
 
@@ -97,14 +97,17 @@ def visualize_sphere(object_description):
     y = np.sin(u) * np.sin(v) * radius + com[1]
     z = np.cos(v) * radius + com[2]
     ax[0].plot_surface(x, y, z, alpha=0.4)
+
+    for contact in contact_info:
+        ax[0].scatter(*contact["pos"])
     return fig, ax
 
 
-def visualize_object(object_description):
+def visualize_grasp(object_description, contact_info):
     if object_description["type"] == "sphere":
-        return visualize_sphere(object_description)
+        return visualize_sphere(object_description, contact_info)
     if object_description["type"] == "cube":
-        return visualize_cube(object_description)
+        return visualize_cube(object_description, contact_info)
     if object_description["type"] == "cylinder":
-        return visualize_cylinder(object_description)
+        return visualize_cylinder(object_description, contact_info)
     raise RuntimeError("Unsupported object type")

@@ -4,7 +4,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
-from visualization import visualize_object
+from visualization import visualize_grasp
 
 
 def object_type(contact_info):
@@ -81,7 +81,6 @@ def reconstruct_cylinder(state):
     com = state[:3]
     rotation = state[3:12].reshape(3, 3)
     cylinder_axis = rotation @ np.array([0, 0, 1.])
-    print(cylinder_axis)
     radius = 0.025 / 2
     length = 0.025
     return {
@@ -94,6 +93,13 @@ def reconstruct_cylinder(state):
     }
 
 
+def filter_contact_info(contact_info):
+    filtered = filter(lambda x: x["geom1"] is not None, contact_info)
+    filtered = filter(lambda x: x["geom2"] is not None, filtered)
+    filtered = filter(lambda x: "robot0" in x["geom1"] or "robot0" in x["geom2"], filtered)
+    return list(filtered)
+
+
 if __name__ == "__main__":
     theta_z = np.pi / 4
     rot_matrix = np.array([[np.cos(theta_z), -np.sin(theta_z), 0.],
@@ -102,16 +108,17 @@ if __name__ == "__main__":
     rot_matrix = np.array([[1, 0, 0.], [0, np.cos(theta_z), -np.sin(theta_z)],
                            [0, np.sin(theta_z), np.cos(theta_z)]])
 
-    state = np.concatenate(([1., 0.4, 0.4], rot_matrix.flatten()))
+    state = np.concatenate(([1.3697697, 0.8, 0.4], rot_matrix.flatten()))
 
-    otype = "cube"
+    otype = "sphere"
 
     file = Path(__file__).parent / ("contact_info_" + otype + ".json")
     with open(file, "r") as f:
         contact_info = json.load(f)["contact_info"]
-    # contact_info[0]["geom1"] = "cube"
+
+    contact_info = filter_contact_info(contact_info)
 
     object_description = reconstruct_object(state, object_type(contact_info))
 
-    fig, ax = visualize_object(object_description)
+    fig, ax = visualize_grasp(object_description, contact_info)
     plt.show()
