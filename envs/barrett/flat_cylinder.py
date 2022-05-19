@@ -17,23 +17,27 @@ class FlatBarrettCylinder(FlatBarrettBase, utils.EzPickle):
     def __init__(self,
                  n_eigengrasps: Optional[int] = None,
                  p_rot: float = 0.5,
-                 object_size_range: float = 0):
+                 object_size_multiplier: float = 1.,
+                 object_size_range: float = 0.):
         """Initialize a BarrettHand cylinder environment.
 
         Args:
             n_eigengrasps: Number of eigengrasps to use.
             p_rot: Ratio of laying cylinders in the episodes.
-            object_size_range: Optional range to enlarge/shrink object sizes.
+            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
+            object_size_range: Optional range to randomly enlarge/shrink object sizes.
         """
         FlatBarrettBase.__init__(self,
                                  object_name="cylinder",
                                  model_xml_path=MODEL_XML_PATH,
                                  n_eigengrasps=n_eigengrasps,
+                                 object_size_multiplier=object_size_multiplier,
                                  object_size_range=object_size_range)
         self.p_rot = p_rot
         utils.EzPickle.__init__(self,
                                 n_eigengrasps=n_eigengrasps,
                                 p_rot=p_rot,
+                                object_size_multiplier=object_size_multiplier,
                                 object_size_range=object_size_range)
 
     def _sample_object_pose(self) -> np.ndarray:

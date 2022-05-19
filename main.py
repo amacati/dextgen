@@ -37,10 +37,7 @@ if __name__ == "__main__":
         "ERROR": logging.ERROR
     }
     logging.basicConfig(level=loglvls[args.loglvl])
-    if hasattr(args, "kwargs") and args.kwargs:
-        env = gym.make(args.env, **args.kwargs)
-    else:
-        env = gym.make(args.env)
+    env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
     comm = MPI.COMM_WORLD
     if args.seed:
         assert isinstance(args.seed, int)

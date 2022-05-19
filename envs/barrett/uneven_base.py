@@ -13,16 +13,22 @@ logger = logging.getLogger(__name__)
 class UnevenBarrettBase(FlatBarrettBase):
     """UnevenBarrett environment base class."""
 
-    def __init__(self, object_name: str, model_xml_path: str, n_eigengrasps: Optional[int] = None):
+    def __init__(self,
+                 object_name: str,
+                 model_xml_path: str,
+                 n_eigengrasps: Optional[int] = None,
+                 object_size_multiplier: float = 1.):
         """Initialize a BarrettHand environment with uneven ground.
 
         Args:
             object_name: Name of the manipulation object in Mujoco
             n_eigengrasps: Number of eigengrasps to use
+            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
         """
         super().__init__(object_name=object_name,
                          model_xml_path=model_xml_path,
-                         n_eigengrasps=n_eigengrasps)
+                         n_eigengrasps=n_eigengrasps,
+                         object_size_multiplier=object_size_multiplier)
 
     def _env_setup(self, initial_qpos: np.ndarray) -> None:
         for name, value in initial_qpos.items():

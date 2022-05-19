@@ -9,29 +9,36 @@ from envs.flat_base import FlatBase
 from envs.rotations import axisangle2quat, mat2embedding
 from envs.utils import goal_distance
 
-MODEL_XML_PATH = str(Path("seaclear", "seaclear.xml"))
+DEFAULT_MODEL_XML_PATH = str(Path("seaclear", "seaclear.xml"))
+FANCY_MODEL_XML_PATH = str(Path("seaclear", "seaclear_fancy.xml"))
 
 
 class SeaClear(FlatBase):
     """SeaClear submarine environment class."""
 
-    def __init__(self):
+    gripper_type = "SeaClear"
+
+    def __init__(self, fancy_world: bool = False):
         """Initialize a new flat environment.
 
         Args:
             object_name: Name of the manipulation object in Mujoco
+            fancy_world: Loads a version with plants for visualization if True.
         """
-        self.mocap_offset = np.array([0., 0., 0.2])
-        self.p_target_in_air = 0.5
+        self.mocap_offset = np.array([0., 0., 0.])
         self._obs_dist = 0.15
         self._obs_threshold = 0.1
-        super().__init__(model_xml_path=MODEL_XML_PATH,
-                         gripper_extra_height=0.2,
+        model_xml_path = FANCY_MODEL_XML_PATH if fancy_world else DEFAULT_MODEL_XML_PATH
+        super().__init__(model_xml_path=model_xml_path,
+                         gripper_extra_height=0.45,
                          initial_qpos={},
                          object_name="can",
                          n_actions=5,
-                         object_size_range=0)
+                         object_size_range=0,
+                         initial_gripper=[0.7, 0.7])
+        self.height_offset = 0.0
         self.target_range = 0.3
+        self.gripper_init_range = 0.25
 
     def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
@@ -115,30 +122,43 @@ class SeaClear(FlatBase):
 
     def _set_object_pose(self):
         object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
-        object_pose[:2] = 0
-        object_pose[2] = self.height_offset
+        object_pose[:2] = self.np_random.uniform(-self.target_range, self.target_range, size=2)
+        object_pose[2] = 0.04
         self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
+
+    def _set_gripper_pose(self):
+        gripper_pos = np.array([0., 0., 0 + self.gripper_extra_height])
+        d_pos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range, size=2)
+        gripper_pos[:2] += d_pos  # Add random initial position change
+        gripper_rot = np.array([1., 0., 0., 0.])
+        d_rot = axisangle2quat(0, 0, 1, np.random.rand() - 0.5)
+        gripper_rot += (d_rot / np.linalg.norm(d_rot))  # Add random initial rotation change
+        gripper_rot /= np.linalg.norm(gripper_rot)  # Renormalize for quaternion
+        self.sim.data.set_mocap_pos("robot0:mocap", gripper_pos)
+        self.sim.data.set_mocap_quat("robot0:mocap", gripper_rot)
 
     def _sample_object_pose(self) -> np.ndarray:
         object_pose = np.zeros(7)
         object_pose[:2] = self.np_random.uniform(-self.target_range, self.target_range, size=2)
-        object_pose[3] = 1  # Unit quaternion rotation
         return object_pose
+
+    def _reset_sim(self) -> bool:
+        self.sim.set_state(self.initial_state)
+        self._env_setup(self.initial_qpos)  # Rerun env setup to get new start poses for the robot
+        return True
 
     def _sample_goal(self) -> np.ndarray:
         goal = self.np_random.uniform(-self.target_range, self.target_range, size=3)
-        goal[2] = 0
-        if self.np_random.rand() < self.p_target_in_air:
-            goal[2] += self.np_random.uniform(0, 0.45)
+        goal[2] = self.np_random.uniform(0.2, 0.45)
         obstacle = self.np_random.uniform(-self.target_range, self.target_range, size=3)
-        obstacle[2] = 0
+        obstacle[2] = 1000  # TODO: Reenable obstacle
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         d_obj = goal_distance(obstacle[:2], object_pos[:2])
         d_goal = goal_distance(obstacle[:2], goal[:2])
         d_grip = goal_distance(obstacle[:2], self.gripper_start_pos[:2])
         while any([d < self._obs_dist for d in (d_obj, d_goal, d_grip)]):
             obstacle = self.np_random.uniform(-self.target_range, self.target_range, size=3)
-            obstacle[2] = 0
+            obstacle[2] = 1000
             d_obj = goal_distance(obstacle[:2], object_pos[:2])
             d_goal = goal_distance(obstacle[:2], goal[:2])
             d_grip = goal_distance(obstacle[:2], self.gripper_start_pos[:2])

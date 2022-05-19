@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 import logging
 
 import numpy as np
+import mujoco_py
 
 import envs.rotations
 import envs.robot_env
@@ -14,13 +15,16 @@ logger = logging.getLogger(__name__)
 class FlatBase(envs.robot_env.RobotEnv):
     """Base class for all grasp environments."""
 
+    n_substeps = 20
+
     def __init__(self,
                  model_xml_path: str,
                  gripper_extra_height: float,
                  initial_qpos: dict,
                  n_actions: int,
                  object_name: str,
-                 object_size_range: float,
+                 object_size_multiplier: float = 1.,
+                 object_size_range: float = 0.,
                  initial_gripper: Optional[List] = None):
         """Initialize a grasp environment.
 
@@ -30,7 +34,8 @@ class FlatBase(envs.robot_env.RobotEnv):
             initial_qpos: a dictionary of joint names and values defining the initial configuration
             n_actions: Action state dimension
             object_name: Name of the manipulation object in Mujoco
-            object_size_range: Range of object size modification. If 0, modification is disabled.
+            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
+            object_size_range: Optional range to randomly enlarge/shrink object sizes.
             initial_gripper: Default initial gripper joint positions.
         """
         self.gripper_extra_height = gripper_extra_height
@@ -46,11 +51,14 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.goal_max_height = 0.3
         self.initial_qpos = initial_qpos
         self.initial_gripper = initial_gripper
+        assert object_size_multiplier > 0
+        self.object_size_multiplier = object_size_multiplier
+        assert object_size_range >= 0
         self.object_size_range = object_size_range
         self.object_init_size = {}  # Save object sizes before modification
         super().__init__(
             model_path=model_xml_path,
-            n_substeps=20,
+            n_substeps=self.n_substeps,
             n_actions=n_actions,
             initial_qpos=initial_qpos,
         )
@@ -73,6 +81,29 @@ class FlatBase(envs.robot_env.RobotEnv):
     def _get_obs(self) -> Dict[str, np.ndarray]:
         """`_get_obs` is robot specific, implement in child classes."""
         raise NotImplementedError()
+
+    def _get_contact_info(self) -> Dict:
+        contact_info = []
+        for i in range(self.sim.data.ncon):
+            contact = self.sim.data.contact[i]
+            geom1 = self.sim.model.geom_id2name(contact.geom1)
+            geom2 = self.sim.model.geom_id2name(contact.geom2)
+            if self.object_name in (geom1, geom2):
+                contact_force = np.zeros(6, dtype=np.float64)
+                # Contact force is 3 forces + 3 torques
+                mujoco_py.functions.mj_contactForce(self.sim.model, self.sim.data, i, contact_force)
+                # MuJoCo stores contact matrices transposed.
+                # See https://mujoco.readthedocs.io/en/latest/programming.html#contacts
+                frame = contact.frame.reshape(-3, 3).T
+                info = {
+                    "geom1": geom1,
+                    "geom2": geom2,
+                    "contact_force": contact_force,
+                    "pos": contact.pos.copy(),
+                    "frame": frame
+                }
+                contact_info.append(info)
+        return contact_info
 
     def _viewer_setup(self):
         body_id = self.sim.model.body_name2id("robot0:gripper_link")
@@ -130,6 +161,9 @@ class FlatBase(envs.robot_env.RobotEnv):
     def _env_setup(self, initial_qpos: np.ndarray):
         self._modify_object_size()
         for name, value in initial_qpos.items():
+            # Envs have joint start values for multiple grasp objects. Objects are not present in
+            # all MuJoCo envs to speed up simulation for single grasp object environments. Therefore
+            # non-existent joints are expected
             if name not in self.sim.model.joint_names:
                 continue
             self.sim.data.set_joint_qpos(name, value)
@@ -169,22 +203,29 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
 
     def _modify_object_size(self):
-        if self.object_size_range > 0:
+        if self.object_size_range > 0 or self.object_size_multiplier != 1:
+            supported_objects = ("cube", "cylinder", "sphere")
+            if self.object_name not in supported_objects:
+                raise RuntimeError(f"Object {self.object_name} does not support size modification!")
             # Reset previously modified object sizes first
             for object_name in self.object_init_size.keys():
                 idx = self.sim.model.geom_name2id(object_name)
                 self.sim.model.geom_size[idx] = self.object_init_size[object_name]
-            if self.object_name == "mesh":
-                return
+            # if self.object_name == "mesh":
+            #    return
             # Set new model size
             idx = self.sim.model.geom_name2id(self.object_name)
             # Save original size before modifying
             if self.object_name not in self.object_init_size.keys():
-                self.object_init_size[self.object_name] = self.sim.model.geom_size[idx].copy()
-            if self.object_name in ("cube", "cylinder", "sphere"):
-                dsize = self.np_random.uniform(-self.object_size_range,
-                                               self.object_size_range,
-                                               size=3)
-                self.sim.model.geom_size[idx] = self.object_init_size[self.object_name] + dsize
-            else:
-                raise RuntimeError(f"Object {self.object_name} not supported")
+                if self.object_size_multiplier != 1:
+                    # Modify initial save to include the multiplier already. Necessary when
+                    # combining object size multiplication and range at the same time.
+                    geom_size = self.sim.model.geom_size[idx] * self.object_size_multiplier
+                    self.object_init_size[self.object_name] = geom_size
+                else:
+                    self.object_init_size[self.object_name] = self.sim.model.geom_size[idx].copy()
+            geom_size = self.object_init_size[self.object_name]
+            if self.object_size_range > 0:
+                geom_range = self.object_size_range
+                geom_size += self.np_random.uniform(-geom_range, geom_range, size=2)
+            self.sim.model.geom_size[idx] = geom_size

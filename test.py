@@ -62,10 +62,7 @@ if __name__ == "__main__":
     }
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
-    if hasattr(args, "kwargs") and args.kwargs:
-        env = gym.make(args.env, **args.kwargs)
-    else:
-        env = gym.make(args.env)
+    env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
     size_s = len(env.observation_space["observation"].low) + len(
         env.observation_space["desired_goal"].low)
     size_a = len(env.action_space.low)
@@ -89,9 +86,10 @@ if __name__ == "__main__":
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
     early_stop = 0
-    for _ in range(args.ntests):
+    for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
+        t = 0
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)
@@ -102,6 +100,8 @@ if __name__ == "__main__":
             state, goal, _ = unwrap_obs(next_obs)
             early_stop = (early_stop + 1) if not reward else 0
             if record:
+                t += 1
+                print(f"Capturing test {i+1} Frame {t}")
                 recorder.capture_frame()
             if render and not record:
                 try:
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 except mujoco_py.cymj.GlfwError:
                     logger.warning("No display available, rendering disabled")
                     render = False
-            if early_stop == 5 and not record:
+            if early_stop == 5:
                 break
         success += info["is_success"]
     if record:

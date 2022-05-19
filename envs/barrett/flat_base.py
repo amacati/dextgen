@@ -34,7 +34,7 @@ DEFAULT_INITIAL_QPOS = {
     "robot0:bhand_finger3_dist_joint": 0.40724,
 }
 
-DEFAULT_INITIAL_GRIPPER = [1.5708, 1.22173, 1.22173, 1.22173]
+DEFAULT_INITIAL_GRIPPER = [1.5708, 1.7, 1.7, 1.7]
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,16 @@ class FlatBarrettBase(FlatBase):
                  object_name: str,
                  model_xml_path: str,
                  n_eigengrasps: Optional[int] = None,
-                 object_size_range: float = 0):
+                 object_size_multiplier: float = 1.,
+                 object_size_range: float = 0.):
         """Initialize a flat BarrettHand environment.
 
         Args:
             object_name: Name of the manipulation object in Mujoco.
             model_xml_path: Mujoco world xml file path.
             n_eigengrasps: Number of eigengrasps to use.
-            object_size_range: Optional range to enlarge/shrink object sizes.
+            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
+            object_size_range: Optional range to randomly enlarge/shrink object sizes.
         """
         self.n_eigengrasps = n_eigengrasps or 0
         assert 0 <= self.n_eigengrasps < 5, "Only [0, 4] eigengrasps available for the Barrett hand"
@@ -67,6 +69,7 @@ class FlatBarrettBase(FlatBase):
                          initial_gripper=DEFAULT_INITIAL_GRIPPER,
                          n_actions=n_actions,
                          object_name=object_name,
+                         object_size_multiplier=object_size_multiplier,
                          object_size_range=object_size_range)
         self._ctrl_range = self.sim.model.actuator_ctrlrange
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0

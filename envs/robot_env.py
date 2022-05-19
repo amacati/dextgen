@@ -45,6 +45,7 @@ class RobotEnv(gym.GoalEnv):
         self.sim = mjpy.MjSim(model, nsubsteps=n_substeps)
         self.viewer = None
         self._viewers = {}
+        self._contact_info = False
 
         self.metadata = {
             "render.modes": ["human", "rgb_array"],
@@ -107,6 +108,8 @@ class RobotEnv(gym.GoalEnv):
         info = {
             "is_success": self._is_success(obs["achieved_goal"], self.goal),
         }
+        if self._contact_info:
+            info["contact_info"] = self._get_contact_info()
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
         return obs, reward, done, info
 
@@ -153,6 +156,17 @@ class RobotEnv(gym.GoalEnv):
             return data[::-1, :, :]
         elif mode == "human":
             self._get_viewer(mode).render()
+
+    def enable_contact_info(self, val: bool = True):
+        """Enable contact information between the gripper and the object in the info step return.
+
+        Has to be a function since gym wraps the environment in a `TimeLimit` object which does not
+        forward attribute changes.
+
+        Args:
+            val: Flag to enable or disable contact information. Default is True.
+        """
+        self._contact_info = val
 
     def _get_viewer(self, mode: str) -> Union[mjpy.MjViewer, mjpy.MjRenderContextOffscreen]:
         self.viewer = self._viewers.get(mode)

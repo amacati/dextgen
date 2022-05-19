@@ -20,8 +20,8 @@ from mpi4py import MPI
 import json
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.noise import GaussianNoise
-from mp_rl.core.actor import Actor
+from mp_rl.core.noise import GaussianNoise, OrnsteinUhlenbeckNoise
+from mp_rl.core.actor import Actor, PosePolicyNet
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
 from mp_rl.core.replay_buffer import HERBuffer, TrajectoryBuffer
@@ -55,8 +55,12 @@ class DDPG:
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
-        # noise_process = OrnsteinUhlenbeckNoise(args.mu, args.sigma, size_a)
-        noise_process = GaussianNoise(0, args.sigma, size_a)
+        if args.noise_process == "Gaussian":
+            noise_process = GaussianNoise(size_a, *args.noise_process_params)
+        elif args.noise_process == "OrnsteinUhlenbeck":
+            noise_process = OrnsteinUhlenbeckNoise(size_a, *args.noise_process_params)
+        else:
+            raise argparse.ArgumentError("Required argument 'noise_process' is missing")
         self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
                            args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
                            args.action_clip, args.grad_clip)
@@ -128,6 +132,7 @@ class DDPG:
                         state, agoal = next_state, next_agoal
                     ep_buffer.append(state, agoal)
                     self.buffer.append(ep_buffer)
+                    self.actor.noise_process.reset()
                 self._update_norm(ep_buffer)
                 for _ in range(self.args.batches):
                     self._train_agent()
@@ -172,10 +177,20 @@ class DDPG:
             torch.clip(rewards_T, -1 / (1 - self.args.gamma), 0, out=rewards_T)
         q_T = self.critic(obs_T, actions_T)
         critic_loss_T = (rewards_T - q_T).pow(2).mean()
-        actions_T = self.actor(obs_T)
+
+        # Regularize tanh activation in PosePolicyNets to prevent saturation and possibly parallel
+        # rotation vectors (leads to random orientations and bad policies, see ``PosePolicyNet`` for
+        # details)
+        if isinstance(self.actor.action_net, PosePolicyNet):
+            actions_T, activation_T = self.actor.action_net.forward_include_network_output(obs_T)
+            activation_norm_T = self.args.action_norm * (activation_T[..., 3:9]).pow(2).mean()
+        else:
+            actions_T = self.actor(obs_T)
         next_q_T = self.critic(obs_T, actions_T)
-        action_norm_T = self.args.action_norm * (actions_T / self.action_max).pow(2).mean()
-        actor_loss_T = -next_q_T.mean() + action_norm_T
+        if isinstance(self.actor.action_net, PosePolicyNet):
+            actor_loss_T = -next_q_T.mean() + activation_norm_T
+        else:
+            actor_loss_T = -next_q_T.mean()
         self.actor.backward_step(actor_loss_T)
         self.critic.backward_step(critic_loss_T)
 

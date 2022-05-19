@@ -7,6 +7,9 @@
 
     <include file="shared.xml"></include>
 
+	<size nconmax="200"></size>
+	<size njmax="1000"></size>
+
     <asset>
         <include file="shared_asset.xml"></include>
 

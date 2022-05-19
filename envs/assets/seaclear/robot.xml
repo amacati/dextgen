@@ -1,5 +1,5 @@
 <mujoco>
-	<body mocap="true" name="robot0:mocap" pos="0 0 0.2">
+	<body mocap="true" name="robot0:mocap" pos="0 0 0">
 		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.7" size="0.005 0.005 0.005" type="box"></geom>
 		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.1" size="1 0.005 0.005" type="box"></geom>
 		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.1" size="0.005 1 0.001" type="box"></geom>
@@ -33,7 +33,7 @@
 				<geom type="cylinder" size="0.05 0.002" pos="0.063914 -0.215517 -0.098" condim="4" friction="1 0.05 0.01" ></geom>
 			</body>
 			<body childclass="robot0:SeaClearGripper" name="robot0:l_gripper_finger_link" pos="-0.01 0.0015 0" euler="1.5707 3.1416 0">
-				<inertial diaginertia="0.1 0.1 0.1" mass="4" pos="0 0 0"></inertial>
+				<inertial diaginertia="0.1 0.1 0.1" mass="1" pos="0 0 0"></inertial>
 				<joint axis="0 0 1" name="robot0:l_gripper_finger_joint" range="0 1.5707"></joint>
 				<geom mesh="seaclear_gripper_link" type="mesh" name="robot0:l_gripper_finger_link" material="robot0:gripper_finger_mat" conaffinity="0" contype="0" rgba="1. 0.65 0.0 1.0"></geom>
 				<geom type="box" size="0.043071 0.002 0.1" pos="0.030462 -0.268919 0" condim="4" friction="1 0.05 0.01" ></geom>

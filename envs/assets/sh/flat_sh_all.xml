@@ -5,6 +5,9 @@
 		<flag warmstart="enable"></flag>
 	</option>
 
+	<size nconmax="200"></size>
+	<size njmax="1000"></size>
+
     <include file="shared.xml"></include>
 
     <asset>
