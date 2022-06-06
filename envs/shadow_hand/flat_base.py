@@ -23,10 +23,16 @@ DEFAULT_INITIAL_QPOS = {
     "cylinder:joint": [-.1, .1, .025, 1., 0, 0, 0],
     "sphere:joint": [.1, .1, .025, 1., 0, 0, 0],
     "mesh:joint": [-.1, -.1, .025, 1., 0, 0, 0],
-    "robot0:slide0": 0.4049,  # Robot arm
-    "robot0:slide1": 0.48,
-    "robot0:slide2": 0.0,
-    "robot0:WRJ1": -0.1651,  # ShadowHand
+    # Arm
+    "panda_joint1": 1.5,
+    "panda_joint2": 0.4,
+    "panda_joint3": -1.5,
+    "panda_joint4": -2.,
+    "panda_joint5": 0,
+    "panda_joint6": 2.8,
+    "panda_joint7": 0,
+    # ShadowHand
+    "robot0:WRJ1": -0.1651,
     "robot0:WRJ0": -0.3197,
     "robot0:FFJ3": 0.1434,
     "robot0:FFJ2": 0.3202,
@@ -85,7 +91,7 @@ class FlatSHBase(FlatBase):
         assert 0 <= self.n_eigengrasps < 21, "Only [0, 20] eigengrasps available for the ShadowHand"
         n_actions = 12 + (n_eigengrasps or 20)
         super().__init__(model_xml_path=model_xml_path,
-                         gripper_extra_height=0.35,
+                         gripper_extra_height=0.3,
                          initial_qpos=DEFAULT_INITIAL_QPOS,
                          initial_gripper=DEFAULT_INITIAL_GRIPPER,
                          n_actions=n_actions,

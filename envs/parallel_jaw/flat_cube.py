@@ -6,7 +6,7 @@ import numpy as np
 
 from envs.parallel_jaw.flat_base import FlatPJBase
 
-MODEL_XML_PATH = str(Path("pj", "flat_pj_cube.xml"))
+MODEL_XML_PATH = str(Path("PJ", "flat_cube.xml"))
 
 
 class FlatPJCube(FlatPJBase, utils.EzPickle):

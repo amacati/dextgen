@@ -1,0 +1,72 @@
+<mujoco>
+	<compiler angle="radian" coordinate="local" meshdir="../meshes" texturedir="../textures"></compiler>
+	<option timestep="0.002">
+		<flag warmstart="enable"></flag>
+	</option>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.44 0.85 0.56" rgb2="0.46 0.87 0.58" width="32" height="32"></texture>
+        <texture name="texture_block" file="block.png" gridsize="3 4" gridlayout=".U..LFRB.D.."></texture>
+
+        <material name="floor_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.2 0.2 0.2 1"></material>
+        <material name="blue" specular="0" shininess="0.9" reflectance="0.5" rgba="0.188 0.439 0.702 1"></material>
+        <material name="table_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.93 0.93 0.93 1"></material>
+        <material name="block_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.2 0.2 0.2 1"></material>
+        <material name="puck_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.2 0.2 0.2 1"></material>
+        <material name="robot0:geomMat" shininess="0.03" specular="0.4"></material>
+        <material name="robot0:gripper_finger_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+        <material name="robot0:gripper_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+        <material name="robot0:arm_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+        <material name="robot0:head_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+        <material name="robot0:torso_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+        <material name="robot0:base_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+
+        <mesh name="seaclear_gripper_link" file="SeaClear/robot/gripper.stl"></mesh>
+        <mesh name="seaclear_robot_upper" file="SeaClear/robot/robot_upper.stl"></mesh>
+        <mesh name="seaclear_robot_lower" file="SeaClear/robot/robot_lower.stl"></mesh>
+        
+        <mesh name="can" file="SeaClear/environment/can.stl"></mesh>
+        <mesh name="algae_1" file="SeaClear/environment/algae.stl" scale="0.56 0.56 0.56"></mesh>
+        <mesh name="algae_2" file="SeaClear/environment/algae.stl" scale="0.7 0.7 0.7"></mesh>
+        <mesh name="base_seaweed_1" file="SeaClear/environment/base_seaweed.stl" scale="0.3 0.3 0.3"></mesh>
+        <mesh name="base_seaweed_2" file="SeaClear/environment/base_seaweed.stl" scale="0.5 0.5 0.5"></mesh>
+        <mesh name="seaplant_1" file="SeaClear/environment/seaplant_1.stl" scale="0.5 0.5 0.5"></mesh>
+        <mesh name="seaplant_2" file="SeaClear/environment/seaplant_2.stl"></mesh>
+        <mesh name="seaplant_3_1" file="SeaClear/environment/seaplant_3.stl" scale="0.6 0.6 0.6"></mesh>
+        <mesh name="seaplant_3_2" file="SeaClear/environment/seaplant_3.stl"></mesh>
+        <mesh name="seaweed_blade" file="SeaClear/environment/seaweed_blade.stl" scale="0.15 0.15 0.15"></mesh>
+        <mesh name="seaweed_curly_blade_1" file="SeaClear/environment/seaweed_curly_blade.stl" scale="0.3 0.3 0.3"></mesh>
+        <mesh name="seaweed_curly_blade_2" file="SeaClear/environment/seaweed_curly_blade.stl" scale="0.27 0.27 0.27"></mesh>
+        <mesh name="seaweed_curly_blade_3" file="SeaClear/environment/seaweed_curly_blade.stl" scale="0.33 0.33 0.33"></mesh>
+        <mesh name="seaweed_middle" file="SeaClear/environment/seaweed_middle.stl" scale="3.6 3.6 3.6"></mesh>
+        <mesh name="seaweed_small_1" file="SeaClear/environment/seaweed_small.stl" scale="1.05 1.05 1.05"></mesh>
+        <mesh name="seaweed_small_2" file="SeaClear/environment/seaweed_small.stl" scale="0.8 0.8 0.8"></mesh>
+        <mesh name="seaweed_small_3" file="SeaClear/environment/seaweed_small.stl" scale="0.9 0.9 0.9"></mesh>
+        <mesh name="seaweed_small_4" file="SeaClear/environment/seaweed_small.stl" scale="0.95 0.95 0.95"></mesh>
+        <mesh name="seaweed_small_5" file="SeaClear/environment/seaweed_small.stl" scale="0.5 0.5 0.5"></mesh>
+        <mesh name="seaweed_small_6" file="SeaClear/environment/seaweed_small.stl" scale="0.85 0.85 0.85"></mesh>
+        <mesh name="seaweed_small_7" file="SeaClear/environment/seaweed_small.stl" scale="0.7 0.7 0.7"></mesh>
+        <mesh name="seaweed_thin_1" file="SeaClear/environment/seaweed_thin.stl" scale="1.5 1.5 1.5"></mesh>
+        <mesh name="seaweed_thin_2" file="SeaClear/environment/seaweed_thin.stl" scale="2.5 2.5 2.5"></mesh>
+        <mesh name="tall_seaweed" file="SeaClear/environment/tall_seaweed.stl" scale="0.5 0.5 0.5"></mesh>
+        <mesh name="wiggle_seaweed_1" file="SeaClear/environment/wiggle_seaweed.stl" scale="0.35 0.35 0.35"></mesh>
+        <mesh name="wiggle_seaweed_2" file="SeaClear/environment/wiggle_seaweed.stl" scale="0.25 0.25 0.25"></mesh>
+
+    </asset>
+
+    <default class="robot0:SeaClearGripper">
+        <geom condim="4" margin="0.001" type="box" user="0" rgba="1. 1. 1. 0."></geom>
+        <joint armature="100" damping="1000" limited="true" solimplimit="0.99 0.999 0.01" solreflimit="0.01 1" type="hinge"></joint>
+    </default>
+
+    <contact>
+        <exclude body1="robot0:r_gripper_finger_link" body2="robot0:SeaClearRobotLower"></exclude>
+        <exclude body1="robot0:l_gripper_finger_link" body2="robot0:SeaClearRobotLower"></exclude>
+        <exclude body1="robot0:r_gripper_finger_link" body2="robot0:l_gripper_finger_link"></exclude>
+    </contact>
+
+    <equality>
+        <weld body1="robot0:mocap" body2="robot0:gripper_link" solimp="0.9 0.95 0.001" solref="0.02 1"></weld>
+    </equality>
+    
+</mujoco>

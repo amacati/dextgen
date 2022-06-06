@@ -8,7 +8,7 @@ import numpy as np
 from envs.shadow_hand.flat_base import FlatSHBase
 from envs.rotations import axisangle2quat, quat_mul
 
-MODEL_XML_PATH = str(Path("sh", "flat_sh_mesh.xml"))
+MODEL_XML_PATH = str(Path("ShadowHand", "flat_mesh.xml"))
 
 
 class FlatSHMesh(FlatSHBase, utils.EzPickle):

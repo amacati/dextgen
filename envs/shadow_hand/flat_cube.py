@@ -7,7 +7,7 @@ import numpy as np
 
 from envs.shadow_hand.flat_base import FlatSHBase
 
-MODEL_XML_PATH = str(Path("sh", "flat_sh_cube.xml"))
+MODEL_XML_PATH = str(Path("ShadowHand", "flat_cube.xml"))
 
 
 class FlatSHCube(FlatSHBase, utils.EzPickle):

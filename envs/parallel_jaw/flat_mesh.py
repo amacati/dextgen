@@ -7,7 +7,7 @@ import numpy as np
 from envs.parallel_jaw.flat_base import FlatPJBase
 from envs.rotations import axisangle2quat, quat_mul
 
-MODEL_XML_PATH = str(Path("pj", "flat_pj_mesh.xml"))
+MODEL_XML_PATH = str(Path("PJ", "flat_mesh.xml"))
 
 
 class FlatPJMesh(FlatPJBase, utils.EzPickle):

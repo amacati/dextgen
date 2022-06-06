@@ -8,7 +8,7 @@ from gym import utils
 from envs.utils import goal_distance
 from envs.shadow_hand.flat_base import FlatSHBase
 
-MODEL_XML_PATH = str(Path("sh", "obstacle_sh_cube.xml"))
+MODEL_XML_PATH = str(Path("ShadowHand", "obstacle_cube.xml"))
 
 
 class ObstacleSHCube(FlatSHBase, utils.EzPickle):

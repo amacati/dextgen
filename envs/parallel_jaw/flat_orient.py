@@ -1,21 +1,25 @@
 """FlatPJOrient environment module."""
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 from gym import utils
 import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2quat, quat2embedding, mat2embedding
+from envs.rotations import embedding2mat, embedding2quat, mat2quat, quat2embedding, mat2embedding
 
-MODEL_XML_PATH = str(Path("pj", "flat_pj_orient.xml"))
+MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
 
 
 class FlatPJOrient(FlatPJBase, utils.EzPickle):
     """FlatPJOrient environment class."""
 
-    def __init__(self, object_size_multiplier: float = 1., object_size_range: float = 0.):
+    def __init__(self,
+                 object_size_multiplier: float = 1.,
+                 object_size_range: float = 0.,
+                 angle_reduce_factor: float = 1.25,
+                 angle_min_tolerance: float = 0.05 * np.pi):
         """Initialize a parallel jaw cube environment with additional orientation goals.
 
         Args:
@@ -29,8 +33,12 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
                             object_size_range=object_size_range)
         utils.EzPickle.__init__(self,
                                 object_size_multiplier=object_size_multiplier,
-                                object_size_range=object_size_range)
-        self.angle_threshold = np.pi * 0.1
+                                object_size_range=object_size_range,
+                                angle_reduce_factor=angle_reduce_factor,
+                                angle_min_tolerance=angle_min_tolerance)
+        self.angle_threshold = np.pi
+        self.angle_reduce_factor = angle_reduce_factor
+        self.angle_min_tolerance = angle_min_tolerance
 
     def _sample_object_pose(self) -> np.ndarray:
         object_pose = super()._sample_object_pose()
@@ -119,12 +127,43 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         return -(np.logical_or(pos_error, rot_error)).astype(np.float32)
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
-        d = envs.utils.goal_distance(achieved_goal[:3], desired_goal[:3])
-        return (d < self.target_threshold).astype(np.float32)
+        d = envs.utils.goal_distance(achieved_goal[..., :3], desired_goal[..., :3])
+        qgoal = embedding2quat(desired_goal[..., 3:9])
+        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
+        assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
+        pos_success = d < self.target_threshold
+        rot_success = angle < self.angle_threshold
+        return (np.logical_and(pos_success, rot_success)).astype(np.float32)
 
     def _render_callback(self):
         # Visualize target.
-        body_id = self.sim.model.body_name2id("target0")
-        self.sim.model.body_pos[body_id] = self.goal[:3]
-        self.sim.model.body_quat[body_id] = embedding2quat(self.goal[3:9])
+        mat = embedding2mat(self.goal[3:9])
+        quat = mat2quat(mat)
+        quat = embedding2quat(self.goal[3:9])
+        site_id = self.sim.model.site_name2id("target0")
+        self.sim.model.site_pos[site_id] = self.goal[:3]
+        self.sim.model.site_quat[site_id] = quat
+        site_id = self.sim.model.site_name2id("target0x")
+        dx = mat @ np.array([0.05, 0, 0])
+        self.sim.model.site_pos[site_id] = self.goal[:3] + dx
+        self.sim.model.site_quat[site_id] = quat
+        site_id = self.sim.model.site_name2id("target0y")
+        dy = mat @ np.array([0, 0.05, 0])
+        self.sim.model.site_pos[site_id] = self.goal[:3] + dy
+        self.sim.model.site_quat[site_id] = quat
+        site_id = self.sim.model.site_name2id("target0z")
+        dz = mat @ np.array([0, 0, 0.05])
+        self.sim.model.site_pos[site_id] = self.goal[:3] + dz
+        self.sim.model.site_quat[site_id] = quat
         self.sim.forward()
+
+    def epoch_callback(self, _: Any, av_success: float):
+        """Reduce the angle threshold depending on the agent performance.
+
+        Args:
+            av_success: Current average agent success.
+        """
+        if av_success > 0.75:
+            angle_reduced_tolerance = self.angle_threshold / self.angle_reduce_factor
+            self.angle_threshold = max(angle_reduced_tolerance, self.angle_min_tolerance)

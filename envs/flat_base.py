@@ -39,13 +39,13 @@ class FlatBase(envs.robot_env.RobotEnv):
             initial_gripper: Default initial gripper joint positions.
         """
         self.gripper_extra_height = gripper_extra_height
+        self.gripper_init_pos = None
         self.object_range = np.array([0.1, 0.15])  # Admissible object range from the table center
         self.target_range = 0.15  # Admissible target range from the table center
         self.target_threshold = 0.05  # Range tolerance for task completion
         self.n_actions = n_actions
         self.object_name = object_name
-        self.gripper_init_pos = None  # Overwritten during first _env_reset() call
-        self.gripper_init_range = 0.15  # Admissable range from gripper_init_pos
+        self.gripper_init_range = np.array([0.05, 0.1])  # Admissable range from gripper_init_pos
         self.gripper_start_pos = None  # Current starting position of the gripper
         self.height_offset = 0.43
         self.goal_max_height = 0.3
@@ -55,13 +55,13 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.object_size_multiplier = object_size_multiplier
         assert object_size_range >= 0
         self.object_size_range = object_size_range
-        self.object_init_size = {}  # Save object sizes before modification
         super().__init__(
             model_path=model_xml_path,
             n_substeps=self.n_substeps,
             n_actions=n_actions,
             initial_qpos=initial_qpos,
         )
+        self.object_init_size = {}  # Save object sizes before modification
 
     def compute_reward(self, achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:
         """Compute the agent reward for the achieved goal.
@@ -116,9 +116,8 @@ class FlatBase(envs.robot_env.RobotEnv):
 
     def _render_callback(self):
         # Visualize target.
-        sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
         site_id = self.sim.model.site_name2id("target0")
-        self.sim.model.site_pos[site_id] = self.goal[:3] - sites_offset[0]
+        self.sim.model.site_pos[site_id] = self.goal[:3]
         self.sim.forward()
 
     def _reset_sim(self) -> bool:
@@ -171,7 +170,8 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.sim.forward()
         # Save start positions on first run
         if self.gripper_init_pos is None:
-            self.gripper_init_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+            self.gripper_init_pos = self.sim.data.get_body_xpos("table0")[:3].copy()
+            self.gripper_init_pos[2] = 0.4 + self.gripper_extra_height  # Table height + offset
         # Move end effector into position
         self._set_gripper_pose()
         # Change object pose
@@ -185,14 +185,13 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.gripper_start_pos = self.sim.data.get_site_xpos("robot0:grip").copy()
 
     def _set_gripper_pose(self):
-        gripper_pos = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height
-                               ]) + self.gripper_init_pos  # noqa: E124
-        d_pos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range, size=2)
+        gripper_pos = self.gripper_init_pos.copy()  # noqa: E124
+        d_pos = self.np_random.uniform(-self.gripper_init_range, self.gripper_init_range)
         gripper_pos[:2] += d_pos  # Add random initial position change
         gripper_rot = np.array([1.0, 0.0, 1.0, 0.0])
         # d_rot = self.np_random.uniform(-1, 1, size=4)
         # gripper_rot += (d_rot / np.linalg.norm(d_rot)) * 0.2  # Add random initial rotation change
-        gripper_rot /= np.linalg.norm(gripper_rot)  # Renormalize for quaternion
+        # gripper_rot /= np.linalg.norm(gripper_rot)  # Renormalize for quaternion
         self.sim.data.set_mocap_pos("robot0:mocap", gripper_pos)
         self.sim.data.set_mocap_quat("robot0:mocap", gripper_rot)
 

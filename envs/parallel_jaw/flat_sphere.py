@@ -5,7 +5,7 @@ from gym import utils
 
 from envs.parallel_jaw.flat_base import FlatPJBase
 
-MODEL_XML_PATH = str(Path("pj", "flat_pj_sphere.xml"))
+MODEL_XML_PATH = str(Path("PJ", "flat_sphere.xml"))
 
 
 class FlatPJSphere(FlatPJBase, utils.EzPickle):

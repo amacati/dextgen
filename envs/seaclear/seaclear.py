@@ -9,8 +9,8 @@ from envs.flat_base import FlatBase
 from envs.rotations import axisangle2quat, mat2embedding
 from envs.utils import goal_distance
 
-DEFAULT_MODEL_XML_PATH = str(Path("seaclear", "seaclear.xml"))
-FANCY_MODEL_XML_PATH = str(Path("seaclear", "seaclear_fancy.xml"))
+DEFAULT_MODEL_XML_PATH = str(Path("SeaClear", "seaclear.xml"))
+FANCY_MODEL_XML_PATH = str(Path("SeaClear", "seaclear_fancy.xml"))
 
 
 class SeaClear(FlatBase):
@@ -167,3 +167,29 @@ class SeaClear(FlatBase):
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[:3], desired_goal[:3])
         return (d < self.target_threshold).astype(np.float32)
+
+    def _env_setup(self, initial_qpos: np.ndarray):
+        self._modify_object_size()
+        for name, value in initial_qpos.items():
+            # Envs have joint start values for multiple grasp objects. Objects are not present in
+            # all MuJoCo envs to speed up simulation for single grasp object environments. Therefore
+            # non-existent joints are expected
+            if name not in self.sim.model.joint_names:
+                continue
+            self.sim.data.set_joint_qpos(name, value)
+        envs.utils.reset_mocap_welds(self.sim)
+        self.sim.forward()
+        # Save start positions on first run
+        if self.gripper_init_pos is None:
+            self.gripper_init_pos = np.array([0., 0., 0.45])
+        # Move end effector into position
+        self._set_gripper_pose()
+        # Change object pose
+        self._set_object_pose()
+        # Run sim
+        for _ in range(10):
+            if self.initial_gripper:
+                self.sim.data.ctrl[:] = self.initial_gripper
+            self.sim.step()
+        # Extract information for sampling goals
+        self.gripper_start_pos = self.sim.data.get_site_xpos("robot0:grip").copy()

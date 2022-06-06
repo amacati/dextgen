@@ -6,7 +6,7 @@ from gym import utils
 
 from envs.shadow_hand.flat_base import FlatSHBase
 
-MODEL_XML_PATH = str(Path("sh", "flat_sh_sphere.xml"))
+MODEL_XML_PATH = str(Path("ShadowHand", "flat_sphere.xml"))
 
 
 class FlatSHSphere(FlatSHBase, utils.EzPickle):

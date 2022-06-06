@@ -8,7 +8,7 @@ import numpy as np
 from envs.parallel_jaw.flat_base import FlatPJBase
 from envs.rotations import axisangle2quat, quat_mul
 
-MODEL_XML_PATH = str(Path("pj", "flat_pj_all.xml"))
+MODEL_XML_PATH = str(Path("PJ", "flat_all.xml"))
 
 
 class FlatPJAll(FlatPJBase, utils.EzPickle):

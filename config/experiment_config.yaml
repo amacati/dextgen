@@ -40,7 +40,7 @@ Default:
 # object_rel_pos (39:42), object_rot (42:48), object_rel_rot (48:54), object_velp (54:57),
 # object_velr (57:60)
 
-FlatSHAll-v0:
+FlatSHSphere-v0:
   load_pretrained: True
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
@@ -61,19 +61,18 @@ FlatSHCylinder-v0:
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
                    59]
-  early_stop: 0.98
   kwargs:
     n_eigengrasps: 6
 
-FlatSHSphere-v0:
-  load_pretrained: True
+FlatSHMesh-v0:
+  load_pretrained: False
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
                    59]
   kwargs:
     n_eigengrasps: 6
 
-FlatSHMesh-v0:
+FlatSHAll-v0:
   load_pretrained: True
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
@@ -82,17 +81,23 @@ FlatSHMesh-v0:
     n_eigengrasps: 6
 
 ObstacleSHCube-v0:
-  epochs: 1000
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
     n_eigengrasps: 6
 
 UnevenSHCube-v0:
-  epochs: 1000
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
     n_eigengrasps: 6
 
 UnevenSHMesh-v0:
-  epochs: 1000
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
     n_eigengrasps: 6
 
@@ -102,11 +107,11 @@ UnevenSHMesh-v0:
 # object_velr (41:44)
 
 FlatBarrettSphere-v0:
-  actor_net_type: "PosePolicyNet"
+  noise_process: "OrnsteinUhlenbeck"
+  noise_process_params: [0.1, 0.2, 1.]
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
 
 FlatBarrettCube-v0:
-  actor_net_type: "PosePolicyNet"
   noise_process: "OrnsteinUhlenbeck"
   noise_process_params: [0.1, 0.2, 1.]
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
@@ -114,15 +119,16 @@ FlatBarrettCube-v0:
     n_eigengrasps: 2
 
 FlatBarrettCylinder-v0:
-  actor_net_type: "PosePolicyNet"
   noise_process: "OrnsteinUhlenbeck"
   noise_process_params: [0.1, 0.2, 1.]
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
-  kwargs:
-    object_size_multiplier: 1.5
 
 FlatBarrettMesh-v0:
-  actor_net_type: "PosePolicyNet"
+  noise_process: "OrnsteinUhlenbeck"
+  noise_process_params: [0.1, 0.2, 1.]
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
+
+FlatBarrettAll-v0:
   noise_process: "OrnsteinUhlenbeck"
   noise_process_params: [0.1, 0.2, 1.]
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
@@ -135,20 +141,39 @@ FlatBarrettMesh-v0:
 # PJ goal:
 # goal_pos (0:3), [for FlatPJOrient: goal_rot (3:9)]
 
-FlatPJOrient-v0:
-  actor_net_type: "PosePolicyNet"
-  goal_norm_idx: [0, 1, 2]
-  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
-
 FlatPJSphere-v0:
-  actor_net_type: "PosePolicyNet"
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
 
 FlatPJCube-v0:
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
 
+FlatPJCylinder-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
 FlatPJMesh-v0:
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJAll-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJOrient-v0:
+# Try reducing fraction of random actions?
+  goal_norm_idx: [0, 1, 2]  # Orient includes orientation goal that should not be normalized
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+UnevenPJRotCube-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+UnevenPJFixedCube-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+  actor_net_type: "DDP"
+
+FlatPJRotCone-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJFixedCone-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+  actor_net_type: "DDP"
 
 # SeaClear state:  
 # grip_pos (0:3), grip_rot(3:9), grip_state(9:11), grip_velp(11:14), object_pos(14:17), object_rel_pos(17:20), object_rot(20:26), object_rel_rot(26:32), object_velp(32:35), object_velr(35:38)

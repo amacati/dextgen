@@ -20,7 +20,8 @@ class FlatPJBase(FlatBase):
                  object_name: str,
                  model_xml_path: str,
                  object_size_multiplier: float = 1.,
-                 object_size_range: float = 0.):
+                 object_size_range: float = 0.,
+                 n_actions: int = 13):
         """Initialize a flat parallel jaw environment.
 
         Args:
@@ -28,11 +29,16 @@ class FlatPJBase(FlatBase):
             model_xml_path: Path to the Mujoco xml world file.
             object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
             object_size_range: Optional range to randomly enlarge/shrink object sizes.
+            n_actions: Action dimensionality of the environment.
         """
         initial_qpos = {
-            "robot0:slide0": 0.4049,
-            "robot0:slide1": 0.48,
-            "robot0:slide2": 0.0,
+            "panda_joint1": 0,
+            "panda_joint2": 0.4,
+            "panda_joint3": 0.,
+            "panda_joint4": -2.4,
+            "panda_joint5": 0,
+            "panda_joint6": 2.8,
+            "panda_joint7": 0,
             "cube:joint": [.1, -.1, .025, 1., 0, 0, 0],
             "cylinder:joint": [-.1, .1, .025, 1., 0, 0, 0],
             "sphere:joint": [.1, .1, .025, 1., 0, 0, 0],
@@ -40,9 +46,9 @@ class FlatPJBase(FlatBase):
         }
         super().__init__(
             model_xml_path=model_xml_path,
-            gripper_extra_height=0.2,
+            gripper_extra_height=0.15,
             initial_qpos=initial_qpos,
-            n_actions=13,  # 3 pos, 9 rot, 1 gripper
+            n_actions=n_actions,  # default 13 for 3 pos, 9 rot, 1 gripper
             object_name=object_name,
             object_size_multiplier=object_size_multiplier,
             object_size_range=object_size_range)

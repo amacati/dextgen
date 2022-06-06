@@ -6,7 +6,7 @@ from gym import utils
 
 from envs.shadow_hand.uneven_base import UnevenSHBase
 
-MODEL_XML_PATH = str(Path("sh", "uneven_sh_mesh.xml"))
+MODEL_XML_PATH = str(Path("ShadowHand", "uneven_mesh.xml"))
 
 
 class UnevenSHMesh(UnevenSHBase, utils.EzPickle):

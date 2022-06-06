@@ -84,23 +84,24 @@ class DDPG:
         self.rank = rank
         if dist and world_size > 1:
             self.init_dist()
-        self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
-        if not self.PATH.is_dir():
-            self.PATH.mkdir(parents=True, exist_ok=True)
-        # Create a unique backup path with the current time and resolve name collisions
-        if self.rank == 0:
-            self.BACKUP_PATH = self.PATH / "backup" / datetime.now().strftime("%Y_%m_%d_%H_%M")
-            if not self.BACKUP_PATH.is_dir():
-                self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+        if self.args.save:
+            self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
+            if not self.PATH.is_dir():
+                self.PATH.mkdir(parents=True, exist_ok=True)
+            # Create a unique backup path with the current time and resolve name collisions
+            if self.rank == 0:
+                self.BACKUP_PATH = self.PATH / "backup" / datetime.now().strftime("%Y_%m_%d_%H_%M")
+                if not self.BACKUP_PATH.is_dir():
+                    self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+                else:
+                    t = 1
+                    while self.BACKUP_PATH.is_dir():
+                        self.BACKUP_PATH = self.PATH / "backup" / (
+                            datetime.now().strftime("%Y_%m_%d_%H_%M") + f"_({t})")
+                        t += 1
+                    self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
             else:
-                t = 1
-                while self.BACKUP_PATH.is_dir():
-                    self.BACKUP_PATH = self.PATH / "backup" / (
-                        datetime.now().strftime("%Y_%m_%d_%H_%M") + f"_({t})")
-                    t += 1
-                self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
-        else:
-            self.BACKUP_PATH = None
+                self.BACKUP_PATH = None
 
     def train(self):
         """Train a policy to solve the environment with DDPG.
@@ -142,7 +143,7 @@ class DDPG:
             av_success = self.eval_agent()
             if hasattr(self.env, "epoch_callback"):
                 assert callable(self.env.epoch_callback)
-                self.env.epoch_callback(epoch)
+                self.env.epoch_callback(epoch, av_success)
             if self.rank == 0:
                 ep_success.append(av_success)
                 ep_time.append(epoch_end - epoch_start)
@@ -155,11 +156,13 @@ class DDPG:
             if av_success > self.args.early_stop:
                 if self.rank == 0 and self.args.save:
                     self.save_models()
+                    self.save_models(path=self.BACKUP_PATH)
                     self.save_plots(ep_success, ep_time)
                     self.save_stats(ep_success, ep_time)
                 return
         if self.rank == 0 and self.args.save:
             self.save_models()
+            self.save_models(path=self.BACKUP_PATH)
             self.save_plots(ep_success, ep_time)
             self.save_stats(ep_success, ep_time)
 
