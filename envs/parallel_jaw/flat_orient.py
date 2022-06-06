@@ -19,7 +19,8 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
                  object_size_multiplier: float = 1.,
                  object_size_range: float = 0.,
                  angle_reduce_factor: float = 1.25,
-                 angle_min_tolerance: float = 0.05 * np.pi):
+                 angle_min_tolerance: float = 0.05 * np.pi,
+                 angle_reduce_performance: float = 0.75):
         """Initialize a parallel jaw cube environment with additional orientation goals.
 
         Args:
@@ -35,10 +36,12 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
                                 object_size_multiplier=object_size_multiplier,
                                 object_size_range=object_size_range,
                                 angle_reduce_factor=angle_reduce_factor,
-                                angle_min_tolerance=angle_min_tolerance)
+                                angle_min_tolerance=angle_min_tolerance,
+                                angle_reduce_performance=angle_reduce_performance)
         self.angle_threshold = np.pi
         self.angle_reduce_factor = angle_reduce_factor
         self.angle_min_tolerance = angle_min_tolerance
+        self.angle_reduce_performance = angle_reduce_performance
 
     def _sample_object_pose(self) -> np.ndarray:
         object_pose = super()._sample_object_pose()
@@ -164,6 +167,6 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         Args:
             av_success: Current average agent success.
         """
-        if av_success > 0.75:
+        if av_success > self.angle_reduce_performance:
             angle_reduced_tolerance = self.angle_threshold / self.angle_reduce_factor
             self.angle_threshold = max(angle_reduced_tolerance, self.angle_min_tolerance)
