@@ -13,32 +13,32 @@
 		
 		<body name="cube" pos="0.025 0.025 0.025">
 			<joint name="cube:joint" type="free" damping="0.01"></joint>
-			<geom size="0.025 0.025 0.025" type="box" condim="3" name="cube" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.025 0.025 0.025" type="box" condim="4" name="cube" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="cube" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 
 		<body name="sphere" pos="0.1 0.1 0.025">
 			<joint name="sphere:joint" type="free" damping="0.01"></joint>
-			<geom size="0.025" type="sphere" condim="3" name="sphere" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.025" type="sphere" condim="4" name="sphere" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="sphere" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 
 		<body name="cylinder" pos="-0.1 0.1 0.025">
 			<joint name="cylinder:joint" type="free" damping="0.01"></joint>
-			<geom size="0.025 0.025" type="cylinder" condim="3" name="cylinder" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.025 0.025" type="cylinder" condim="4" name="cylinder" material="block_mat" mass="0.2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="cylinder" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 
 		<body name="mesh" pos="-0.1 -0.1 0.025">
 			<joint name="mesh:joint" type="free" damping="0.01"></joint>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0171 0" type="box" condim="3" name="cube1" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0228 0.0057" pos="0 0.0228 0.0255" type="box" condim="3" name="cube2" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0399 0.0" type="box" condim="3" name="cube3" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0171 0.0057" pos="0 0.0513 -0.0255" type="box" condim="3" name="cube4" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0627 0" type="box" condim="3" name="cube5" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0285 0.0057" pos="0 0.0855 0.0255" type="box" condim="3" name="cube6" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.0855 0" type="box" condim="3" name="cube7" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
-			<geom size="0.0057 0.0057 0.0312" pos="0 0.1083 0" type="box" condim="3" name="cube8" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0171 0" type="box" condim="4" name="cube1" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0228 0.0057" pos="0 0.0228 0.0255" type="box" condim="4" name="cube2" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0399 0.0" type="box" condim="4" name="cube3" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0171 0.0057" pos="0 0.0513 -0.0255" type="box" condim="4" name="cube4" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0627 0" type="box" condim="4" name="cube5" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0285 0.0057" pos="0 0.0855 0.0255" type="box" condim="4" name="cube6" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.0855 0" type="box" condim="4" name="cube7" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.0057 0.0057 0.0312" pos="0 0.1083 0" type="box" condim="4" name="cube8" material="blue" mass="0.02" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="mesh" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 	</worldbody>

@@ -123,6 +123,8 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         """
         # Compute distance between goal and the achieved goal.
         d = envs.utils.goal_distance(achieved_goal[..., :3], goal[..., :3])
+        if self.angle_threshold == np.pi:  # Speed up reward calculation for initial training
+            return -(d < self.target_threshold).astype(np.float32)
         qgoal = embedding2quat(goal[..., 3:9])
         qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))

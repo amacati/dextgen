@@ -39,7 +39,7 @@
             </default>
 
             <default class="collision">
-                <geom contype="1" conaffinity="1" group="3" type="mesh" rgba=".5 .6 .7 1"/>
+                <geom contype="1" conaffinity="1" condim="4" group="3" type="mesh" rgba=".5 .6 .7 1" solimp="0.999 0.999 0.001" solref="0.02 1"/>
             </default>
 
             <default class="robot0:Finger">
