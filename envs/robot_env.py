@@ -106,12 +106,13 @@ class RobotEnv(gym.GoalEnv):
         obs = self._get_obs()
 
         done = False
+        reward = self.compute_reward(obs["achieved_goal"], self.goal, None)
         info = {
-            "is_success": self._is_success(obs["achieved_goal"], self.goal),
+            "is_success": reward == 0,
         }
         if self._contact_info:
             info["contact_info"] = self._get_contact_info()
-        reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
+
         return obs, reward, done, info
 
     def reset(self) -> Dict[str, np.ndarray]:

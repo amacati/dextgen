@@ -7,7 +7,8 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2mat, embedding2quat, mat2quat, quat2embedding, mat2embedding
+from envs.rotations import embedding2mat, embedding2quat, euler2quat, mat2quat, quat2embedding
+from envs.rotations import mat2embedding
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
 
@@ -27,8 +28,9 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
             object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
             object_size_range: Optional range to randomly enlarge/shrink object sizes.
         """
+        self.curr_object_rot = np.array([1, 0, 0, 0])
         FlatPJBase.__init__(self,
-                            object_name="cube",
+                            object_name="cylinder",
                             model_xml_path=MODEL_XML_PATH,
                             object_size_multiplier=object_size_multiplier,
                             object_size_range=object_size_range)
@@ -46,9 +48,11 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
     def _sample_object_pose(self) -> np.ndarray:
         object_pose = super()._sample_object_pose()
         # Random rotation around z axis
-        object_pose[3] = self.np_random.rand()
-        object_pose[6] = self.np_random.rand()
-        object_pose[3:7] /= np.linalg.norm(object_pose[3:7])
+        theta = (np.random.rand() - 0.5) * 0.1 + np.pi / 2
+        euler = np.array([np.pi / 2, theta, np.pi / 2])
+        object_rot = euler2quat(euler)
+        self.curr_object_rot = object_rot
+        object_pose[3:7] = object_rot
         return object_pose
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
@@ -105,11 +109,9 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         goal[2] = self.height_offset
         if self.np_random.uniform() < 0.5:
             goal[2] += self.np_random.uniform(0, self.goal_max_height)
-        quat = np.zeros(4)
-        quat[0] = self.np_random.rand()
-        quat[3] = self.np_random.rand()
-        quat /= np.linalg.norm(quat)
-        goal[3:9] = quat2embedding(quat)
+        theta = (np.random.rand() - 0.5) * 3 + np.pi / 2
+        euler = np.array([np.pi / 2, theta, np.pi / 2])
+        goal[3:9] = quat2embedding(euler2quat(euler))
         return goal.copy()
 
     def compute_reward(self, achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:

@@ -410,3 +410,15 @@ def mat2embedding(mat: np.ndarray) -> np.ndarray:
     """
     assert mat.shape[-2:] == (3, 3)
     return np.concatenate((mat[..., :, 0], mat[..., :, 1]), axis=-1)
+
+
+def map2pi(theta: np.ndarray) -> np.ndarray:
+    """Map an angle to the interval of [-np.pi, np.pi].
+
+    Args:
+        theta: An array of angles (in radians).
+
+    Returns:
+        The mapped angles.
+    """
+    return ((theta + np.pi) % (2 * np.pi)) - np.pi
