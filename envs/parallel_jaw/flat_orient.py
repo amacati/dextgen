@@ -7,7 +7,7 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2mat, embedding2quat, euler2quat, mat2quat, quat2embedding
+from envs.rotations import embedding2mat, embedding2quat, euler2quat, mat2euler, mat2quat, quat2embedding, quat2mat
 from envs.rotations import mat2embedding
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
@@ -30,7 +30,7 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         """
         self.curr_object_rot = np.array([1, 0, 0, 0])
         FlatPJBase.__init__(self,
-                            object_name="cylinder",
+                            object_name="cube",
                             model_xml_path=MODEL_XML_PATH,
                             object_size_multiplier=object_size_multiplier,
                             object_size_range=object_size_range)
