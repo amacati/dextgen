@@ -149,18 +149,7 @@ FlatPJOrient-v0:
   goal_norm_idx: [0, 1, 2]  # Orient includes orientation goal that should not be normalized
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
 
-UnevenPJRotCube-v0:
-  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
-
-UnevenPJFixedCube-v0:
-  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
-  actor_net_type: "DDP"
-
-FlatPJRotCone-v0:
-  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
-
-FlatPJFixedCone-v0:
-  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+FlatPJOrientEuler-v0:
   actor_net_type: "DDP"
 
 # SeaClear state:  

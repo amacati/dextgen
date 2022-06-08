@@ -1,4 +1,4 @@
-"""FlatPJOrient environment module."""
+"""FlatPJOrientEuler environment module."""
 from pathlib import Path
 from typing import Any, Dict
 
@@ -7,14 +7,13 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2mat, embedding2quat, euler2quat, quat2embedding
-from envs.rotations import mat2embedding
+from envs.rotations import euler2quat, mat2euler, quat2mat
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
 
 
-class FlatPJOrient(FlatPJBase, utils.EzPickle):
-    """FlatPJOrient environment class."""
+class FlatPJOrientEuler(FlatPJBase, utils.EzPickle):
+    """FlatPJOrientEuler environment class."""
 
     def __init__(self,
                  object_size_multiplier: float = 1.,
@@ -22,7 +21,7 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
                  angle_reduce_factor: float = 1.25,
                  angle_min_tolerance: float = 0.2,
                  angle_reduce_performance: float = 0.75):
-        """Initialize a parallel jaw cube environment with additional orientation goals.
+        """Initialize a parallel jaw cube environment with additional euler orientation goals.
 
         Args:
             object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
@@ -55,6 +54,23 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         object_pose[3:7] = object_rot
         return object_pose
 
+    def _set_action(self, action: np.ndarray):
+        assert action.shape == (self.n_actions,)
+        action = (action.copy())  # ensure that we don't change the action outside of this scope
+        pos_ctrl, rot_ctrl, gripper_ctrl = action[:3], action[3:6], action[6]
+
+        pos_ctrl *= 0.05  # limit maximum change in position
+        # Transform rot_ctrl from euler to quaternion
+        rot_ctrl *= np.array([1., 1., 0.5]) * np.pi  # a and b in [-pi, pi], g in [-pi/2, pi/2]
+        rot_ctrl = euler2quat(rot_ctrl)
+        rot_ctrl *= 0.05  # limit maximum change in orientation
+        gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
+        action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
+
+        # Apply action to simulation.
+        envs.utils.ctrl_set_action(self.sim, action)
+        envs.utils.mocap_set_action(self.sim, action)
+
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
@@ -64,9 +80,9 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         # rotations
         grip_rot_mat = self.sim.data.get_site_xmat("robot0:grip")
         object_rot_mat = self.sim.data.get_site_xmat(self.object_name)
-        grip_rot = mat2embedding(grip_rot_mat)
-        object_rot = mat2embedding(object_rot_mat)
-        object_rel_rot = mat2embedding(grip_rot_mat.T @ object_rot_mat)
+        grip_rot = mat2euler(grip_rot_mat)
+        object_rot = mat2euler(object_rot_mat)
+        object_rel_rot = mat2euler(grip_rot_mat.T @ object_rot_mat)
         # velocities
         dt = self.sim.nsubsteps * self.sim.model.opt.timestep
         grip_velp = self.sim.data.get_site_xvelp("robot0:grip") * dt
@@ -100,7 +116,7 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
     def _sample_goal(self) -> np.ndarray:
         table_pos = self.sim.data.get_body_xpos("table0")[:3]
         object_pos = self.sim.data.get_site_xpos(self.object_name)[:3]
-        goal = np.zeros(9)
+        goal = np.zeros(6)
         goal[:2] = table_pos[:2]
         goal[:2] += self.np_random.uniform(-self.target_range, self.target_range, size=2)
         while np.linalg.norm(object_pos[:2] - goal[:2]) < 0.1:
@@ -111,7 +127,7 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
             goal[2] += self.np_random.uniform(0, self.goal_max_height)
         theta = (np.random.rand() - 0.5) * 3 + np.pi / 2
         euler = np.array([np.pi / 2, theta, np.pi / 2])
-        goal[3:9] = quat2embedding(euler2quat(euler))
+        goal[3:6] = euler
         return goal.copy()
 
     def compute_reward(self, achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:
@@ -125,8 +141,8 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         d = envs.utils.goal_distance(achieved_goal[..., :3], goal[..., :3])
         if self.angle_threshold == np.pi:  # Speed up reward calculation for initial training
             return -(d > self.target_threshold).astype(np.float32)
-        qgoal = embedding2quat(goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        qgoal = euler2quat(goal[..., 3:6])
+        qachieved_goal = euler2quat(achieved_goal[..., 3:6])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_error = d > self.target_threshold
@@ -135,8 +151,8 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[..., :3], desired_goal[..., :3])
-        qgoal = embedding2quat(desired_goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        qgoal = euler2quat(desired_goal[..., 3:6])
+        qachieved_goal = euler2quat(achieved_goal[..., 3:6])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_success = d < self.target_threshold
@@ -145,8 +161,8 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
 
     def _render_callback(self):
         # Visualize target.
-        mat = embedding2mat(self.goal[3:9])
-        quat = embedding2quat(self.goal[3:9])
+        quat = euler2quat(self.goal[3:6])
+        mat = quat2mat(quat)
         site_id = self.sim.model.site_name2id("target0")
         self.sim.model.site_pos[site_id] = self.goal[:3]
         self.sim.model.site_quat[site_id] = quat
