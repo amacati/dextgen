@@ -7,7 +7,7 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2mat, embedding2quat, euler2quat, mat2euler, mat2quat, quat2embedding, quat2mat
+from envs.rotations import embedding2mat, embedding2quat, euler2quat, mat2quat, quat2embedding
 from envs.rotations import mat2embedding
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
@@ -20,7 +20,7 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
                  object_size_multiplier: float = 1.,
                  object_size_range: float = 0.,
                  angle_reduce_factor: float = 1.25,
-                 angle_min_tolerance: float = 0.05 * np.pi,
+                 angle_min_tolerance: float = 0.2,
                  angle_reduce_performance: float = 0.75):
         """Initialize a parallel jaw cube environment with additional orientation goals.
 
