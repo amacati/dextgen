@@ -153,7 +153,7 @@ class DDPG:
                     self.save_models()
                     self.save_plots(ep_success, ep_time)
                     self.save_stats(ep_success, ep_time)
-            if av_success > self.args.early_stop:
+            if av_success >= self.args.early_stop:
                 if self.rank == 0 and self.args.save:
                     self.save_models()
                     self.save_models(path=self.BACKUP_PATH)

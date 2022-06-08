@@ -85,11 +85,11 @@ if __name__ == "__main__":
         path = Path(__file__).parent / "video" / (args.env + ".mp4")
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
-    early_stop = 0
     for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
         t = 0
+        early_stop = 0
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)

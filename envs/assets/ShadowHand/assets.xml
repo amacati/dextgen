@@ -54,7 +54,7 @@
             </default>
 
             <default class="robot0:asset_class">
-                <geom friction="1 0.005 0.001" condim="3" margin="0.0005" contype="1" conaffinity="1"></geom>
+                <geom friction="1 0.005 0.001" condim="4" margin="0.0005" contype="1" conaffinity="1"></geom>
                 <joint limited="true" damping="0.1" armature="0.001" margin="0.01" frictionloss="0.001"></joint>
                 <site size="0.005" rgba="0.4 0.9 0.4 1"></site>
                 <general ctrllimited="true" forcelimited="true"></general>
@@ -65,7 +65,7 @@
             </default>
 
             <default class="robot0:DC_Hand">
-                <geom material="robot0:MatColl" contype="1" conaffinity="0" group="4" solimp="0.999 0.999 0.0001" solref="0.01 1"></geom>
+                <geom material="robot0:MatColl" contype="1" conaffinity="0" group="4" condim="4" solimp="0.999 0.999 0.0001" solref="0.01 1"></geom>
             </default>
 
             <default class="robot0:D_Vizual">
