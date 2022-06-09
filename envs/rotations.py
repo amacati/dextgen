@@ -1,6 +1,8 @@
-"""Rotations copy from the robot environments in OpenAI's gym.
+"""Rotation utility functions from OpenAI's mujoco-worldgen repository.
 
-Files have been removed from the current gym implementation.
+Functions have been extended to our 6D embedding.
+
+https://github.com/openai/mujoco-worldgen/blob/master/mujoco_worldgen/util/rotation.py.
 """
 # Copyright (c) 2009-2017, Matthew Brett and Christoph Gohlke
 #    All rights reserved.

@@ -1,4 +1,7 @@
-"""Normalizer class file."""
+"""Normalizer class file.
+
+The normalizer is based on the implementation in https://github.com/openai/baselines.
+"""
 from pathlib import Path
 from typing import Optional
 

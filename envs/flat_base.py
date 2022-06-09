@@ -1,4 +1,10 @@
-"""Grasp base environment module."""
+"""Grasp base environment module.
+
+The overall module structure is based on OpenAI's fetch environments, but the module itself has
+largely been rewritten for our purpose.
+
+See https://github.com/Farama-Foundation/Gym-Robotics/tree/main/gym_robotics/envs.
+"""
 from typing import Dict, List, Optional
 import logging
 

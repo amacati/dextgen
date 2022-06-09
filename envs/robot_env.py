@@ -1,6 +1,8 @@
 """Robot_env copy from the robot environments in OpenAI's gym.
 
-Files have been removed from the current gym implementation.
+Minor changes have been made for our use case.
+
+See https://github.com/Farama-Foundation/Gym-Robotics.
 """
 
 import os

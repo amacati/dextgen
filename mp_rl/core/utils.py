@@ -1,4 +1,8 @@
-"""Utility functions for the mp_rl.core module."""
+"""Utility functions for the mp_rl.core module.
+
+MPI network parameter updates are based on OpenAI's baselines.
+See https://github.com/openai/baselines.
+"""
 import logging
 from typing import Tuple
 

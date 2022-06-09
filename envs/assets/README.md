@@ -2,6 +2,6 @@ The pandas MJCF and meshes were taken from https://github.com/justagist/mujoco_p
 
 The ShadowHand and PJ gripper were taken from https://github.com/Farama-Foundation/Gym-Robotics.
 
-The barrett hand meshes were taken from https://github.com/jhu-lcsr/barrett_model.
+The BarrettHand meshes were taken from https://github.com/jhu-lcsr/barrett_model.
 
 Mesh credits for the SeaClear environments are located in the ./meshes/SeaClear folder.
