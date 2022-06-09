@@ -51,6 +51,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.goal_max_height = 0.3
         self.initial_qpos = initial_qpos
         self.initial_gripper = initial_gripper
+        self.early_stop_ok = True  # Flag to prevent an early stop
         assert object_size_multiplier > 0
         self.object_size_multiplier = object_size_multiplier
         assert object_size_range >= 0

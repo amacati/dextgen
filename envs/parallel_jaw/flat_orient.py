@@ -44,6 +44,7 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         self.angle_reduce_factor = angle_reduce_factor
         self.angle_min_tolerance = angle_min_tolerance
         self.angle_reduce_performance = angle_reduce_performance
+        self.early_stop_ok = False
 
     def _sample_object_pose(self) -> np.ndarray:
         object_pose = super()._sample_object_pose()
@@ -173,3 +174,5 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         if av_success > self.angle_reduce_performance:
             angle_reduced_tolerance = self.angle_threshold / self.angle_reduce_factor
             self.angle_threshold = max(angle_reduced_tolerance, self.angle_min_tolerance)
+        if self.angle_threshold == self.angle_min_tolerance:
+            self.early_stop_ok = True
