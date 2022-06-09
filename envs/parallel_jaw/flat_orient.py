@@ -7,8 +7,7 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2mat, embedding2quat, euler2quat, quat2embedding
-from envs.rotations import mat2embedding
+from envs.rotations import embedding2mat, embedding2quat, euler2quat, quat2embedding, mat2embedding
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
 

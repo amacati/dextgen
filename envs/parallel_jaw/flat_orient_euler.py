@@ -32,7 +32,8 @@ class FlatPJOrientEuler(FlatPJBase, utils.EzPickle):
                             object_name="cube",
                             model_xml_path=MODEL_XML_PATH,
                             object_size_multiplier=object_size_multiplier,
-                            object_size_range=object_size_range)
+                            object_size_range=object_size_range,
+                            n_actions=7)
         utils.EzPickle.__init__(self,
                                 object_size_multiplier=object_size_multiplier,
                                 object_size_range=object_size_range,
