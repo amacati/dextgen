@@ -37,6 +37,8 @@ class FlatSHMesh(FlatSHBase, utils.EzPickle):
                                 object_size_range=object_size_range)
 
     def _env_setup(self, initial_qpos: np.ndarray):
+        # Mesh falls if it is rotated around its y axis -> reposition on setup so that the object
+        # settles during the initial 10 steps.
         object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
         object_pose[:2] = self.sim.data.get_body_xpos("table0")[:2]
         object_pose[2] = self.height_offset

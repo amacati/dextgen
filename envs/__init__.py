@@ -2,29 +2,12 @@
 import gym
 
 available_envs = [
-    "FlatPJCube-v0",
-    "FlatPJSphere-v0",
-    "FlatPJCylinder-v0",
-    "FlatPJMesh-v0",
-    "FlatPJAll-v0",
-    "FlatSHCube-v0",
-    "FlatSHCylinder-v0",
-    "FlatSHSphere-v0",
-    "FlatSHMesh-v0",
-    "FlatSHAll-v0",
-    "UnevenSHCube-v0",
-    "UnevenSHMesh-v0",
-    "FlatBarrettCube-v0",
-    "FlatBarrettCylinder-v0",
-    "FlatBarrettSphere-v0",
-    "FlatBarrettMesh-v0",
-    "FlatBarrettAll-v0",
-    "UnevenBarrettCube-v0",
-    "UnevenBarrettMesh-v0",
-    "ObstacleSHCube-v0",
-    "SeaClear-v0",
-    "FlatPJOrient-v0",
-    "FlatPJOrientEuler-v0",
+    "FlatPJCube-v0", "FlatPJSphere-v0", "FlatPJCylinder-v0", "FlatPJMesh-v0", "FlatPJAll-v0",
+    "FlatSHCube-v0", "FlatSHCylinder-v0", "FlatSHSphere-v0", "FlatSHMesh-v0", "FlatSHAll-v0",
+    "UnevenSHCube-v0", "UnevenSHMesh-v0", "FlatBarrettCube-v0", "FlatBarrettCylinder-v0",
+    "FlatBarrettSphere-v0", "FlatBarrettMesh-v0", "FlatBarrettAll-v0", "UnevenBarrettCube-v0",
+    "UnevenBarrettMesh-v0", "ObstacleSHCube-v0", "SeaClear-v0", "FlatPJOrient-v0",
+    "FlatPJOrientEuler-v0", "FlatSHOrient-v0"
 ]
 
 # Register OpenAI gym environments
@@ -118,4 +101,8 @@ gym.envs.register(id="FlatPJOrient-v0",
 
 gym.envs.register(id="FlatPJOrientEuler-v0",
                   entry_point="envs.parallel_jaw.flat_orient_euler:FlatPJOrientEuler",
+                  max_episode_steps=50)
+
+gym.envs.register(id="FlatSHOrient-v0",
+                  entry_point="envs.shadow_hand.flat_orient:FlatSHOrient",
                   max_episode_steps=50)
