@@ -84,7 +84,7 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
         object_velr = self.sim.data.get_site_xvelr(self.object_name) * dt
         object_velp -= grip_velp
         # gripper state
-        grip_state = robot_qpos[-2:]
+        grip_state = robot_qpos[-24:]
 
         achieved_goal = np.concatenate([object_pos, object_rot])
 
