@@ -56,6 +56,9 @@
                                         <joint name="panda_joint7" range="-2.8973 2.8973"/>
                                         <geom class="visual" mesh="link7_visual"/>
                                         <!-- <geom class="collision" mesh="link7_collision"/> -->
+                                        <site name="conx" pos="0.0375 0 0" size="0.075 0.002 0.002" rgba="1 0 0 0.3" type="box"></site>
+                                        <site name="cony" pos="0 0.0375 0" size="0.002 0.075 0.002" rgba="0 1 0 0.3" type="box"></site>
+                                        <site name="conz" pos="0 0 0.0375" size="0.002 0.002 0.075" rgba="0 0 1 0.3" type="box"></site>
 
                                         <!-- Shadow hand -->
                                         <body name="robot0:hand_mount" pos="0 -0.02 0.06" euler="0 0 0">

@@ -54,6 +54,10 @@
                                         <inertial pos="1.0517e-02 -4.252e-03 6.1597e-02" quat="1 0 0 0" mass="7.35522e-01" fullinertia="1.2516e-02 1.0027e-02 4.8150e-03 -4.2800e-04 -1.1960e-03 -7.4100e-04" />
                                         <joint name="panda_joint7" range="-2.8973 2.8973"/>
                                         <geom class="visual" mesh="link7_visual"/>
+										<site name="conx" pos="0.0375 0 0" size="0.075 0.002 0.002" rgba="1 0 0 0.3" type="box"></site>
+                                        <site name="cony" pos="0 0.0375 0" size="0.002 0.075 0.002" rgba="0 1 0 0.3" type="box"></site>
+                                        <site name="conz" pos="0 0 0.0375" size="0.002 0.002 0.075" rgba="0 0 1 0.3" type="box"></site>
+
                                         <!-- <geom class="collision" mesh="link7_collision"/> -->
 
 										<!-- Barrett hand -->

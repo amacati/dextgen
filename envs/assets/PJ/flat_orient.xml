@@ -6,10 +6,11 @@
 	<worldbody>
 	    <geom name="floor0" pos="0.4 0. 0" size="0.9 0.5 1" type="plane" condim="3" rgba="0.2 0.2 0.2 1"></geom>
 		<body name="floor0" pos="0. 0. 0.">
-			<site name="target0" pos="0 0 1." size="0.02 0.02 0.02" rgba="1 0 0 1" type="sphere"></site>
-			<site name="target0x" pos="0.05 0 1" size="0.05 0.002 0.002" rgba="1 0 0 0.2" type="box"></site>
-			<site name="target0y" pos="0 0.05 1" size="0.002 0.05 0.002" rgba="0 1 0 0.2" type="box"></site>
-			<site name="target0z" pos="0 0 1.05" size="0.002 0.002 0.05" rgba="0 0 1 0.2" type="box"></site>
+			<site name="target0" pos="0 0 1." size="0.02 0.02 0.02" rgba="1 0 0 0" type="sphere"></site>
+			<site name="target0Geom" pos="0 0 .001" size="0.025 0.025 0.025" rgba="1 0 0 0.2" type="box"></site>
+			<site name="target0x" pos="0.05 0 1" size="0.05 0.004 0.004" rgba="1 0 0 0.2" type="box"></site>
+			<site name="target0y" pos="0 0.05 1" size="0.004 0.05 0.004" rgba="0 1 0 0.2" type="box"></site>
+			<site name="target0z" pos="0 0 1.05" size="0.004 0.004 0.05" rgba="0 0 1 0.2" type="box"></site>
 		</body>
 
 		<body pos="0.5 0. 0.2" name="table0">
@@ -22,11 +23,11 @@
 		
 		<body name="cube" pos="0.1 -0.1 0.025">
 			<joint name="cube:joint" type="free" damping="0.01"></joint>
-			<geom size="0.025 0.025 0.025" type="box" condim="4" name="cube" material="block_mat" mass="2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.025 0.025 0.025" type="box" condim="4" name="cube" rgba="1 0 0 1" mass="2" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
 			<site name="cube" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
-			<site name="cubex" pos="0.05 0 0" size="0.05 0.002 0.002" rgba="1 0 0 0.2" type="box"></site>
-			<site name="cubey" pos="0 0.05 0" size="0.05 0.002 0.002" euler="0 0 1.5708" rgba="0 1 0 0.2" type="box"></site>
-			<site name="cubez" pos="0 0 0.05" size="0.05 0.002 0.002" euler="0 -1.5708 0" rgba="0 0 1 0.2" type="box"></site>
+			<site name="cubex" pos="0.05 0 0" size="0.05 0.004 0.004" rgba="1 0 0 1" type="box"></site>
+			<site name="cubey" pos="0 0.05 0" size="0.05 0.004 0.004" euler="0 0 1.5708" rgba="0 1 0 1" type="box"></site>
+			<site name="cubez" pos="0 0 0.05" size="0.05 0.004 0.004" euler="0 -1.5708 0" rgba="0 0 1 1" type="box"></site>
 		</body>
 	</worldbody>
 </mujoco>

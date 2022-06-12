@@ -1,9 +1,6 @@
 <mujoco>
 	<body mocap="true" name="robot0:mocap" pos="0 0 0">
-		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.7" size="0.005 0.005 0.005" type="box"></geom>
-		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.1" size="1 0.005 0.005" type="box"></geom>
-		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.1" size="0.005 1 0.001" type="box"></geom>
-		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.1" size="0.005 0.005 1" type="box"></geom>
+		<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0 0.5 0 0.0" size="0.005 0.005 0.005" type="box"></geom>
 	</body>
 
     <body name="base_link" pos="0. 0 0.3">
@@ -53,12 +50,16 @@
                                     <body name="panda_link7" pos="0.088 0 0" euler='1.57 0 0.'>
                                         <inertial pos="1.0517e-02 -4.252e-03 6.1597e-02" quat="1 0 0 0" mass="7.35522e-01" fullinertia="1.2516e-02 1.0027e-02 4.8150e-03 -4.2800e-04 -1.1960e-03 -7.4100e-04" />
                                         <joint name="panda_joint7" range="-2.8973 2.8973"/>
-                                        <geom class="visual" mesh="link7_visual"/>
+                                        <geom class="visual" mesh="link7_visual" rgba="0.2 0.2 0.2 1"/>
+                                        <site name="conx" pos="0.0707 0.0707 0.088" size="0.1 0.004 0.004" rgba="1 0 0 1" type="box" euler='0 0 0.785'></site>
+                                        <site name="cony" pos="-0.0707 0.0707 0.088" size="0.004 0.1 0.004" rgba="0 1 0 1" type="box" euler='0 0 0.785'></site>
+                                        <site name="conz" pos="0 0 0.1255" size="0.004 0.004 0.1" rgba="0 0 1 1" type="box" euler='0 0 0.785'></site>
+
                                         <!-- <geom class="collision" mesh="link7_collision"/> -->
 
                                         <body name="robot0:gripper_link" pos="0 0 0.107" euler="0 0 -0.785">
                                             <inertial pos="0 0 0" euler="0 0 0" mass="0.68" diaginertia="0.1 0.1 0.1" />
-                                            <geom class="visual" mesh="hand_visual"/>
+                                            <geom class="visual" mesh="hand_visual" rgba="0.2 0.2 0.2 1"/>
                                             <geom class="collision" mesh="hand_collision"/>
 
                                             <body name="robot0:virtual_weld_link" euler="-1.5708 0 -1.5708" pos="0 0 0.1"></body>
@@ -66,12 +67,12 @@
                                             <body childclass="robot0:Finger" name="robot0:r_gripper_finger_link" pos="0 0.0159 0.1" euler="0 1.5708 0">
                                                 <inertial diaginertia="0.1 0.1 0.1" mass="4" pos="-0.01 0 0"></inertial>
                                                 <joint axis="0 1 0" name="robot0:r_gripper_finger_joint" range="0 0.05"></joint>
-                                                <geom pos="0 -0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:r_gripper_finger_link" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
+                                                <geom pos="0 -0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:r_gripper_finger_link" rgba="0.2 0.2 0.2 1" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
                                             </body>
                                             <body childclass="robot0:Finger" name="robot0:l_gripper_finger_link" pos="0 -0.0159 0.1" euler="0 1.5708 0">
                                                 <inertial diaginertia="0.1 0.1 0.1" mass="4" pos="-0.01 0 0"></inertial>
                                                 <joint axis="0 -1 0" name="robot0:l_gripper_finger_joint" range="0 0.05"></joint>
-                                                <geom pos="0 0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:l_gripper_finger_link" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
+                                                <geom pos="0 0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:l_gripper_finger_link" rgba="0.2 0.2 0.2 1" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
                                             </body>
                                             <site name="robot0:grip" pos="0.02 0 0" rgba="0 0 0 0" size="0.02 0.02 0.02"></site>
                                         </body>
