@@ -37,6 +37,7 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
                             n_eigengrasps=n_eigengrasps,
                             object_size_multiplier=object_size_multiplier,
                             object_size_range=object_size_range)
+        self.height_offset = 0.415
         utils.EzPickle.__init__(self,
                                 n_eigengrasps=n_eigengrasps,
                                 object_size_multiplier=object_size_multiplier,

@@ -2,6 +2,9 @@
 <mujoco>
 	<include file="shared.xml"></include>
 	<include file="assets.xml"></include>
+
+	<size nconmax="200"></size>
+	<size njmax="1000"></size>
 	
 	<worldbody>
 	    <geom name="floor0" pos="0.4 0. 0" size="0.9 0.5 1" type="plane" condim="3" rgba="0.2 0.2 0.2 1"></geom>
