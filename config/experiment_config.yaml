@@ -1,5 +1,5 @@
 Default:
-  epochs: 1000
+  epochs: 5000
   cycles: 50
   rollouts: 2
   batches: 40
