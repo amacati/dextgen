@@ -8,7 +8,7 @@ import numpy as np
 import envs
 from envs.shadow_hand.flat_base import FlatSHBase
 from envs.rotations import embedding2mat, embedding2quat, quat2embedding, mat2embedding, quat_mul
-from envs.rotations import axisangle2quat
+from envs.rotations import axisangle2quat, mat2quat
 
 MODEL_XML_PATH = str(Path("ShadowHand", "flat_orient.xml"))
 
@@ -50,6 +50,22 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
         self.angle_min_tolerance = angle_min_tolerance
         self.angle_reduce_performance = angle_reduce_performance
         self.early_stop_ok = False
+
+    def _set_action(self, action: np.ndarray):
+        assert action.shape == (self.n_actions,)
+        action = (action.copy())  # ensure that we don't change the action outside of this scope
+        pos_ctrl, rot_ctrl, gripper_ctrl = action[:3], action[3:12], action[12]
+
+        pos_ctrl *= 0.05  # limit maximum change in position
+        # Transform rot_ctrl from matrix to quaternion
+        rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
+        rot_ctrl *= 0.2  # limit maximum change in orientation
+        gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
+        action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
+
+        # Apply action to simulation.
+        envs.utils.ctrl_set_action(self.sim, action)
+        envs.utils.mocap_set_action(self.sim, action)
 
     def _env_setup(self, initial_qpos: np.ndarray):
         # Mesh falls if it is rotated around its y axis -> reposition on setup so that the object
