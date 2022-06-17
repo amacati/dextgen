@@ -19,14 +19,6 @@ All required packages are included in the packages ``environment.yaml`` file. It
 .. warning::
     The ``Dockerfile`` included in the repository is used for CI purposes only. Training via Docker has not been tested and is not recommended.
 
-
-After you finished installing the conda environment, you can install this package by running
-
-.. code-block:: bash
-
-   $ python setup.py install
-
-
 Common issues
 ~~~~~~~~~~~~~
 If Mujoco is missing required environment variables, make sure to include the environment variable exports into your ``.bashrc`` file by replacing ``<user>`` with your user name.
