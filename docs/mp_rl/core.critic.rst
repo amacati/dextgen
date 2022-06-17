@@ -1,7 +1,7 @@
 .. _mp_rl.core.critic:
 
-critic
-======
+core.critic
+===========
 .. automodule:: mp_rl.core.critic
     :members:
 

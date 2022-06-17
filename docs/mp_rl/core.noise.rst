@@ -1,7 +1,7 @@
 .. _mp_rl.core.noise:
 
-noise
-=====
+core.noise
+==========
 .. automodule:: mp_rl.core.noise
     :members:
 

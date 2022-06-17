@@ -1,4 +1,16 @@
-"""Actor class and networks for DDPG."""
+"""The ``actor`` module contains the actor class as well as the actor networks.
+
+The :class:`.Actor` acts as a wrapper around the actual deterministic policy network to provide
+action selection, distributed training support and loading utilities.
+
+:class:`.DDP` is a vanilla deep deterministic policy network implementation.
+
+:class:`.PosePolicyNet` implements an actor network with three output heads, one for translation
+control, a second for rotation control and a third for gripper control. It uses a special
+internal orientation representation that smoothly varies in SO(3). See `On the Continuity of
+Rotation Representations in Neural Networks <https://ieeexplore.ieee.org/document/8953486>`_ for
+details.
+"""
 
 from pathlib import Path
 from typing import Tuple

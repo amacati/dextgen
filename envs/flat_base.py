@@ -1,7 +1,8 @@
 """Grasp base environment module.
 
 The overall module structure is based on OpenAI's fetch environments, but the module itself has
-largely been rewritten for our purpose.
+largely been rewritten for our purpose. This also applies to all environments in ``barrett_hand``,
+``parallel_jaw`` and ``shadow_hand``.
 
 See https://github.com/Farama-Foundation/Gym-Robotics/tree/main/gym_robotics/envs.
 """

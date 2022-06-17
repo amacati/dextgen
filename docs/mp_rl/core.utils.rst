@@ -1,7 +1,7 @@
 .. _mp_rl.core.utils:
 
-utils
-=====
+core.utils
+==========
 .. automodule:: mp_rl.core.utils
     :members:
 

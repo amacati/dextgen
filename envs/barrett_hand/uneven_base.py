@@ -21,8 +21,9 @@ class UnevenBarrettBase(FlatBarrettBase):
         """Initialize a BarrettHand environment with uneven ground.
 
         Args:
-            object_name: Name of the manipulation object in Mujoco
-            n_eigengrasps: Number of eigengrasps to use
+            object_name: Name of the manipulation object in Mujoco.
+            model_xml_path: Mujoco world xml file path.
+            n_eigengrasps: Number of eigengrasps to use.
             object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
         """
         super().__init__(object_name=object_name,

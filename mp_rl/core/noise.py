@@ -1,4 +1,9 @@
-"""Noise process classes that are used to sample possibly time correlated noise."""
+"""Noise process module.
+
+To support stateful noise with possibly more complex sampling procedures, this module defines an
+abstract :class:`.NoiseProcess` class that defines the noise sampling interface for the 
+:class:`mp_rl.core.actor.Actor`.
+"""
 
 from abc import ABC, abstractmethod
 from typing import Optional, Union

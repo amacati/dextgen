@@ -3,4 +3,3 @@
 Acknowledgements
 ================
 
-.. TODO: Insert acknowledgements

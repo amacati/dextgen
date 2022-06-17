@@ -1,4 +1,4 @@
-"""Utility functions for the mp_rl.core module.
+"""Utility module.
 
 MPI network parameter updates are based on OpenAI's baselines.
 See https://github.com/openai/baselines.
@@ -77,7 +77,7 @@ def sync_grads(network: nn.Module):
     """Synchronize gradiends across MPI workers by allreduce.
 
     Note:
-        In-place function. Does NOT average the gradients but sums them.
+        In-place function.
 
     Args:
         network: PyTorch module that synchronizes the parameter gradients.

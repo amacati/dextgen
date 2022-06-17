@@ -21,7 +21,7 @@ class UnevenPJBase(FlatPJBase):
 
         Args:
             object_name: Name of the manipulation object in Mujoco
-            n_eigengrasps: Number of eigengrasps to use
+            model_xml_path: Path to the Mujoco xml world file.
             object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
             n_actions: Action dimensionality of the environment.
         """

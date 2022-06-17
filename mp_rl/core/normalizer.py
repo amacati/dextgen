@@ -1,6 +1,7 @@
-"""Normalizer class file.
+"""Normalizer module.
 
-The normalizer is based on the implementation in https://github.com/openai/baselines.
+Enables distributed normalizers to keep preprocessing consistent across all nodes. The normalizer is
+based on the implementation in https://github.com/openai/baselines.
 """
 from pathlib import Path
 from typing import Optional

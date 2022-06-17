@@ -17,8 +17,9 @@ class UnevenSHBase(FlatSHBase):
         """Initialize an uneven ShadowHand environment.
 
         Args:
-            object_name: Name of the manipulation object in Mujoco
-            n_eigengrasps: Number of eigengrasps to use
+            object_name: Name of the manipulation object in Mujoco.
+            model_xml_path: Mujoco world xml file path.
+            n_eigengrasps: Number of eigengrasps to use.
         """
         super().__init__(object_name=object_name,
                          model_xml_path=model_xml_path,

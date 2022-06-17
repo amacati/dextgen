@@ -18,7 +18,6 @@ class ObstacleSHCube(FlatSHBase, utils.EzPickle):
         """Initialize a ShadowHand cube environment with an obstacle to avoid.
 
         Args:
-            object_name: Name of the manipulation object in Mujoco
             n_eigengrasps: Number of eigengrasps to use
         """
         self.obstacle_threshold = 0.1

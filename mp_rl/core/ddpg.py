@@ -1,6 +1,8 @@
-"""DDPG class encapsulating the Deep Deterministic Policy Gradient algorithm.
+"""``DDPG`` module encapsulating the Deep Deterministic Policy Gradient algorithm.
 
-Assumes dictionary gym environments.
+:class:`.DDPG` initializes the actor, critic, normalizers and noise processes, manages the
+synchronization between MPI nodes and takes care of checkpoints during training as well as network
+loading if starting from pre-trained networks. It assumes dictionary gym environments.
 """
 
 import argparse
@@ -109,8 +111,9 @@ class DDPG:
         Trajectories are resampled with HER to solve sparse reward environments. Supports
         distributed training across multiple processes.
 
-        .. DDPG paper:
-            https://arxiv.org/pdf/1509.02971.pdf
+        `DDPG paper <https://arxiv.org/pdf/1509.02971.pdf>`_
+
+        `HER paper <https://arxiv.org/pdf/1707.01495.pdf>`_
         """
         if self.rank == 0:
             status_bar = tqdm(total=self.args.epochs, desc="Epochs", position=0, leave=True)

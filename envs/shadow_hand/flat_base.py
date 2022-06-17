@@ -12,7 +12,7 @@ from envs.rotations import mat2quat, mat2embedding
 
 # The eigengrasps are exctracted from joint configurations obtained by fitting the ShadowHand to
 # hand poses from the ContactPose dataset. For more information, see
-# https://github.com/amacati/sh_eigen  TODO: Make repository public
+# TODO: Make repository public
 with open(Path(__file__).parent / "eigengrasps.json", "r") as f:
     eigengrasps = json.load(f)
     assert all([len(value["joints"]) == 20 for value in eigengrasps.values()])
@@ -70,7 +70,7 @@ class FlatSHBase(FlatBase):
     """FlatSH environment base class."""
 
     EIGENGRASPS = EIGENGRASPS
-    gripper_type = "SH"
+    gripper_type = "ShadowHand"
 
     def __init__(self,
                  object_name: str,

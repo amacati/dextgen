@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class FlatPJBase(FlatBase):
     """FlatPJ environment base class."""
 
-    gripper_type = "PJ"
+    gripper_type = "ParallelJaw"
 
     def __init__(self,
                  object_name: str,

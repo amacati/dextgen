@@ -1,9 +1,9 @@
-.. RLGrasps documentation master file.
+.. Dext-Gen documentation master file.
 
-RLGrasps documentation
-====================================
+Dext-Gen documentation
+======================
 
-RLGrasps is a project to learn dexterous grasping in MuJoCo with different gripper types. It builds on OpenAI's gym.
+Dext-Gen uses deep reinforcement learning with hindsight learning to achieve dexterous grasping in MuJoCo with different gripper types. It builds on OpenAI's gym.
 
 
 .. toctree::
@@ -15,23 +15,22 @@ RLGrasps is a project to learn dexterous grasping in MuJoCo with different gripp
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Environment Documentation
 
    envs/envs
-   envs/barrett
    envs/parallel_jaw
+   envs/barrett_hand
    envs/shadow_hand
-   envs/seaclear
    envs/rotations
    envs/utils
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Learning Documentation
 
-   mp_rl/mp_rl
+   mp_rl/core
    mp_rl/core.actor
    mp_rl/core.critic
    mp_rl/core.ddpg

@@ -50,7 +50,7 @@ class FlatBarrettBase(FlatBase):
     """FlatBarrett environment base class."""
 
     EIGENGRASPS = EIGENGRASPS
-    gripper_type = "Barrett"
+    gripper_type = "BarrettHand"
 
     def __init__(self,
                  object_name: str,

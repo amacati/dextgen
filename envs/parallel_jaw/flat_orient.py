@@ -26,6 +26,10 @@ class FlatPJOrient(FlatPJBase, utils.EzPickle):
         Args:
             object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
             object_size_range: Optional range to randomly enlarge/shrink object sizes.
+            angle_reduce_factor: Reduction factor per epoch callback.
+            angle_min_tolerance: Minimum angle goal tolerance.
+            angle_reduce_performance: Performance threshold above which an epoch callback reduces
+                the angle tolerances.
         """
         self.curr_object_rot = np.array([1, 0, 0, 0])
         FlatPJBase.__init__(self,

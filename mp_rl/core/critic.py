@@ -1,4 +1,10 @@
-"""Critic class and networks for DDPG."""
+"""The ``critic`` module contains the critic class as well as the critic network.
+
+The :class:`.Critic` acts as a wrapper around the actual critic Q-function to provide distributed
+training support and loading utilities.
+
+:class:`.CriticNetwork` is a vanilla deep state-action network implementation.
+"""
 from pathlib import Path
 
 import numpy as np

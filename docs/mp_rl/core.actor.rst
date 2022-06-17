@@ -1,10 +1,6 @@
 .. _mp_rl.core.actor:
 
-actor
-=====
+core.actor
+==========
 .. automodule:: mp_rl.core.actor
     :members:
-
-
-
-.. TODO: COMPLETE DOCS

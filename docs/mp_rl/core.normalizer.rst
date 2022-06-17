@@ -1,7 +1,7 @@
 .. _mp_rl.core.normalizer:
 
-normalizer
-==========
+core.normalizer
+===============
 .. automodule:: mp_rl.core.normalizer
     :members:
 
