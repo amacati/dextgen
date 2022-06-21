@@ -19,6 +19,14 @@ All required packages are included in the packages ``environment.yaml`` file. It
 .. warning::
     The ``Dockerfile`` included in the repository is used for CI purposes only. Training via Docker has not been tested and is not recommended.
 
+After installing the environment, make sure to activate it and run 
+
+.. code-block:: bash
+
+   $ python setup.py install
+
+from the repositories root folder to install the dext-gen packages.
+
 Common issues
 ~~~~~~~~~~~~~
 If Mujoco is missing required environment variables, make sure to include the environment variable exports into your ``.bashrc`` file by replacing ``<user>`` with your user name.
