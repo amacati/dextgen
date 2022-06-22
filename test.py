@@ -1,9 +1,13 @@
-"""Test a previously trained agent on an OpenAI gym environment."""
+"""Test a previously trained agent on an OpenAI gym environment.
+
+The MuJoCoVideoRecorder is a wrapper around OpenAI's gym VideoRecorder.
+"""
 
 import logging
 from pathlib import Path
 import time
 from typing import Optional, Tuple, Any
+import os
 
 import pickle
 import torch
@@ -28,6 +32,8 @@ class MujocoVideoRecorder(VideoRecorder):
             resolution: Resolution tuple.
             kwargs: VideoRecorder keyword arguments.
         """
+        self.encoder = None
+        os.environ.pop("LD_PRELOAD", None)  # See https://github.com/openai/mujoco-py/issues/187
         super().__init__(*args, **kwargs)
         self.resolution = resolution
 
@@ -110,7 +116,7 @@ if __name__ == "__main__":
                 except mujoco_py.cymj.GlfwError:
                     logger.warning("No display available, rendering disabled")
                     render = False
-            if early_stop == 5:
+            if early_stop == 10:
                 break
         success += info["is_success"]
     if record:
