@@ -4,5 +4,3 @@ core.utils
 ==========
 .. automodule:: mp_rl.core.utils
     :members:
-
-.. TODO: COMPLETE DOCS

@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 import time
 from typing import Optional, Tuple, Any
-import os
 
 import pickle
 import torch
@@ -33,7 +32,7 @@ class MujocoVideoRecorder(VideoRecorder):
             kwargs: VideoRecorder keyword arguments.
         """
         self.encoder = None
-        os.environ.pop("LD_PRELOAD", None)  # See https://github.com/openai/mujoco-py/issues/187
+        Path(kwargs["path"]).parent.mkdir(parents=True, exist_ok=True)
         super().__init__(*args, **kwargs)
         self.resolution = resolution
 
@@ -47,6 +46,8 @@ class MujocoVideoRecorder(VideoRecorder):
             return super().capture_frame()
         if not self.functional or self._closed:
             return
+        # For errors with OpenGL see https://github.com/openai/mujoco-py/issues/187
+        # Fix: $ unset LD_PRELOAD
         frame = self.env.render("rgb_array", width=self.resolution[0], height=self.resolution[1])
         if frame is None:
             if self._async:

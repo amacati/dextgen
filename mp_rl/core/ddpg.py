@@ -208,10 +208,6 @@ class DDPG:
 
         Args:
             ep_buffer: Buffer containing a trajectory of replay experience.
-
-        Todo:
-            It is unclear if sampling the goals from HER is necessary, or if the unmodified
-            trajectory can be used. This should be investigated and simplified if possible.
         """
         states, goals = ep_buffer.buffer["s"], ep_buffer.buffer["g"]
         self.state_norm.update(states)

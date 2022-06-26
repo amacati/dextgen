@@ -16,8 +16,8 @@ if on_rtd:
 # -- Project information -----------------------------------------------------
 
 project = 'Dext-Gen'
-copyright = '2022, anonymous'
-author = 'anonymous'
+copyright = '2022, Martin Schuck'
+author = 'Martin Schuck'
 
 # The full version, including alpha/beta/rc tags
 release = '0.1'
@@ -49,11 +49,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # a list of builtin themes.
 #
 html_theme = 'sphinx_book_theme'
-# TODO: REENABLE
-# html_theme_options = {
-#     "repository_url": "https://github.com/amacati/rl",
-#     "use_repository_button": True
-# }
+html_theme_options = {
+    "repository_url": "https://github.com/amacati/rl",
+    "use_repository_button": True
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

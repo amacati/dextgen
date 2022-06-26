@@ -4,6 +4,3 @@ core.normalizer
 ===============
 .. automodule:: mp_rl.core.normalizer
     :members:
-
-
-.. TODO: COMPLETE DOCS
