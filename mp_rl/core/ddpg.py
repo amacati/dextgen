@@ -1,6 +1,8 @@
-"""DDPG class encapsulating the Deep Deterministic Policy Gradient algorithm.
+"""``DDPG`` module encapsulating the Deep Deterministic Policy Gradient algorithm.
 
-Assumes dictionary gym environments.
+:class:`.DDPG` initializes the actor, critic, normalizers and noise processes, manages the
+synchronization between MPI nodes and takes care of checkpoints during training as well as network
+loading if starting from pre-trained networks. It assumes dictionary gym environments.
 """
 
 import argparse
@@ -20,11 +22,11 @@ from mpi4py import MPI
 import json
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.noise import GaussianNoise
-from mp_rl.core.actor import Actor
+from mp_rl.core.noise import GaussianNoise, OrnsteinUhlenbeckNoise
+from mp_rl.core.actor import Actor, PosePolicyNet
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
-from mp_rl.core.replay_buffer import HERBuffer, her_sampling, TrajectoryBuffer
+from mp_rl.core.replay_buffer import HERBuffer, TrajectoryBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +57,21 @@ class DDPG:
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
-        # noise_process = OrnsteinUhlenbeckNoise(args.mu, args.sigma, size_a)
-        noise_process = GaussianNoise(0, args.sigma, size_a)
-        self.actor = Actor(size_s + size_g, size_a, noise_process, args.actor_lr, args.eps,
+        if args.noise_process == "Gaussian":
+            noise_process = GaussianNoise(size_a, *args.noise_process_params)
+        elif args.noise_process == "OrnsteinUhlenbeck":
+            noise_process = OrnsteinUhlenbeckNoise(size_a, *args.noise_process_params)
+        else:
+            raise argparse.ArgumentError("Required argument 'noise_process' is missing")
+        self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
+                           args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
                            args.action_clip, args.grad_clip)
-        self.critic = Critic(size_s + size_g, size_a, args.critic_lr, args.grad_clip)
-        self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip)
-        self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip)
+        self.critic = Critic(size_s + size_g, size_a, args.critic_net_nlayers,
+                             args.critic_net_layer_width, args.critic_lr, args.grad_clip)
+        state_norm_idx = getattr(args, "state_norm_idx", None)
+        goal_norm_idx = getattr(args, "goal_norm_idx", None)
+        self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip, idx=state_norm_idx)
+        self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip, idx=goal_norm_idx)
         self.T = env._max_episode_steps
         self.buffer = HERBuffer(size_s,
                                 size_a,
@@ -76,23 +86,24 @@ class DDPG:
         self.rank = rank
         if dist and world_size > 1:
             self.init_dist()
-        self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
-        if not self.PATH.is_dir():
-            self.PATH.mkdir(parents=True, exist_ok=True)
-        # Create a unique backup path with the current time and resolve name collisions
-        if self.rank == 0:
-            self.BACKUP_PATH = self.PATH / "backup" / datetime.now().strftime("%Y_%m_%d_%H_%M")
-            if not self.BACKUP_PATH.is_dir():
-                self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+        if self.args.save:
+            self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
+            if not self.PATH.is_dir():
+                self.PATH.mkdir(parents=True, exist_ok=True)
+            # Create a unique backup path with the current time and resolve name collisions
+            if self.rank == 0:
+                self.BACKUP_PATH = self.PATH / "backup" / datetime.now().strftime("%Y_%m_%d_%H_%M")
+                if not self.BACKUP_PATH.is_dir():
+                    self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+                else:
+                    t = 1
+                    while self.BACKUP_PATH.is_dir():
+                        self.BACKUP_PATH = self.PATH / "backup" / (
+                            datetime.now().strftime("%Y_%m_%d_%H_%M") + f"_({t})")
+                        t += 1
+                    self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
             else:
-                t = 1
-                while self.BACKUP_PATH.is_dir():
-                    self.BACKUP_PATH = self.PATH / "backup" / (
-                        datetime.now().strftime("%Y_%m_%d_%H_%M") + f"_({t})")
-                    t += 1
-                self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
-        else:
-            self.BACKUP_PATH = None
+                self.BACKUP_PATH = None
 
     def train(self):
         """Train a policy to solve the environment with DDPG.
@@ -100,8 +111,9 @@ class DDPG:
         Trajectories are resampled with HER to solve sparse reward environments. Supports
         distributed training across multiple processes.
 
-        .. DDPG paper:
-            https://arxiv.org/pdf/1509.02971.pdf
+        `DDPG paper <https://arxiv.org/pdf/1509.02971.pdf>`_
+
+        `HER paper <https://arxiv.org/pdf/1707.01495.pdf>`_
         """
         if self.rank == 0:
             status_bar = tqdm(total=self.args.epochs, desc="Epochs", position=0, leave=True)
@@ -124,6 +136,7 @@ class DDPG:
                         state, agoal = next_state, next_agoal
                     ep_buffer.append(state, agoal)
                     self.buffer.append(ep_buffer)
+                    self.actor.noise_process.reset()
                 self._update_norm(ep_buffer)
                 for _ in range(self.args.batches):
                     self._train_agent()
@@ -133,7 +146,7 @@ class DDPG:
             av_success = self.eval_agent()
             if hasattr(self.env, "epoch_callback"):
                 assert callable(self.env.epoch_callback)
-                self.env.epoch_callback(epoch)
+                self.env.epoch_callback(epoch, av_success)
             if self.rank == 0:
                 ep_success.append(av_success)
                 ep_time.append(epoch_end - epoch_start)
@@ -143,14 +156,16 @@ class DDPG:
                     self.save_models()
                     self.save_plots(ep_success, ep_time)
                     self.save_stats(ep_success, ep_time)
-            if av_success > self.args.early_stop:
+            if av_success >= self.args.early_stop and self.env.early_stop_ok:
                 if self.rank == 0 and self.args.save:
                     self.save_models()
+                    self.save_models(path=self.BACKUP_PATH)
                     self.save_plots(ep_success, ep_time)
                     self.save_stats(ep_success, ep_time)
                 return
         if self.rank == 0 and self.args.save:
             self.save_models()
+            self.save_models(path=self.BACKUP_PATH)
             self.save_plots(ep_success, ep_time)
             self.save_stats(ep_success, ep_time)
 
@@ -168,10 +183,20 @@ class DDPG:
             torch.clip(rewards_T, -1 / (1 - self.args.gamma), 0, out=rewards_T)
         q_T = self.critic(obs_T, actions_T)
         critic_loss_T = (rewards_T - q_T).pow(2).mean()
-        actions_T = self.actor(obs_T)
+
+        # Regularize tanh activation in PosePolicyNets to prevent saturation and possibly parallel
+        # rotation vectors (leads to random orientations and bad policies, see ``PosePolicyNet`` for
+        # details)
+        if isinstance(self.actor.action_net, PosePolicyNet):
+            actions_T, activation_T = self.actor.action_net.forward_include_network_output(obs_T)
+            activation_norm_T = self.args.action_norm * (activation_T[..., 3:9]).pow(2).mean()
+        else:
+            actions_T = self.actor(obs_T)
         next_q_T = self.critic(obs_T, actions_T)
-        action_norm_T = self.args.action_norm * (actions_T / self.action_max).pow(2).mean()
-        actor_loss_T = -next_q_T.mean() + action_norm_T
+        if isinstance(self.actor.action_net, PosePolicyNet):
+            actor_loss_T = -next_q_T.mean() + activation_norm_T
+        else:
+            actor_loss_T = -next_q_T.mean()
         self.actor.backward_step(actor_loss_T)
         self.critic.backward_step(critic_loss_T)
 
@@ -183,14 +208,8 @@ class DDPG:
 
         Args:
             ep_buffer: Buffer containing a trajectory of replay experience.
-
-        Todo:
-            It is unclear if sampling the goals from HER is necessary, or if the unmodified
-            trajectory can be used. This should be investigated and simplified if possible.
         """
-        buffers = [np.expand_dims(ep_buffer[x], axis=0) for x in ("s", "a", "g", "ag")]
-        states, _, _, _, goals = her_sampling(*buffers, self.T, self.buffer.p_her,
-                                              self.env.compute_reward)
+        states, goals = ep_buffer.buffer["s"], ep_buffer.buffer["g"]
         self.state_norm.update(states)
         self.goal_norm.update(goals)
 

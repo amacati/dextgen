@@ -1,7 +1,12 @@
-"""Noise process classes that are used to sample possibly time correlated noise."""
+"""Noise process module.
+
+To support stateful noise with possibly more complex sampling procedures, this module defines an
+abstract :class:`.NoiseProcess` class that defines the noise sampling interface for the
+:class:`mp_rl.core.actor.Actor`.
+"""
 
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -35,18 +40,20 @@ class OrnsteinUhlenbeckNoise(NoiseProcess):
     applications.
     """
 
-    def __init__(self, mu: T, sigma: T, dims: int):
+    def __init__(self, dims: int, mu: T, sigma: T, clip: Optional[float] = None):
         """Initialize the noise process.
 
         Args:
+            dims: Noise dimension.
             mu: Previous noise reduction factor.
             sigma: Standard deviation of the gaussian noise in each step.
-            dims: Noise dimension.
+            clip: Optional noise clipping parameter.
         """
         self.mu = mu
         self.sigma = sigma
         self.dims = dims
         self.noise = np.zeros(dims, dtype=np.float32)
+        self.clip = clip
 
     def sample(self) -> np.ndarray:
         """Sample from the noise process.
@@ -54,8 +61,10 @@ class OrnsteinUhlenbeckNoise(NoiseProcess):
         Returns:
             A numpy array of noise that is correlated with previous samples.
         """
-        self.noise = -self.noise * self.mu + self.sigma * np.random.randn(self.dims)
-        return self.noise
+        self.noise -= self.noise * self.mu + np.random.normal(scale=self.sigma, size=self.dims)
+        if self.clip is not None:
+            self.noise = np.clip(self.noise, -self.clip, self.clip)
+        return self.noise.copy()
 
     def reset(self):
         """Reset the internal noise process state to start from 0."""
@@ -65,17 +74,17 @@ class OrnsteinUhlenbeckNoise(NoiseProcess):
 class GaussianNoise(NoiseProcess):
     """Standard gaussian noise with uncorrelated samples."""
 
-    def __init__(self, mu: T, sigma: T, dims: int):
+    def __init__(self, dims: int, mu: T, sigma: T):
         """Initialize the noise process.
 
         Args:
+            dims: Noise dimension.
             mu: Gaussian mean.
             sigma: Gaussian variance.
-            dims: Noise dimension.
         """
+        self.dims = dims
         self.mu = mu
         self.sigma = sigma
-        self.dims = dims
 
     def sample(self) -> np.ndarray:
         """Sample from the noise process.
@@ -83,7 +92,7 @@ class GaussianNoise(NoiseProcess):
         Returns:
             A numpy array of gaussian noise.
         """
-        return self.mu + self.sigma * np.random.randn(self.dims)
+        return np.random.normal(self.mu, self.sigma, self.dims)
 
     def reset(self):
         """Gaussian noise is stateless, reset is a no-op."""

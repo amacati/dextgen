@@ -1,5 +1,10 @@
-"""Normalizer class file."""
+"""Normalizer module.
+
+Enables distributed normalizers to keep preprocessing consistent across all nodes. The normalizer is
+based on the implementation in https://github.com/openai/baselines.
+"""
 from pathlib import Path
+from typing import Optional
 
 import pickle
 import numpy as np
@@ -13,7 +18,12 @@ class Normalizer:
     multiple processes via MPI.
     """
 
-    def __init__(self, size: int, world_size: int, eps: float = 1e-2, clip: float = np.inf):
+    def __init__(self,
+                 size: int,
+                 world_size: int,
+                 eps: float = 1e-2,
+                 clip: float = np.inf,
+                 idx: Optional[np.ndarray] = None):
         """Initialize local and global buffer arrays for distributed mode.
 
         Args:
@@ -21,6 +31,7 @@ class Normalizer:
             world_size: MPI communication group size.
             eps: Minimum variance value to ensure numeric stability. Has to be larger than 0.
             clip: Clipping value for normalized data.
+            idx: Optional index list that selects which entries should be normalized.
         """
         self.size = size
         self.world_size = world_size
@@ -40,6 +51,7 @@ class Normalizer:
         self.std = np.ones(size, dtype=np.float32)
         self.coal_buffer = np.zeros(size * 2 + 1, dtype=np.float32)
         self.dist = False
+        self.idx = idx
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         """Alias for `self.normalize`."""
@@ -48,12 +60,20 @@ class Normalizer:
     def normalize(self, x: np.ndarray) -> np.ndarray:
         """Normalize the input data with the current mean and variance estimate.
 
+        If the normalizer was initialized with an index array, only the entries corresponding to the
+        indices are normalized. The rest of the array is returned unchanged.
+
         Args:
             x: Input data array.
 
         Returns:
             The normalized data.
         """
+        if self.idx is not None:
+            _x = x.copy()  # Make sure the input array remains unchanged
+            _norm = (x[..., self.idx] - self.mean[..., self.idx]) / self.std[..., self.idx]
+            _x[..., self.idx] = np.clip(_norm, -self.clip, self.clip)
+            return _x
         return np.clip((x - self.mean) / self.std, -self.clip, self.clip)
 
     def update(self, x: np.ndarray):

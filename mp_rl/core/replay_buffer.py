@@ -1,4 +1,11 @@
-"""Replay buffer collection."""
+"""The ``replay_buffer`` module contains various buffer types.
+
+Buffers follow a common interface defined in :class:`.ReplayBuffer`. Actual implementations contain
+the :class:`.HERBuffer` as well as a default :class:`.MemoryBuffer` without special sampling.
+
+The :class:`.TrajectoryBuffer` is not a replay buffer, but holds experience from an episode of fixed
+time length. It is a convenience class for storing experience in an orderly fashion during training.
+"""
 
 from abc import ABC, abstractmethod
 from typing import Callable, Union, Tuple, List
@@ -29,7 +36,7 @@ class ReplayBuffer(ABC):
 
 
 class TrajectoryBuffer:
-    """Trajectory buffer to hold a single trajectory of fixed time horizon from one run."""
+    """Trajectory buffer to hold a single trajectory of fixed time horizon from a single episode."""
 
     def __init__(self, size_s: int, size_a: int, size_g: int, T: int):
         """Initialize the buffers for states, actions, goals and achieved goals.

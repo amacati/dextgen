@@ -12,7 +12,8 @@ from mp_rl.core.ddpg import DDPG
 @pytest.mark.parametrize("env", envs.available_envs)
 def test_ddpg(env):
     args = load_args(env)
-    env = gym.make(args.env)
+    args.save = False  # Avoid creating folders for tests
+    env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
     ddpg = DDPG(env, args)
     ddpg.train()
 

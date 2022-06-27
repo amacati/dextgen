@@ -1,5 +1,5 @@
 Default:
-  epochs: 50
+  epochs: 5000
   cycles: 50
   rollouts: 2
   batches: 40
@@ -13,8 +13,8 @@ Default:
   tau: 0.05  # 1-tau is Polyak factor
 
   eps: 0.3  # Fraction of completely random actions
-  mu: 0.15  # Ornstein-Uhlenbeck mu
-  sigma: 0.2  # Ornstein-Uhlenbeck or Gaussian noise sigma
+  noise_process: "Gaussian"  # Either Gaussian or Ornstein-Uhlenbeck
+  noise_process_params: [0., 0.2]  # For Gaussian noise: mean, variance. For Ornstein-Uhlenbeck: mu, sigma, Optional[clipping]
   k: 4  # Ratio of HER experience vs normal experience
 
   action_clip: 1.
@@ -22,48 +22,155 @@ Default:
   goal_clip: 200.
   grad_clip: 5.
   action_norm: 1.  # Action regularization
+  actor_net_type: "PosePolicyNet"
+  actor_net_nlayers: 4
+  actor_net_layer_width: 256
+  critic_net_nlayers: 4
+  critic_net_layer_width: 256
 
-  early_stop: 0.98
+  early_stop: 0.95
   save: True
   load_pretrained: False
   seed: False  # Integer > 0 or False if no custom seed should be used
 
-ShadowHandPickAndPlace-v0:
-  epochs: 1000
-  kwargs:
-    p_grasp_start: 0.5
+# Environment specific configurations. Arguments overwrite the default config.
 
-ShadowHandEigengrasps-v0:
-  epochs: 1000
+# ShadowHand state:
+# grip_pos (0:3), grip_rot (3:9), grip_state (9:33), grip_velp (33:36), object_pos (36:39),
+# object_rel_pos (39:42), object_rot (42:48), object_rel_rot (48:54), object_velp (54:57),
+# object_velr (57:60)
+
+FlatSHSphere-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
+  kwargs:
+    n_eigengrasps: 7
+
+FlatSHCube-v0:
   load_pretrained: True
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
-    n_eigengrasps: 6
-    p_grasp_start: 0.0
+    n_eigengrasps: 7
 
-ShadowHandGravity-v0:
-  epochs: 1000
+FlatSHCylinder-v0:
+  load_pretrained: True
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
-    n_eigengrasps: 6
-    n_increase_epochs: 100  # Number of episodes over which the gravity is increased from 0g to 1g
+    n_eigengrasps: 7
 
-ShadowHandMultiObject-v0:
-  epochs: 1000
+FlatSHMesh-v0:
+  load_pretrained: False
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
-    n_eigengrasps: 6
-    p_grasp_start: 0.5
+    n_eigengrasps: 7
 
-ShadowHandVariationalSize-v0:
-  epochs: 1000
+FlatSHAll-v0:
+  load_pretrained: True
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
-    p_grasp_start: 0.5
+    n_eigengrasps: 7
 
-ShadowHandOrientation-v0:
-  epochs: 1000
+FlatSHOrient-v0:
+  goal_norm_idx: [0, 1, 2]
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
-    p_rotation_start: 0.3
-    p_grasp_start: 0.5  # p_rotation_start applied first -> (1 - p_rotation_start) * p_grasp_start
-    n_eigengrasps: 6
+    n_eigengrasps: 7
 
-ShadowHandPretrain-v0:
+
+ObstacleSHCube-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
   kwargs:
-    p_grasp_start: 0.5
+    n_eigengrasps: 7
+
+UnevenSHCube-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
+  kwargs:
+    n_eigengrasps: 7
+
+UnevenSHMesh-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                   27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 54, 55, 56, 57, 58,
+                   59]
+  kwargs:
+    n_eigengrasps: 7
+
+# Barrett state:
+# grip_pos (0:3), grip_rot (3:9), grip_state (9:17), grip_velp (17:20), object_pos (20:23),
+# object_rel_pos (23:26), object_rot (26:32), object_rel_rot (32:38), object_velp (38:41),
+# object_velr (41:44)
+
+FlatBarrettSphere-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
+
+FlatBarrettCube-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
+
+FlatBarrettCylinder-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
+
+FlatBarrettMesh-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
+
+FlatBarrettAll-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 38, 39, 40, 41, 42, 43]
+
+# PJ state:
+# grip_pos (0:3), grip_rot (3:9), grip_state (9:11), grip_velp (11:14), object_pos (14:17),
+# object_rel_pos (17:20), object_rot (20:26), object_rel_rot (26:32), object_velp (32:35),
+# object_velr (35:38)
+
+# PJ goal:
+# goal_pos (0:3), [for FlatPJOrient: goal_rot (3:9)]
+
+FlatPJSphere-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJCube-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJCylinder-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJMesh-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJAll-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FlatPJOrient-v0:
+# Try reducing fraction of random actions?
+  goal_norm_idx: [0, 1, 2]  # Orient includes orientation goal that should not be normalized
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+# grip_pos (0:3), grip_rot (3:6), grip_state (6:8), grip_velp (8:11), object_pos (11:14),
+# object_rel_pos (14:17), object_rot (17:20), object_rel_rot (20:23), object_velp (23:26),
+# object_velr (26:29)
+
+FlatPJOrientEuler-v0:
+  actor_net_type: "DDP"
+
+# SeaClear state:  
+# grip_pos (0:3), grip_rot(3:9), grip_state(9:11), grip_velp(11:14), object_pos(14:17), object_rel_pos(17:20), object_rot(20:26), object_rel_rot(26:32), object_velp(32:35), object_velr(35:38)
+
+SeaClear-v0:
+  actor_net_type: "DDP"
+  load_pretrained: False
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+
+FetchPickAndPlace-v1:
+  actor_net_type: "DDP"

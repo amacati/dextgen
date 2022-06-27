@@ -1,6 +1,8 @@
 """Utils copy from the robot environments in OpenAI's gym.
 
-Files have been removed from the current gym implementation.
+This file was modified to additionally include our utility functions.
+
+See https://github.com/Farama-Foundation/Gym-Robotics.
 """
 import numpy as np
 from typing import Tuple

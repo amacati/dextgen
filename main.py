@@ -37,17 +37,19 @@ if __name__ == "__main__":
         "ERROR": logging.ERROR
     }
     logging.basicConfig(level=loglvls[args.loglvl])
-    if hasattr(args, "kwargs") and args.kwargs:
-        env = gym.make(args.env, **args.kwargs)
-    else:
-        env = gym.make(args.env)
+    env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
     comm = MPI.COMM_WORLD
     if args.seed:
         assert isinstance(args.seed, int)
         set_seed(env, args.seed + comm.Get_rank())
     ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     if args.load_pretrained:
-        path = Path(__file__).parent / "saves" / "pretrained" / args.env
-        logger.info(f"Loading pretrained DDPG model from {path}")
-        ddpg.load_pretrained(path)
+        path = Path(__file__).parent / "saves" / "pretrain" / args.env
+        if path.exists():
+            logger.info(f"Loading pretrained DDPG model from {path}")
+            ddpg.load_pretrained(path)
+        else:
+            path = Path(__file__).parent / "saves" / "pretrain" / env.gripper_type
+            logger.info(f"Loading default pretrained DDPG model from {path}")
+            ddpg.load_pretrained(path)
     ddpg.train()

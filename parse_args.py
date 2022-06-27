@@ -16,11 +16,11 @@ def parse_args() -> argparse.Namespace:
     Returns:
         The parsed arguments as a namespace.
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--env",
                         help="Selects the gym environment",
                         choices=envs.available_envs,
-                        default="FetchReach-v1")
+                        required=True)
     parser.add_argument('--loglvl',
                         help="Logger levels",
                         choices=["DEBUG", "INFO", "WARN", "ERROR"],

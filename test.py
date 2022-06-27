@@ -1,4 +1,7 @@
-"""Test a previously trained agent on an OpenAI gym environment."""
+"""Test a previously trained agent on an OpenAI gym environment.
+
+The MuJoCoVideoRecorder is a wrapper around OpenAI's gym VideoRecorder.
+"""
 
 import logging
 from pathlib import Path
@@ -13,7 +16,7 @@ import mujoco_py
 import envs  # Import registers environments with gym  # noqa: F401
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.actor import ActorNetwork
+from mp_rl.core.actor import PosePolicyNet, DDP
 from parse_args import parse_args
 
 
@@ -28,6 +31,8 @@ class MujocoVideoRecorder(VideoRecorder):
             resolution: Resolution tuple.
             kwargs: VideoRecorder keyword arguments.
         """
+        self.encoder = None
+        Path(kwargs["path"]).parent.mkdir(parents=True, exist_ok=True)
         super().__init__(*args, **kwargs)
         self.resolution = resolution
 
@@ -41,6 +46,8 @@ class MujocoVideoRecorder(VideoRecorder):
             return super().capture_frame()
         if not self.functional or self._closed:
             return
+        # For errors with OpenGL see https://github.com/openai/mujoco-py/issues/187
+        # Fix: $ unset LD_PRELOAD
         frame = self.env.render("rgb_array", width=self.resolution[0], height=self.resolution[1])
         if frame is None:
             if self._async:
@@ -62,14 +69,16 @@ if __name__ == "__main__":
     }
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
-    if hasattr(args, "kwargs") and args.kwargs:
-        env = gym.make(args.env, **args.kwargs)
-    else:
-        env = gym.make(args.env)
+    env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
     size_s = len(env.observation_space["observation"].low) + len(
         env.observation_space["desired_goal"].low)
     size_a = len(env.action_space.low)
-    actor = ActorNetwork(size_s, size_a)
+    if args.actor_net_type == "DDP":
+        actor = DDP(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
+    elif args.actor_net_type == "PosePolicyNet":
+        actor = PosePolicyNet(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
+    else:
+        raise KeyError(f"Actor network type {args.actor_net_type} not supported")
     path = Path(__file__).parent / "saves" / args.env
     actor.load_state_dict(torch.load(path / "actor.pt"))
     with open(path / "state_norm.pkl", "rb") as f:
@@ -83,21 +92,23 @@ if __name__ == "__main__":
         path = Path(__file__).parent / "video" / (args.env + ".mp4")
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
-    early_stop = 0
-    for _ in range(args.ntests):
+    for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
+        t = 0
+        early_stop = 0
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
-            state, goal = torch.as_tensor(state,
-                                          dtype=torch.float32), torch.as_tensor(goal,
-                                                                                dtype=torch.float32)
+            state = torch.as_tensor(state, dtype=torch.float32)
+            goal = torch.as_tensor(goal, dtype=torch.float32)
             with torch.no_grad():
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)
             state, goal, _ = unwrap_obs(next_obs)
             early_stop = (early_stop + 1) if not reward else 0
             if record:
+                t += 1
+                print(f"Capturing test {i+1} Frame {t}")
                 recorder.capture_frame()
             if render and not record:
                 try:
@@ -106,7 +117,7 @@ if __name__ == "__main__":
                 except mujoco_py.cymj.GlfwError:
                     logger.warning("No display available, rendering disabled")
                     render = False
-            if early_stop == 5 and not record:
+            if early_stop == 10:
                 break
         success += info["is_success"]
     if record:

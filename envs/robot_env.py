@@ -1,6 +1,8 @@
 """Robot_env copy from the robot environments in OpenAI's gym.
 
-Files have been removed from the current gym implementation.
+Minor changes have been made for our use case.
+
+See https://github.com/Farama-Foundation/Gym-Robotics.
 """
 
 import os
@@ -45,13 +47,14 @@ class RobotEnv(gym.GoalEnv):
         self.sim = mjpy.MjSim(model, nsubsteps=n_substeps)
         self.viewer = None
         self._viewers = {}
+        self._contact_info = False
 
         self.metadata = {
             "render.modes": ["human", "rgb_array"],
             "video.frames_per_second": int(np.round(1.0 / self.dt)),
         }
 
-        self.seed()
+        self.seed(1)
         self._env_setup(initial_qpos=initial_qpos)
         self.initial_state = copy.deepcopy(self.sim.get_state())
 
@@ -73,6 +76,7 @@ class RobotEnv(gym.GoalEnv):
                                        shape=obs["observation"].shape,
                                        dtype="float32"),
             ))
+        self.seed()
 
     @property
     def dt(self) -> float:
@@ -104,10 +108,13 @@ class RobotEnv(gym.GoalEnv):
         obs = self._get_obs()
 
         done = False
+        reward = self.compute_reward(obs["achieved_goal"], self.goal, None)
         info = {
-            "is_success": self._is_success(obs["achieved_goal"], self.goal),
+            "is_success": reward == 0,
         }
-        reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
+        if self._contact_info:
+            info["contact_info"] = self._get_contact_info()
+
         return obs, reward, done, info
 
     def reset(self) -> Dict[str, np.ndarray]:
@@ -153,6 +160,17 @@ class RobotEnv(gym.GoalEnv):
             return data[::-1, :, :]
         elif mode == "human":
             self._get_viewer(mode).render()
+
+    def enable_contact_info(self, val: bool = True):
+        """Enable contact information between the gripper and the object in the info step return.
+
+        Has to be a function since gym wraps the environment in a `TimeLimit` object which does not
+        forward attribute changes.
+
+        Args:
+            val: Flag to enable or disable contact information. Default is True.
+        """
+        self._contact_info = val
 
     def _get_viewer(self, mode: str) -> Union[mjpy.MjViewer, mjpy.MjRenderContextOffscreen]:
         self.viewer = self._viewers.get(mode)
