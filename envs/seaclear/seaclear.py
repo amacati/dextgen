@@ -27,7 +27,7 @@ class SeaClear(FlatBase):
         """
         self.mocap_offset = np.array([0., 0., 0.])
         self._obs_dist = 0.15
-        self._obs_threshold = 0.1
+        self.obs_threshold = 0.1
         model_xml_path = FANCY_MODEL_XML_PATH if fancy_world else DEFAULT_MODEL_XML_PATH
         super().__init__(model_xml_path=model_xml_path,
                          gripper_extra_height=0.45,
@@ -93,7 +93,7 @@ class SeaClear(FlatBase):
 
         return {
             "observation": obs.copy(),
-            "achieved_goal": np.concatenate((achieved_goal, self.goal[3:6])),
+            "achieved_goal": np.concatenate((achieved_goal, self.goal[3:9])),
             "desired_goal": self.goal.copy(),
         }
 
@@ -105,19 +105,22 @@ class SeaClear(FlatBase):
             goal: Desired goal.
         """
         goal_d = goal_distance(achieved_goal[..., :3], goal[..., :3])
-        obstacle_d = goal_distance(achieved_goal[..., 3:6], goal[..., 3:6])
+        obstacle_d1 = goal_distance(achieved_goal[..., :3], goal[..., 3:6])
+        obstacle_d2 = goal_distance(achieved_goal[..., :3], goal[..., 6:9])
         goal_reward = -(goal_d > self.target_threshold).astype(np.float32)
-        obstacle_reward = -(obstacle_d > self._obs_threshold).astype(np.float32)
+        obstacle_violation = (obstacle_d1 < self.obs_threshold) | (obstacle_d2 < self.obs_threshold)
+        obstacle_reward = -(obstacle_violation).astype(np.float32)
         return goal_reward + obstacle_reward
 
     def _render_callback(self):
         # Visualize target.
-        sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
         site_id = self.sim.model.site_name2id("target0")
-        self.sim.model.site_pos[site_id] = self.goal[:3] - sites_offset[0]
-        # Visualize obstacle
+        self.sim.model.site_pos[site_id] = self.goal[:3]
+        # Visualize obstacles
         site_id = self.sim.model.site_name2id("obstacle0")
-        self.sim.model.site_pos[site_id] = self.goal[3:6] - sites_offset[site_id]
+        self.sim.model.site_pos[site_id] = self.goal[3:6]
+        site_id = self.sim.model.site_name2id("obstacle1")
+        self.sim.model.site_pos[site_id] = self.goal[6:9]
         self.sim.forward()
 
     def _set_object_pose(self):
@@ -137,32 +140,30 @@ class SeaClear(FlatBase):
         self.sim.data.set_mocap_pos("robot0:mocap", gripper_pos)
         self.sim.data.set_mocap_quat("robot0:mocap", gripper_rot)
 
-    def _sample_object_pose(self) -> np.ndarray:
-        object_pose = np.zeros(7)
-        object_pose[:2] = self.np_random.uniform(-self.target_range, self.target_range, size=2)
-        return object_pose
-
     def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
-        self._env_setup(self.initial_qpos)  # Rerun env setup to get new start poses for the robot
+        self._env_setup(self.initial_qpos)
         return True
 
     def _sample_goal(self) -> np.ndarray:
-        goal = self.np_random.uniform(-self.target_range, self.target_range, size=3)
+        goal = np.zeros(9)
+        goal[:2] = self.np_random.uniform(-self.target_range, self.target_range, size=2)
         goal[2] = self.np_random.uniform(0.2, 0.45)
-        obstacle = self.np_random.uniform(-self.target_range, self.target_range, size=3)
-        obstacle[2] = 1000  # TODO: Reenable obstacle
-        object_pos = self.sim.data.get_site_xpos(self.object_name)
-        d_obj = goal_distance(obstacle[:2], object_pos[:2])
-        d_goal = goal_distance(obstacle[:2], goal[:2])
-        d_grip = goal_distance(obstacle[:2], self.gripper_start_pos[:2])
-        while any([d < self._obs_dist for d in (d_obj, d_goal, d_grip)]):
+        for i in range(2):
             obstacle = self.np_random.uniform(-self.target_range, self.target_range, size=3)
-            obstacle[2] = 1000
+            obstacle[2] = 0.05
+            object_pos = self.sim.data.get_site_xpos(self.object_name)
             d_obj = goal_distance(obstacle[:2], object_pos[:2])
             d_goal = goal_distance(obstacle[:2], goal[:2])
             d_grip = goal_distance(obstacle[:2], self.gripper_start_pos[:2])
-        return np.concatenate((goal, obstacle))
+            while any([d < self._obs_dist for d in (d_obj, d_goal, d_grip)]):
+                obstacle = self.np_random.uniform(-self.target_range, self.target_range, size=3)
+                obstacle[2] = 0.05
+                d_obj = goal_distance(obstacle[:2], object_pos[:2])
+                d_goal = goal_distance(obstacle[:2], goal[:2])
+                d_grip = goal_distance(obstacle[:2], self.gripper_start_pos[:2])
+            goal[(i + 1) * 3:(i + 2) * 3] = obstacle
+        return goal
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[:3], desired_goal[:3])
