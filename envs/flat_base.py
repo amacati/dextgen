@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class FlatBase(envs.robot_env.RobotEnv):
     """Base class for all grasp environments."""
 
-    n_substeps = 20
+    n_substeps = 10
 
     def __init__(self,
                  model_xml_path: str,
@@ -96,7 +96,10 @@ class FlatBase(envs.robot_env.RobotEnv):
             contact = self.sim.data.contact[i]
             geom1 = self.sim.model.geom_id2name(contact.geom1)
             geom2 = self.sim.model.geom_id2name(contact.geom2)
-            if self.object_name in (geom1, geom2):
+            if self.object_name in (geom1, geom2) and ("robot0" in geom1 or "robot0" in geom2):
+                # Always have the gripper link as the first geometry and the object as the second
+                geom1 = geom2 if geom1 == self.object_name else geom1
+                geom2 = self.object_name
                 contact_force = np.zeros(6, dtype=np.float64)
                 # Contact force is 3 forces + 3 torques
                 mujoco_py.functions.mj_contactForce(self.sim.model, self.sim.data, i, contact_force)
@@ -112,6 +115,33 @@ class FlatBase(envs.robot_env.RobotEnv):
                 }
                 contact_info.append(info)
         return contact_info
+
+    def _get_gripper_info(self) -> Dict:
+        pos = self.sim.data.get_site_xpos("robot0:grip")
+        orient = self.sim.data.get_site_xmat("robot0:grip")
+        robot_qpos, _ = envs.utils.robot_get_obs(self.sim)
+        if self.gripper_type == "ParallelJaw":
+            state = robot_qpos[-2:]
+        elif self.gripper_type == "BarrettHand":
+            state = robot_qpos[-8:]
+        elif self.gripper_type == "ShadowHand":
+            state = robot_qpos[-24:]
+        elif self.gripper_type == "SeaClear":
+            state = robot_qpos[-2]
+        else:
+            raise RuntimeError("Gripper type not supported")
+        return {"pos": pos, "orient": orient, "state": state, "type": self.gripper_type}
+
+    def _get_object_info(self) -> Dict:
+        object_pos = self.sim.data.get_site_xpos(self.object_name)
+        object_orient = self.sim.data.get_site_xmat(self.object_name)
+        object_size = self.sim.model.geom_size(self.sim.model.geom_name2id(self.object_name))
+        return {
+            "pos": object_pos,
+            "orient": object_orient,
+            "name": self.object_name,
+            "size": object_size
+        }
 
     def _viewer_setup(self):
         body_id = self.sim.model.body_name2id("robot0:gripper_link")

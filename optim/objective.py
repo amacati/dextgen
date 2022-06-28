@@ -4,7 +4,7 @@ from jax import jit, grad
 from constraints import _homogeneous_force_jax, _homogeneous_force_jax_grad
 
 
-def generate_objective(cp_normals, max_angle_t):
+def create_objective(cp_normals, max_angle_t):
 
     def objective(x, grad):
         if grad.size > 0:

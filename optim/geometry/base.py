@@ -1,0 +1,28 @@
+from abc import ABC
+from typing import Dict
+
+import numpy as np
+
+from optim.geometry.rotations import mat2quat
+
+
+class Geometry(ABC):
+
+    EQ_CNST_TOL = 1e-6
+    INEQ_CNST_TOL = 1e-6
+    MAX_ALPHA = np.pi / 4
+    MAX_ALPHAC = np.cos(MAX_ALPHA)
+    MIN_DST = 0.001
+    FMIN = 0.01
+    FMAX = 1000
+
+    def __init__(self, info: Dict):
+        self.com = np.array(info["object_info"]["pos"])
+        self.pos = np.array(info["object_info"]["pos"])
+        self.orient_mat = np.array(info["object_info"]["orient"])
+        self.orient_q = mat2quat(self.orient_mat)
+        self.size = np.array(info["object_info"]["size"])
+        self.con_pts = info["contact_info"]
+        for con_pt in self.con_pts:  # Numpify contact point arrays
+            for key in ("contact_force", "pos", "frame"):
+                con_pt[key] = np.array(con_pt[key])

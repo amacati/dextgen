@@ -47,7 +47,7 @@ class RobotEnv(gym.GoalEnv):
         self.sim = mjpy.MjSim(model, nsubsteps=n_substeps)
         self.viewer = None
         self._viewers = {}
-        self._contact_info = False
+        self._info = False
 
         self.metadata = {
             "render.modes": ["human", "rgb_array"],
@@ -112,8 +112,10 @@ class RobotEnv(gym.GoalEnv):
         info = {
             "is_success": reward == 0,
         }
-        if self._contact_info:
+        if self._info:
             info["contact_info"] = self._get_contact_info()
+            info["gripper_info"] = self._get_gripper_info()
+            info["object_info"] = self._get_object_info()
 
         return obs, reward, done, info
 
@@ -170,7 +172,7 @@ class RobotEnv(gym.GoalEnv):
         Args:
             val: Flag to enable or disable contact information. Default is True.
         """
-        self._contact_info = val
+        self._info = val
 
     def _get_viewer(self, mode: str) -> Union[mjpy.MjViewer, mjpy.MjRenderContextOffscreen]:
         self.viewer = self._viewers.get(mode)

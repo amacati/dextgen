@@ -4,41 +4,43 @@ from itertools import combinations
 import numpy as np
 import jax.numpy as jnp
 from jax import jit, jacfwd, grad
-from jax.experimental import host_callback as hcb
 
 
-def force_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
-    if grad.size > 0:
-        grad[:] = _sum_of_forces_jax_jac(x)
-    result[:] = _sum_of_forces_jax(x)
+def create_force_constraints(grasp_forces: Callable) -> Callable:
+
+    @jit
+    def _sum_of_forces_jax(x):
+        f = grasp_forces(x)
+        return jnp.sum(f, axis=0)
+
+    _sum_of_forces_jax_jac = jit(jacfwd(_sum_of_forces_jax))
+
+    def force_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
+        if grad.size > 0:
+            grad[:] = _sum_of_forces_jax_jac(x)
+        result[:] = _sum_of_forces_jax(x)
+
+    return force_constraints
 
 
-@jit
-def _sum_of_forces_jax(x):
-    return jnp.sum(x.reshape(-1, 6)[:, 3:], axis=0)
+def create_moments_constraints(com: np.ndarray, grasp_forces: Callable) -> Callable:
 
+    @jit
+    def _sum_of_moments_jax(x):
+        f = grasp_forces(x)
+        return jnp.sum(jnp.cross(com - f, f), axis=1)
 
-_sum_of_forces_jax_jac = jit(jacfwd(_sum_of_forces_jax))
-
-
-def generate_moments_constraints(com: np.ndarray) -> Callable:
+    _sum_of_moments_jax_jac = jit(jacfwd(_sum_of_moments_jax))
 
     def moments_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
         if grad.size > 0:
             grad[:] = _sum_of_moments_jax_jac(x)
         result[:] = _sum_of_moments_jax(x)
 
-    @jit
-    def _sum_of_moments_jax(x):
-        x = x.reshape(-1, 6)
-        return jnp.sum(jnp.cross(com - x[:, :3], x[:, 3:]), axis=1)
-
-    _sum_of_moments_jax_jac = jit(jacfwd(_sum_of_moments_jax))
-
     return moments_constraints
 
 
-def generate_maximum_force_constraints(fmax: float) -> Callable:
+def create_maximum_force_constraints(fmax: float) -> Callable:
 
     def maximum_force_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
         if grad.size > 0:
@@ -48,7 +50,7 @@ def generate_maximum_force_constraints(fmax: float) -> Callable:
     return maximum_force_constraints
 
 
-def generate_minimum_force_constraints(fmin: float) -> Callable:
+def create_minimum_force_constraints(fmin: float) -> Callable:
 
     def minimum_force_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
         if grad.size > 0:
@@ -81,7 +83,7 @@ def _homogeneous_force_jax(x):
 _homogeneous_force_jax_grad = jit(grad(_homogeneous_force_jax))
 
 
-def generate_angle_constraint(idx, cp_normal, max_angle_cos):
+def create_angle_constraint(grasp_force, cp_normal, max_angle_cos):
 
     def angle_dot_constraint(x, grad):
         if grad.size > 0:
@@ -90,7 +92,7 @@ def generate_angle_constraint(idx, cp_normal, max_angle_cos):
 
     @jit
     def _force_angle_dot_jax(x):
-        fc = x[idx * 6 + 3:idx * 6 + 6]
+        fc = grasp_force(x)
         normf = fc / jnp.linalg.norm(fc)
         return jnp.dot(cp_normal(x), normf)
 
@@ -99,7 +101,7 @@ def generate_angle_constraint(idx, cp_normal, max_angle_cos):
     return angle_dot_constraint
 
 
-def generate_plane_constraints(cp_idx, plane):
+def create_plane_constraints(kinematics, plane):
     assert plane.shape == (5, 2, 3)
     offsets = plane[:, 0]
     v_mat = np.zeros((5, 3))
@@ -122,14 +124,14 @@ def generate_plane_constraints(cp_idx, plane):
 
     @jit
     def _plane_equality_constraint_jax(x):
-        cp = x[cp_idx * 6:cp_idx * 6 + 3]
+        cp = kinematics(x)
         return jnp.dot(v_mat[0, :], cp - offsets[0, :])
 
     _plane_equality_constraint_jax_grad = jit(grad(_plane_equality_constraint_jax))
 
     @jit
     def _plane_inequality_constraints_jax(x):
-        cp = x[cp_idx * 6:cp_idx * 6 + 3]
+        cp = kinematics(x)
         return jnp.sum((cp - offsets[1:, ...]) * v_mat[1:, ...], axis=1)
 
     _plane_inequality_constraints_jax_jac = jit(jacfwd(_plane_inequality_constraints_jax))
@@ -137,7 +139,7 @@ def generate_plane_constraints(cp_idx, plane):
     return plane_equality_constraint, plane_inequality_constraints
 
 
-def generate_sphere_constraint(cp_idx, offset, radius):
+def create_sphere_constraint(cp_idx, offset, radius):
 
     def sphere_constraint(x, grad):
         if grad.size > 0:
@@ -154,7 +156,7 @@ def generate_sphere_constraint(cp_idx, offset, radius):
     return sphere_constraint
 
 
-def generate_disk_constraints(cp_idx, offset, normal, radius) -> Tuple[Callable]:
+def create_disk_constraints(cp_idx, offset, normal, radius) -> Tuple[Callable]:
     assert offset.shape == (3,)
     assert normal.shape == (3,)
     normal = normal / np.linalg.norm(normal)
@@ -171,12 +173,12 @@ def generate_disk_constraints(cp_idx, offset, normal, radius) -> Tuple[Callable]
 
     _plane_equality_constraint_jax_grad = jit(grad(_plane_equality_constraint_jax))
 
-    sphere_constraint = generate_sphere_constraint(cp_idx, offset, radius)
+    sphere_constraint = create_sphere_constraint(cp_idx, offset, radius)
 
     return plane_equality_constraint, sphere_constraint
 
 
-def generate_lateral_surface_constraints(cp_idx, cylinder_axis, offsets, radius):
+def create_lateral_surface_constraints(cp_idx, cylinder_axis, offsets, radius):
     assert cylinder_axis.shape == (3,)
     normals = np.vstack((cylinder_axis, cylinder_axis, -cylinder_axis))
     assert offsets.shape == (3, 3)
@@ -208,7 +210,7 @@ def generate_lateral_surface_constraints(cp_idx, cylinder_axis, offsets, radius)
     return distance_constraint, plane_inequality_constraints
 
 
-def generate_distance_constraints(min_dist: float) -> Callable:
+def create_distance_constraints(min_dist: float) -> Callable:
 
     def distance_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
         if grad.size > 0:

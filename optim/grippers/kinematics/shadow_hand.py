@@ -1,6 +1,6 @@
 import numpy as np
 from jax import jit
-from optim.kinematics.tf import tf_matrix, zrot_matrix
+from optim.grippers.kinematics.tf import tf_matrix, tf_matrix_q, zrot_matrix
 
 JOINT_LIMITS = {
     "lower":
@@ -16,10 +16,6 @@ JOINT_LIMITS = {
 }
 
 COUPLING_CONST = 0.87577639751
-
-# Total link length of the SH. Substitues WRIST1_T_LF5 @ LF5_T_LF4 into one link WRIST1_T_LF4 to
-# comply with CP hands. Omits WRIST2_T_WRIST1 for the same reason
-TOTAL_LENGTH = 9.154618
 
 WRIST2_T_WRIST1 = tf_matrix(0.034, 0, 0, -np.pi / 2, 0, 0)
 # Thumb
@@ -60,40 +56,40 @@ LF1_T_LF0 = tf_matrix(0.026, 0, 0, 0, 0, 0)
 def sh_kinematics(theta):
     # See https://www.shadowrobot.com/wp-content/uploads/2022/03/shadow_dexterous_hand_e_technical_specification.pdf  # noqa: E501
     # for frame names and numbers. Finger tips are denoted with 0
-    w_T_root = tf_matrix(theta[0], theta[1], theta[2], theta[3], theta[4], theta[5])
-    w_T_wrist2 = w_T_root @ zrot_matrix(theta[6])
-    w_T_wrist1 = w_T_wrist2 @ WRIST2_T_WRIST1 @ zrot_matrix(theta[7])
+    w_T_root = tf_matrix_q(*theta[:7])
+    w_T_wrist2 = w_T_root @ zrot_matrix(theta[7])
+    w_T_wrist1 = w_T_wrist2 @ WRIST2_T_WRIST1 @ zrot_matrix(theta[8])
     # Thumb
-    w_T_th5 = w_T_wrist1 @ WRIST1_T_TH5 @ zrot_matrix(theta[8])
-    w_T_th4 = w_T_th5 @ TH5_T_TH4 @ zrot_matrix(theta[9])
-    w_T_th3 = w_T_th4 @ TH4_T_TH3 @ zrot_matrix(theta[10])
-    w_T_th2 = w_T_th3 @ TH3_T_TH2 @ zrot_matrix(theta[11])
-    w_T_th1 = w_T_th2 @ TH2_T_TH1 @ zrot_matrix(theta[12])
+    w_T_th5 = w_T_wrist1 @ WRIST1_T_TH5 @ zrot_matrix(theta[9])
+    w_T_th4 = w_T_th5 @ TH5_T_TH4 @ zrot_matrix(theta[10])
+    w_T_th3 = w_T_th4 @ TH4_T_TH3 @ zrot_matrix(theta[11])
+    w_T_th2 = w_T_th3 @ TH3_T_TH2 @ zrot_matrix(theta[12])
+    w_T_th1 = w_T_th2 @ TH2_T_TH1 @ zrot_matrix(theta[13])
     w_T_th0 = w_T_th1 @ TH1_T_TH0  # Unactuated
     # Index finger
-    w_T_ff4 = w_T_wrist1 @ WRIST1_T_FF4 @ zrot_matrix(theta[13])
-    w_T_ff3 = w_T_ff4 @ FF4_T_FF3 @ zrot_matrix(theta[14])
-    w_T_ff2 = w_T_ff3 @ FF3_T_FF2 @ zrot_matrix(theta[15])
-    w_T_ff1 = w_T_ff2 @ FF2_T_FF1 @ zrot_matrix(theta[15] * COUPLING_CONST)
+    w_T_ff4 = w_T_wrist1 @ WRIST1_T_FF4 @ zrot_matrix(theta[14])
+    w_T_ff3 = w_T_ff4 @ FF4_T_FF3 @ zrot_matrix(theta[15])
+    w_T_ff2 = w_T_ff3 @ FF3_T_FF2 @ zrot_matrix(theta[16])
+    w_T_ff1 = w_T_ff2 @ FF2_T_FF1 @ zrot_matrix(theta[16] * COUPLING_CONST)
     w_T_ff0 = w_T_ff1 @ FF1_T_FF0  # Unactuated
     # Middle finger
-    w_T_mf4 = w_T_wrist1 @ WRIST1_T_MF4 @ zrot_matrix(theta[16])
-    w_T_mf3 = w_T_mf4 @ MF4_T_MF3 @ zrot_matrix(theta[17])
-    w_T_mf2 = w_T_mf3 @ MF3_T_MF2 @ zrot_matrix(theta[18])
-    w_T_mf1 = w_T_mf2 @ MF2_T_MF1 @ zrot_matrix(theta[18] * COUPLING_CONST)
+    w_T_mf4 = w_T_wrist1 @ WRIST1_T_MF4 @ zrot_matrix(theta[17])
+    w_T_mf3 = w_T_mf4 @ MF4_T_MF3 @ zrot_matrix(theta[18])
+    w_T_mf2 = w_T_mf3 @ MF3_T_MF2 @ zrot_matrix(theta[19])
+    w_T_mf1 = w_T_mf2 @ MF2_T_MF1 @ zrot_matrix(theta[19] * COUPLING_CONST)
     w_T_mf0 = w_T_mf1 @ MF1_T_MF0  # Unactuated
     # Ring finger
-    w_T_rf4 = w_T_wrist1 @ WRIST1_T_RF4 @ zrot_matrix(theta[19])
-    w_T_rf3 = w_T_rf4 @ RF4_T_RF3 @ zrot_matrix(theta[20])
-    w_T_rf2 = w_T_rf3 @ RF3_T_RF2 @ zrot_matrix(theta[21])
-    w_T_rf1 = w_T_rf2 @ RF2_T_RF1 @ zrot_matrix(theta[21] * COUPLING_CONST)
+    w_T_rf4 = w_T_wrist1 @ WRIST1_T_RF4 @ zrot_matrix(theta[20])
+    w_T_rf3 = w_T_rf4 @ RF4_T_RF3 @ zrot_matrix(theta[21])
+    w_T_rf2 = w_T_rf3 @ RF3_T_RF2 @ zrot_matrix(theta[22])
+    w_T_rf1 = w_T_rf2 @ RF2_T_RF1 @ zrot_matrix(theta[22] * COUPLING_CONST)
     w_T_rf0 = w_T_rf1 @ RF1_T_RF0  # Unactuated
     # Little finger
-    w_T_lf5 = w_T_wrist1 @ WRIST1_T_LF5 @ zrot_matrix(theta[22])
-    w_T_lf4 = w_T_lf5 @ LF5_T_LF4 @ zrot_matrix(theta[23])
-    w_T_lf3 = w_T_lf4 @ LF4_T_LF3 @ zrot_matrix(theta[24])
-    w_T_lf2 = w_T_lf3 @ LF3_T_LF2 @ zrot_matrix(theta[25])
-    w_T_lf1 = w_T_lf2 @ LF2_T_LF1 @ zrot_matrix(theta[25] * COUPLING_CONST)
+    w_T_lf5 = w_T_wrist1 @ WRIST1_T_LF5 @ zrot_matrix(theta[23])
+    w_T_lf4 = w_T_lf5 @ LF5_T_LF4 @ zrot_matrix(theta[24])
+    w_T_lf3 = w_T_lf4 @ LF4_T_LF3 @ zrot_matrix(theta[25])
+    w_T_lf2 = w_T_lf3 @ LF3_T_LF2 @ zrot_matrix(theta[26])
+    w_T_lf1 = w_T_lf2 @ LF2_T_LF1 @ zrot_matrix(theta[26] * COUPLING_CONST)
     w_T_lf0 = w_T_lf1 @ LF1_T_LF0  # Unactuated
     return (w_T_root, w_T_wrist2, w_T_wrist1, w_T_th5, w_T_th4, w_T_th3, w_T_th2, w_T_th1, w_T_th0,
             w_T_ff4, w_T_ff3, w_T_ff2, w_T_ff1, w_T_ff0, w_T_mf4, w_T_mf3, w_T_mf2, w_T_mf1,

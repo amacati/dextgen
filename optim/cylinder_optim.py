@@ -5,12 +5,12 @@ import nlopt
 from jax.config import config
 import matplotlib.pyplot as plt
 
-from constraints import generate_angle_constraint, generate_lateral_surface_constraints
-from constraints import generate_distance_constraints, force_constraints, generate_disk_constraints
-from constraints import generate_maximum_force_constraints, generate_minimum_force_constraints
-from constraints import generate_moments_constraints, _sum_of_forces_jax
-from objective import generate_objective
-from geometry import generate_cylinder_normal, generate_cylinder_normals
+from constraints import create_angle_constraint, create_lateral_surface_constraints
+from constraints import create_distance_constraints, force_constraints, create_disk_constraints
+from constraints import create_maximum_force_constraints, create_minimum_force_constraints
+from constraints import create_moments_constraints, _sum_of_forces_jax
+from objective import create_objective
+from optim.geometry.normals import create_cylinder_normal, create_cylinder_normals
 
 if __name__ == "__main__":
     config.update("jax_enable_x64", True)
@@ -46,38 +46,37 @@ if __name__ == "__main__":
     opt = nlopt.opt(nlopt.AUGLAG, len(xinit))
     opt.set_xtol_rel(1e-3)
     opt.set_local_optimizer(localopt)
-    cp_normals = generate_cylinder_normals(com, cylinder_axis,
-                                           [cp["side"] for cp in contact_points])
-    objective = generate_objective(cp_normals, max_angle_t)
+    cp_normals = create_cylinder_normals(com, cylinder_axis, [cp["side"] for cp in contact_points])
+    objective = create_objective(cp_normals, max_angle_t)
     opt.set_min_objective(objective)
 
     for idx, cp in enumerate(contact_points):
         if cp["side"] == "lat":
             offsets = np.array(
                 [com, com + height / 2 * cylinder_axis, com - height / 2 * cylinder_axis])
-            eq_constraint, ineq_constraints = generate_lateral_surface_constraints(
+            eq_constraint, ineq_constraints = create_lateral_surface_constraints(
                 idx, cylinder_axis, offsets, radius)
             opt.add_equality_constraint(eq_constraint, 1e-6)
             opt.add_inequality_mconstraint(ineq_constraints, np.ones(2) * 1e-6)
         elif cp["side"] == "top":
-            eq_constraint1, eq_constraint2 = generate_disk_constraints(
+            eq_constraint1, eq_constraint2 = create_disk_constraints(
                 idx, com + height / 2 * cylinder_axis, cylinder_axis, radius)
             opt.add_equality_constraint(eq_constraint1, 1e-6)
             opt.add_equality_constraint(eq_constraint2, 1e-6)
         elif cp["side"] == "bottom":
-            eq_constraint1, eq_constraint2 = generate_disk_constraints(
+            eq_constraint1, eq_constraint2 = create_disk_constraints(
                 idx, com - height / 2 * cylinder_axis, -cylinder_axis, radius)
             opt.add_equality_constraint(eq_constraint1, 1e-6)
             opt.add_equality_constraint(eq_constraint2, 1e-6)
 
-        cp_normal = generate_cylinder_normal(idx, com, cylinder_axis, cp["side"])
-        opt.add_inequality_constraint(generate_angle_constraint(idx, cp_normal, max_angle_c), 1e-6)
+        cp_normal = create_cylinder_normal(idx, com, cylinder_axis, cp["side"])
+        opt.add_inequality_constraint(create_angle_constraint(idx, cp_normal, max_angle_c), 1e-6)
 
     opt.add_equality_mconstraint(force_constraints, np.ones(3) * 1e-6)
-    opt.add_equality_mconstraint(generate_moments_constraints(com=com), np.ones(3) * 1e-6)
-    opt.add_inequality_mconstraint(generate_minimum_force_constraints(fmin), np.ones(ncp) * 1e-6)
-    opt.add_inequality_mconstraint(generate_maximum_force_constraints(fmax), np.ones(ncp) * 1e-6)
-    opt.add_inequality_mconstraint(generate_distance_constraints(min_dist),
+    opt.add_equality_mconstraint(create_moments_constraints(com=com), np.ones(3) * 1e-6)
+    opt.add_inequality_mconstraint(create_minimum_force_constraints(fmin), np.ones(ncp) * 1e-6)
+    opt.add_inequality_mconstraint(create_maximum_force_constraints(fmax), np.ones(ncp) * 1e-6)
+    opt.add_inequality_mconstraint(create_distance_constraints(min_dist),
                                    np.ones(ncp * (ncp - 1) // 2) * 1e-6)
     # opt.add_equality_constraint(homogeneous_forces_contraint, 100)
     opt.set_lower_bounds(-3)

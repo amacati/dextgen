@@ -5,12 +5,12 @@ import nlopt
 from jax.config import config
 import matplotlib.pyplot as plt
 
-from constraints import generate_angle_constraint, generate_distance_constraints, force_constraints
-from constraints import generate_maximum_force_constraints, generate_minimum_force_constraints
-from constraints import generate_moments_constraints, generate_sphere_constraint
+from constraints import create_angle_constraint, create_distance_constraints, force_constraints
+from constraints import create_maximum_force_constraints, create_minimum_force_constraints
+from constraints import create_moments_constraints, create_sphere_constraint
 from constraints import _sum_of_forces_jax
-from objective import generate_objective
-from geometry import generate_sphere_normal, generate_sphere_normals
+from objective import create_objective
+from optim.geometry.normals import create_sphere_normal, create_sphere_normals
 
 if __name__ == "__main__":
     config.update("jax_enable_x64", True)
@@ -44,21 +44,21 @@ if __name__ == "__main__":
     opt = nlopt.opt(nlopt.AUGLAG, len(xinit))
     opt.set_xtol_rel(1e-3)
     opt.set_local_optimizer(localopt)
-    cp_normals = generate_sphere_normals(com)
-    objective = generate_objective(cp_normals, max_angle_t)
+    cp_normals = create_sphere_normals(com)
+    objective = create_objective(cp_normals, max_angle_t)
     opt.set_min_objective(objective)
 
     for idx, cp in enumerate(contact_points):
-        eq_constraint = generate_sphere_constraint(idx, com, radius)
+        eq_constraint = create_sphere_constraint(idx, com, radius)
         opt.add_equality_constraint(eq_constraint, 1e-6)
-        cp_normal = generate_sphere_normal(idx, com)
-        opt.add_inequality_constraint(generate_angle_constraint(idx, cp_normal, max_angle_c), 1e-6)
+        cp_normal = create_sphere_normal(idx, com)
+        opt.add_inequality_constraint(create_angle_constraint(idx, cp_normal, max_angle_c), 1e-6)
 
     opt.add_equality_mconstraint(force_constraints, np.ones(3) * 1e-6)
-    opt.add_equality_mconstraint(generate_moments_constraints(com=com), np.ones(3) * 1e-6)
-    opt.add_inequality_mconstraint(generate_minimum_force_constraints(fmin), np.ones(ncp) * 1e-6)
-    opt.add_inequality_mconstraint(generate_maximum_force_constraints(fmax), np.ones(ncp) * 1e-6)
-    opt.add_inequality_mconstraint(generate_distance_constraints(min_dist),
+    opt.add_equality_mconstraint(create_moments_constraints(com=com), np.ones(3) * 1e-6)
+    opt.add_inequality_mconstraint(create_minimum_force_constraints(fmin), np.ones(ncp) * 1e-6)
+    opt.add_inequality_mconstraint(create_maximum_force_constraints(fmax), np.ones(ncp) * 1e-6)
+    opt.add_inequality_mconstraint(create_distance_constraints(min_dist),
                                    np.ones(ncp * (ncp - 1) // 2) * 1e-6)
     # opt.add_equality_constraint(homogeneous_forces_contraint, 100)
     opt.set_lower_bounds(-3)

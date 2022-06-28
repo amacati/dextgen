@@ -3,7 +3,7 @@ from jax import jit
 import numpy as np
 
 
-def generate_sphere_normals(com):
+def create_sphere_normals(com):
 
     @jit
     def cp_normals(x):
@@ -14,7 +14,7 @@ def generate_sphere_normals(com):
     return cp_normals
 
 
-def generate_sphere_normal(idx, com):
+def create_sphere_normal(idx, com):
 
     @jit
     def cp_normal(x):
@@ -25,7 +25,7 @@ def generate_sphere_normal(idx, com):
     return cp_normal
 
 
-def generate_plane_normal(normal):
+def create_plane_normal(normal):
 
     @jit
     def plane_normal(*_):
@@ -34,7 +34,7 @@ def generate_plane_normal(normal):
     return plane_normal
 
 
-def generate_plane_normals(normals):
+def create_plane_normals(normals):
 
     @jit
     def plane_normal(*_):
@@ -43,7 +43,7 @@ def generate_plane_normals(normals):
     return plane_normal
 
 
-def generate_cylinder_normal(idx, com, cylinder_axis, side):
+def create_cylinder_normal(idx, com, cylinder_axis, side):
     cylinder_axis / jnp.linalg.norm(cylinder_axis)
 
     if side == "top":
@@ -61,7 +61,7 @@ def generate_cylinder_normal(idx, com, cylinder_axis, side):
     return cylinder_normal
 
 
-def generate_cylinder_normals(com, cylinder_axis, sides):
+def create_cylinder_normals(com, cylinder_axis, sides):
     assert cylinder_axis.shape == (3,)
     cylinder_axis = cylinder_axis / np.linalg.norm(cylinder_axis)
     _cp_lat_idx = np.array([side == "lat" for side in sides])

@@ -92,11 +92,13 @@ if __name__ == "__main__":
         path = Path(__file__).parent / "video" / (args.env + ".mp4")
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
+    env.enable_contact_info()
     for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
         t = 0
         early_stop = 0
+        max_c = 0
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)
@@ -104,6 +106,8 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)
+            if len(info["contact_info"]) > max_c:
+                c_info = info
             state, goal, _ = unwrap_obs(next_obs)
             early_stop = (early_stop + 1) if not reward else 0
             if record:
@@ -120,6 +124,26 @@ if __name__ == "__main__":
             if early_stop == 10:
                 break
         success += info["is_success"]
+        """import numpy as np
+
+        def serialize(x):
+            if isinstance(x, np.ndarray):
+                return x.tolist()
+            elif isinstance(x, Mapping):
+                for key, val in x.items():
+                    if key == "is_success":
+                        x[key] = bool(val)
+                    else:
+                        x[key] = serialize(val)
+                return x
+            elif isinstance(x, List):
+                return [serialize(item) for item in x]
+            else:
+                return x
+        serialize(c_info)
+        with open("contact_info_cube.json", "w") as f:
+            json.dump(c_info, f)"""
+
     if record:
         recorder.close()
         (Path(__file__).parent / "video" / (args.env + ".meta.json")).unlink()  # Delete metafile

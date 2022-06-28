@@ -1,16 +1,24 @@
-import numpy as np
-from optim.kinematics.sh_kinematics import sh_kinematics
-from optim.kinematics.pj_kinematics import pj_kinematics
-from optim.kinematics.bh_kinematics import bh_kinematics
-from optim.kinematics.visualize import visualize_frames
+import json
+from pathlib import Path
+import logging
+
+from optim.optimize import optimize
+
+logger = logging.getLogger(__name__)
 
 
 def main():
-    x = np.zeros(10)
-    x[6] = 1
-    frames = pj_kinematics(x)
-    visualize_frames(frames, "pj")
+    path = Path(__file__).parent / "contact_info_cube.json"
+    with open(path, "r") as f:
+        info = json.load(f)
+    logger.info("Loaded contact info")
+
+    logger.info("Optimizing contact points")
+    opt_config = optimize(info)
+    return opt_config
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.INFO)
     main()
