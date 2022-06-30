@@ -96,6 +96,8 @@ class FlatBase(envs.robot_env.RobotEnv):
             contact = self.sim.data.contact[i]
             geom1 = self.sim.model.geom_id2name(contact.geom1)
             geom2 = self.sim.model.geom_id2name(contact.geom2)
+            if geom1 is None or geom2 is None:
+                continue
             if self.object_name in (geom1, geom2) and ("robot0" in geom1 or "robot0" in geom2):
                 # Always have the gripper link as the first geometry and the object as the second
                 geom1 = geom2 if geom1 == self.object_name else geom1
@@ -135,7 +137,7 @@ class FlatBase(envs.robot_env.RobotEnv):
     def _get_object_info(self) -> Dict:
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         object_orient = self.sim.data.get_site_xmat(self.object_name)
-        object_size = self.sim.model.geom_size(self.sim.model.geom_name2id(self.object_name))
+        object_size = self.sim.model.geom_size[self.sim.model.geom_name2id(self.object_name)]
         return {
             "pos": object_pos,
             "orient": object_orient,
