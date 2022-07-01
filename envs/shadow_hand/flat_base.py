@@ -113,10 +113,10 @@ class FlatSHBase(FlatBase):
         pos_ctrl *= 0.05  # limit maximum change in position
         rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
         rot_ctrl *= 0.05  # limit maximum change in orientation
-        action = np.concatenate([pos_ctrl, rot_ctrl])
+        pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
-        envs.utils.mocap_set_action(self.sim, action)
+        envs.utils.mocap_set_action(self.sim, pose_ctrl)
         self.sim.data.ctrl[:] = self._act_center + hand_ctrl * self._act_range
         self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
                                         self._ctrl_range[:, 1])

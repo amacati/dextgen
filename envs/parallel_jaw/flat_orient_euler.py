@@ -71,11 +71,11 @@ class FlatPJOrientEuler(FlatPJBase, utils.EzPickle):
         rot_ctrl = euler2quat(rot_ctrl)
         rot_ctrl *= 0.05  # limit maximum change in orientation
         gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
-        action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
+        pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
-        envs.utils.ctrl_set_action(self.sim, action)
-        envs.utils.mocap_set_action(self.sim, action)
+        self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
+        envs.utils.mocap_set_action(self.sim, pose_ctrl)
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
