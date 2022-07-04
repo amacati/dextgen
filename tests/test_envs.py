@@ -9,7 +9,7 @@ import envs  # noqa: F401
 def test_env(env):
     env = gym.make(env)
     env.reset()
-    env.enable_contact_info()
+    env.use_contact_info()
     for _ in range(env._max_episode_steps):
         env.step(env.action_space.sample())
 
@@ -18,6 +18,6 @@ def test_env(env):
 def test_shadowhand_eigen(env):
     env = gym.make(env, n_eigengrasps=random.randint(1, 20))
     env.reset()
-    env.enable_contact_info()
+    env.use_contact_info()
     for _ in range(env._max_episode_steps):
         env.step(env.action_space.sample())

@@ -52,6 +52,9 @@ class FlatPJBase(FlatBase):
             object_name=object_name,
             object_size_multiplier=object_size_multiplier,
             object_size_range=object_size_range)
+        self._ctrl_range = self.sim.model.actuator_ctrlrange
+        self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
+        self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
 
     def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
@@ -62,12 +65,12 @@ class FlatPJBase(FlatBase):
         # Transform rot_ctrl from matrix to quaternion
         rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
         rot_ctrl *= 0.05  # limit maximum change in orientation
-        gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
-        action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
+        pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
-        envs.utils.ctrl_set_action(self.sim, action)
-        envs.utils.mocap_set_action(self.sim, action)
+        self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
+        # envs.utils.ctrl_set_action(self.sim, action)
+        envs.utils.mocap_set_action(self.sim, pose_ctrl)
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions

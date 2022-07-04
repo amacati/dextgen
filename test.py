@@ -6,7 +6,8 @@ The MuJoCoVideoRecorder is a wrapper around OpenAI's gym VideoRecorder.
 import logging
 from pathlib import Path
 import time
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List, Mapping
+import json
 
 import pickle
 import torch
@@ -92,7 +93,7 @@ if __name__ == "__main__":
         path = Path(__file__).parent / "video" / (args.env + ".mp4")
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
-    env.enable_contact_info()
+    env.use_contact_info()
     for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
@@ -124,7 +125,8 @@ if __name__ == "__main__":
             if early_stop == 10:
                 break
         success += info["is_success"]
-        """import numpy as np
+
+        import numpy as np
 
         def serialize(x):
             if isinstance(x, np.ndarray):
@@ -140,9 +142,10 @@ if __name__ == "__main__":
                 return [serialize(item) for item in x]
             else:
                 return x
+
         serialize(c_info)
         with open("contact_info_cube.json", "w") as f:
-            json.dump(c_info, f)"""
+            json.dump(c_info, f)
 
     if record:
         recorder.close()

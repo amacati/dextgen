@@ -7,8 +7,8 @@ import numpy as np
 
 import envs
 from envs.shadow_hand.flat_base import FlatSHBase
-from envs.rotations import embedding2mat, embedding2quat, quat2embedding, mat2embedding, quat_mul
-from envs.rotations import axisangle2quat, mat2quat
+from envs.rotations import embedding2mat, embedding2quat, fastembedding2quat, quat2embedding
+from envs.rotations import axisangle2quat, mat2quat, quat_mul, mat2embedding
 
 MODEL_XML_PATH = str(Path("ShadowHand", "flat_orient.xml"))
 
@@ -58,18 +58,22 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
     def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
         action = (action.copy())  # ensure that we don't change the action outside of this scope
-        pos_ctrl, rot_ctrl, gripper_ctrl = action[:3], action[3:12], action[12]
+        if self.n_eigengrasps:
+            action = self._map_eigengrasps(action)
+        assert action.shape == (32,)  # At this point, the action should always have full dimension
+        pos_ctrl, rot_ctrl, hand_ctrl = action[:3], action[3:12], action[12:]
 
         pos_ctrl *= 0.05  # limit maximum change in position
         # Transform rot_ctrl from matrix to quaternion
         rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
         rot_ctrl *= 0.2  # limit maximum change in orientation
-        gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
-        action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
+        pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
-        envs.utils.ctrl_set_action(self.sim, action)
-        envs.utils.mocap_set_action(self.sim, action)
+        envs.utils.mocap_set_action(self.sim, pose_ctrl)
+        self.sim.data.ctrl[:] = self._act_center + hand_ctrl * self._act_range
+        self.sim.data.ctrl[:] = np.clip(self.sim.data.ctrl, self._ctrl_range[:, 0],
+                                        self._ctrl_range[:, 1])
 
     def _env_setup(self, initial_qpos: np.ndarray):
         # Mesh falls if it is rotated around its y axis -> reposition on setup so that the object
@@ -159,8 +163,9 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
         d = envs.utils.goal_distance(achieved_goal[..., :3], goal[..., :3])
         if self.angle_threshold == np.pi:  # Speed up reward calculation for initial training
             return -(d > self.target_threshold).astype(np.float32)
-        qgoal = embedding2quat(goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        em2quat = embedding2quat if goal.ndim == 1 else fastembedding2quat
+        qgoal = em2quat(goal[..., 3:9])
+        qachieved_goal = em2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_error = d > self.target_threshold
@@ -169,8 +174,9 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[..., :3], desired_goal[..., :3])
-        qgoal = embedding2quat(desired_goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        em2quat = embedding2quat if desired_goal.ndim == 1 else fastembedding2quat
+        qgoal = em2quat(desired_goal[..., 3:9])
+        qachieved_goal = em2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_success = d < self.target_threshold

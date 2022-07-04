@@ -7,7 +7,8 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2quat, euler2quat, mat2embedding, quat2embedding, quat2mat
+from envs.rotations import embedding2quat, fastembedding2quat, euler2quat, mat2embedding
+from envs.rotations import quat2embedding, quat2mat
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
 
@@ -71,11 +72,11 @@ class FlatPJOrientEuler(FlatPJBase, utils.EzPickle):
         rot_ctrl = euler2quat(rot_ctrl)
         rot_ctrl *= 0.05  # limit maximum change in orientation
         gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
-        action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
+        pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
-        envs.utils.ctrl_set_action(self.sim, action)
-        envs.utils.mocap_set_action(self.sim, action)
+        self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
+        envs.utils.mocap_set_action(self.sim, pose_ctrl)
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions
@@ -147,18 +148,21 @@ class FlatPJOrientEuler(FlatPJBase, utils.EzPickle):
         d = envs.utils.goal_distance(achieved_goal[..., :3], goal[..., :3])
         if self.angle_threshold == np.pi:  # Speed up reward calculation for initial training
             return -(d > self.target_threshold).astype(np.float32)
-        qgoal = embedding2quat(goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        # Optimize speed with fastembedding2quat for batches
+        em2quat = embedding2quat if goal.ndim == 1 else fastembedding2quat
+        qgoal = em2quat(goal[..., 3:9])
+        qachieved_goal = em2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_error = d > self.target_threshold
         rot_error = angle > self.angle_threshold
         return -(np.logical_or(pos_error, rot_error)).astype(np.float32)
 
-    def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
-        d = envs.utils.goal_distance(achieved_goal[..., :3], desired_goal[..., :3])
-        qgoal = embedding2quat(desired_goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+    def _is_success(self, achieved_goal: np.ndarray, goal: np.ndarray) -> bool:
+        d = envs.utils.goal_distance(achieved_goal[..., :3], goal[..., :3])
+        em2quat = embedding2quat if goal.ndim == 1 else fastembedding2quat
+        qgoal = em2quat(goal[..., 3:9])
+        qachieved_goal = em2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_success = d < self.target_threshold

@@ -47,7 +47,9 @@ class RobotEnv(gym.GoalEnv):
         self.sim = mjpy.MjSim(model, nsubsteps=n_substeps)
         self.viewer = None
         self._viewers = {}
-        self._info = False
+        self._use_info = True
+        self._use_contact_info = False
+        self._use_step_reward = True
 
         self.metadata = {
             "render.modes": ["human", "rgb_array"],
@@ -108,11 +110,17 @@ class RobotEnv(gym.GoalEnv):
         obs = self._get_obs()
 
         done = False
-        reward = self.compute_reward(obs["achieved_goal"], self.goal, None)
-        info = {
-            "is_success": reward == 0,
-        }
-        if self._info:
+        if self._use_step_reward:
+            reward = self.compute_reward(obs["achieved_goal"], self.goal, None)
+        else:
+            reward = np.nan
+
+        if self._use_info:
+            info = {"is_success": self._is_success(obs["achieved_goal"], obs["desired_goal"])}
+        else:
+            info = {}
+
+        if self._use_contact_info:
             info["contact_info"] = self._get_contact_info()
             info["gripper_info"] = self._get_gripper_info()
             info["object_info"] = self._get_object_info()
@@ -163,7 +171,15 @@ class RobotEnv(gym.GoalEnv):
         elif mode == "human":
             self._get_viewer(mode).render()
 
-    def enable_contact_info(self, val: bool = True):
+    def use_info(self, val: bool = True):
+        """Enable info calculation.
+
+        Args:
+            val: Flag to enable or disable info.
+        """
+        self._use_info = val
+
+    def use_contact_info(self, val: bool = True):
         """Enable contact information between the gripper and the object in the info step return.
 
         Has to be a function since gym wraps the environment in a `TimeLimit` object which does not
@@ -172,7 +188,15 @@ class RobotEnv(gym.GoalEnv):
         Args:
             val: Flag to enable or disable contact information. Default is True.
         """
-        self._info = val
+        self._use_contact_info = val
+
+    def use_step_reward(self, val: bool = True):
+        """Use reward computation during ``step``.
+
+        Args:
+            val: Flag to disable or enable step rewards.
+        """
+        self._use_step_reward = val
 
     def _get_viewer(self, mode: str) -> Union[mjpy.MjViewer, mjpy.MjRenderContextOffscreen]:
         self.viewer = self._viewers.get(mode)

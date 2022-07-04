@@ -57,26 +57,24 @@
 
                                         <!-- <geom class="collision" mesh="link7_collision"/> -->
 
-                                        <body name="robot0:gripper_link" pos="0 0 0.107" euler="0 0 0.785">
+                                        <body name="robot0:gripper_link" pos="0 0 0.107" euler="0 0 -0.785">
                                             <inertial pos="0 0 0" euler="0 0 0" mass="0.68" diaginertia="0.1 0.1 0.1" />
                                             <geom class="visual" mesh="hand_visual" rgba="0.2 0.2 0.2 1"/>
                                             <geom class="collision" mesh="hand_collision"/>
 
-                                            <body name="robot0:virtual_weld_link" pos="0 0 0.1" euler="-1.5708 0 -1.5708">
-                                                <site name="robot0:grip" pos="0 0 0" euler="0 0 0" rgba="0 0 0 0" size="0.02 0.02 0.02"></site>
+                                            <body name="robot0:virtual_weld_link" euler="-1.5708 0 -1.5708" pos="0 0 0.1"></body>
 
-                                                <body childclass="robot0:Finger" name="robot0:r_gripper_finger_link" pos="0 0 0.0159" euler="1.5708 0 0">
-                                                    <inertial diaginertia="0.1 0.1 0.1" mass="4" pos="0 0 0"></inertial>
-                                                    <joint axis="0 1 0" name="robot0:r_gripper_finger_joint" range="0 0.05"></joint>
-                                                    <geom pos="0 -0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:r_gripper_finger_link" rgba="0.2 0.2 0.2 1" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
-                                                </body>
-
-                                                <body childclass="robot0:Finger" name="robot0:l_gripper_finger_link" pos="0 0 -0.0159" euler="1.5708 0 0">
-                                                    <inertial diaginertia="0.1 0.1 0.1" mass="4" pos="0 0 0"></inertial>
-                                                    <joint axis="0 -1 0" name="robot0:l_gripper_finger_joint" range="0 0.05"></joint>
-                                                    <geom pos="0 0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:l_gripper_finger_link" rgba="0.2 0.2 0.2 1" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
-                                                </body>
+                                            <body childclass="robot0:Finger" name="robot0:r_gripper_finger_link" pos="0 0.0159 0.1" euler="0 1.5708 0">
+                                                <inertial diaginertia="0.1 0.1 0.1" mass="4" pos="-0.01 0 0"></inertial>
+                                                <joint axis="0 1 0" name="robot0:r_gripper_finger_joint" range="0 0.05"></joint>
+                                                <geom pos="0 -0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:r_gripper_finger_link" rgba="0.2 0.2 0.2 1" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
                                             </body>
+                                            <body childclass="robot0:Finger" name="robot0:l_gripper_finger_link" pos="0 -0.0159 0.1" euler="0 1.5708 0">
+                                                <inertial diaginertia="0.1 0.1 0.1" mass="4" pos="-0.01 0 0"></inertial>
+                                                <joint axis="0 -1 0" name="robot0:l_gripper_finger_joint" range="0 0.05"></joint>
+                                                <geom pos="0 0.008 0" size="0.0385 0.007 0.0135" type="box" name="robot0:l_gripper_finger_link" rgba="0.2 0.2 0.2 1" material="robot0:finger_mat" condim="4" friction="1 0.05 0.01"></geom>
+                                            </body>
+                                            <site name="robot0:grip" pos="0 0 0" rgba="0 0 0 0" size="0.02 0.02 0.02"></site>
                                         </body>
                                     </body>
                                 </body>

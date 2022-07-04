@@ -54,11 +54,11 @@
                                         <site name="conx" pos="0.0707 0.0707 0.088" size="0.1 0.004 0.004" rgba="1 0 0 1" type="box" euler='0 0 0.785'></site>
                                         <site name="cony" pos="-0.0707 0.0707 0.088" size="0.004 0.1 0.004" rgba="0 1 0 1" type="box" euler='0 0 0.785'></site>
                                         <site name="conz" pos="0 0 0.1255" size="0.004 0.004 0.1" rgba="0 0 1 1" type="box" euler='0 0 0.785'></site>
+
                                         <!-- <geom class="collision" mesh="link7_collision"/> -->
 
 										<!-- Barrett hand -->
-										<body name="robot0:virtual_weld_link" pos="0 0 0.1" euler="0 1.5708 0"></body>
-										<site name="robot0:grip" pos="0 0 0.1" euler="0 1.5708 0" rgba="0 0 0 0" size="0.02 0.02 0.02"></site>
+										<body name="robot0:virtual_weld_link" euler="0 1.5708 0" pos="0 0 0.1"></body>
 										<body name="robot0:gripper_link" pos="0.0 0 0.09" euler="0 -1.5708 0">
 											<body euler="0 1.5708 0" name="gripper_wrist" pos="0 0 0">
 												<inertial diaginertia="3.8e-5 0.00022 0.0002" mass="0.50573" pos="-5e-5 0.005 0.0366" euler="0 0 0"></inertial>
@@ -67,6 +67,7 @@
 												<geom mesh="palm_link_c1" name="palm_c1" class="collision"></geom>
 												<geom mesh="palm_link_c2" name="palm_c2" class="collision"></geom>
 												<geom mesh="palm_link_c3" name="palm_c3" class="collision"></geom>
+												<site name="robot0:grip" pos="0 0 0" rgba="0 0 0 0" size="0.02 0.02 0.02"></site>
 												<body name="finger1_prox" pos="-0.025 0 0.0415" euler="0 0 -1.5708">
 													<inertial diaginertia="4.8e-6 7.6e-5 7.7e-5" mass="0.14109" pos="0.023 0.0007 0.0005"></inertial>
 													<joint axis="0 0 -1" range="0 3.1406" limited="true" name="robot0:finger1_prox_joint" damping="25"></joint>

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class FlatBase(envs.robot_env.RobotEnv):
     """Base class for all grasp environments."""
 
-    n_substeps = 10
+    n_substeps = 20
 
     def __init__(self,
                  model_xml_path: str,
