@@ -1,5 +1,6 @@
 import numpy as np
 from jax import jit
+import jax.numpy as jnp
 from optim.grippers.kinematics.tf import tf_matrix, tf_matrix_q
 
 PJ_JOINT_LIMITS = {"lower": np.array([0]), "upper": np.array([0.05])}
@@ -11,12 +12,20 @@ def pj_kinematics(link):
 
 
 @jit
+def pj_full_kinematics(x):
+    w_T_root = tf_matrix_q(x[:7])
+    w_T_fr = w_T_root @ tf_matrix(jnp.array([0, 0, x[7] * JOINT_RANGE, 0, 0, 0]))
+    w_T_fl = w_T_root @ tf_matrix(jnp.array([0, 0, -x[7] * JOINT_RANGE, 0, 0, 0]))
+    return w_T_fr, w_T_fl
+
+
+@jit
 def _kinematics_left(x):
-    w_T_root = tf_matrix_q(*x[:7])
-    return w_T_root @ tf_matrix(0, 0, -x[7] * JOINT_RANGE, 0, 0, 0)
+    w_T_root = tf_matrix_q(x[:7])
+    return w_T_root @ tf_matrix(jnp.array([0, 0, -x[7] * JOINT_RANGE, 0, 0, 0]))
 
 
 @jit
 def _kinematics_right(x):
-    w_T_root = tf_matrix_q(*x[:7])
-    return w_T_root @ tf_matrix(0, 0, x[7] * JOINT_RANGE, 0, 0, 0)
+    w_T_root = tf_matrix_q(x[:7])
+    return w_T_root @ tf_matrix(jnp.array([0, 0, x[7] * JOINT_RANGE, 0, 0, 0]))

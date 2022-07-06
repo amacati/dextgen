@@ -11,7 +11,7 @@ def create_force_constraints(grasp_forces: Callable) -> Callable:
     @jit
     def _sum_of_forces_jax(x):
         f = grasp_forces(x)
-        return jnp.sum(f, axis=0)
+        return jnp.sum(f[:, :3], axis=0)
 
     _sum_of_forces_jax_jac = jit(jacfwd(_sum_of_forces_jax))
 
@@ -23,12 +23,15 @@ def create_force_constraints(grasp_forces: Callable) -> Callable:
     return force_constraints
 
 
-def create_moments_constraints(com: np.ndarray, grasp_forces: Callable) -> Callable:
+def create_moments_constraints(kinematics: Callable, grasp_forces: Callable,
+                               com: np.ndarray) -> Callable:
 
     @jit
     def _sum_of_moments_jax(x):
-        f = grasp_forces(x)
-        return jnp.sum(jnp.cross(com - f, f), axis=1)
+        cps = kinematics(x)
+        wrench = grasp_forces(x)
+        f, tau = wrench[..., :3], wrench[..., 3:]
+        return jnp.sum(jnp.cross(com - cps, f) + tau, axis=0)
 
     _sum_of_moments_jax_jac = jit(jacfwd(_sum_of_moments_jax))
 
@@ -62,6 +65,7 @@ def create_minimum_force_constraints(fmin: float) -> Callable:
 
 @jit
 def _force_norm_jax(x):
+    raise NotImplementedError
     return jnp.linalg.norm(x.reshape(-1, 6)[:, 3:], axis=1)
 
 
@@ -210,7 +214,7 @@ def create_lateral_surface_constraints(cp_idx, cylinder_axis, offsets, radius):
     return distance_constraint, plane_inequality_constraints
 
 
-def create_distance_constraints(min_dist: float) -> Callable:
+def create_distance_constraints(full_kinematics: Callable, min_dist: float) -> Callable:
 
     def distance_constraints(result: np.ndarray, x: np.ndarray, grad: np.ndarray):
         if grad.size > 0:
@@ -219,8 +223,8 @@ def create_distance_constraints(min_dist: float) -> Callable:
 
     @jit
     def _distance_jax(x):
-        pts = x.reshape(-1, 6)[:, :3]
-        return min_dist - jnp.array([jnp.linalg.norm(x[0] - x[1]) for x in combinations(pts, 2)])
+        cps = full_kinematics(x)
+        return min_dist - jnp.array([jnp.linalg.norm(x[0] - x[1]) for x in combinations(cps, 2)])
 
     _distance_jax_jac = jit(jacfwd(_distance_jax))
 

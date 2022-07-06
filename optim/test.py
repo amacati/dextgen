@@ -13,6 +13,15 @@ def main():
         info = json.load(f)
     logger.info("Loaded contact info")
 
+    filtered_con_info = [None, None]
+    for con_info in info["contact_info"]:
+        if con_info["geom1"] == "robot0:r_gripper_finger_link":
+            filtered_con_info[0] = con_info
+        elif con_info["geom1"] == "robot0:l_gripper_finger_link":
+            filtered_con_info[1] = con_info
+    assert any([i is not None for i in filtered_con_info])
+    info["contact_info"] = filtered_con_info
+
     logger.info("Optimizing contact points")
     opt_config = optimize(info)
     return opt_config

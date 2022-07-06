@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Dict
 
 import numpy as np
@@ -23,6 +23,11 @@ class Geometry(ABC):
         self.orient_q = mat2quat(self.orient_mat)
         self.size = np.array(info["object_info"]["size"])
         self.con_pts = info["contact_info"]
+        self.con_links = np.array([i["geom1"] for i in info["contact_info"]])
         for con_pt in self.con_pts:  # Numpify contact point arrays
             for key in ("contact_force", "pos", "frame"):
                 con_pt[key] = np.array(con_pt[key])
+
+    @abstractmethod
+    def create_normals(self):
+        ...

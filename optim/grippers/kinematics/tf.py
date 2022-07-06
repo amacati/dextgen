@@ -5,7 +5,9 @@ from optim.geometry.rotations import quat2mat
 
 
 @jit
-def tf_matrix(x, y, z, a, b, g):
+def tf_matrix(v):
+    assert v.shape == (6,), f"Expected shape to be (6, ), got {v.shape}"
+    x, y, z, a, b, g = v
     ca = jnp.cos(a)
     sa = jnp.sin(a)
     cb = jnp.cos(b)
@@ -19,14 +21,14 @@ def tf_matrix(x, y, z, a, b, g):
 
 
 @jit
-def tf_matrix_q(x, y, z, q1, q2, q3, q4):
-    q = jnp.array([q1, q2, q3, q4])
+def tf_matrix_q(v):
+    assert v.shape == (7,)
+    x, y, z = v[:3]
+    q = v[3:]
     q = q / jnp.linalg.norm(q)
     rot = quat2mat(*q)
-    tf = jnp.array([[rot[0, 0], rot[0, 1], rot[0, 2], x],
-                    [rot[1, 0], rot[1, 1], rot[1, 2], y],
-                    [rot[2, 0], rot[2, 1], rot[2, 2], z],
-                    [0, 0, 0, 1]])
+    tf = jnp.array([[rot[0, 0], rot[0, 1], rot[0, 2], x], [rot[1, 0], rot[1, 1], rot[1, 2], y],
+                    [rot[2, 0], rot[2, 1], rot[2, 2], z], [0, 0, 0, 1]])
     return tf
 
 
