@@ -9,6 +9,7 @@ import time
 from typing import Optional, Tuple, Any, List, Mapping
 import json
 
+import numpy as np
 import pickle
 import torch
 import gym
@@ -19,6 +20,22 @@ import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.actor import PosePolicyNet, DDP
 from parse_args import parse_args
+
+
+def serialize(x):
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    elif isinstance(x, Mapping):
+        for key, val in x.items():
+            if key == "is_success":
+                x[key] = bool(val)
+            else:
+                x[key] = serialize(val)
+        return x
+    elif isinstance(x, List):
+        return [serialize(item) for item in x]
+    else:
+        return x
 
 
 class MujocoVideoRecorder(VideoRecorder):
@@ -100,6 +117,7 @@ if __name__ == "__main__":
         t = 0
         early_stop = 0
         max_c = 0
+        fingers = ("robot0:r_gripper_finger_link", "robot0:l_gripper_finger_link")
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)
@@ -107,9 +125,26 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)
-            if len(info["contact_info"]) > max_c:
+
+            # more_contacts = len(info["contact_info"]) > max_c
+            r_finger_contact = any([con["geom1"] == fingers[0] for con in info["contact_info"]])
+            l_finger_contact = any([con["geom1"] == fingers[1] for con in info["contact_info"]])
+            if r_finger_contact and l_finger_contact:  # and more_contacts
+                print("Proper grasp")
                 c_info = info
+                _state, _goal, _ = unwrap_obs(next_obs)
+                _state, _goal = state_norm(_state), goal_norm(_goal)
+                _state = torch.as_tensor(_state, dtype=torch.float32)
+                _goal = torch.as_tensor(_goal, dtype=torch.float32)
+                with torch.no_grad():
+                    action = actor(torch.cat([state, goal])).numpy()
+                c_info["gripper_info"]["next_state"] = [float(action[12])]
+                serialize(c_info)
+                with open("contact_info_cube.json", "w") as f:
+                    json.dump(c_info, f)
+
             state, goal, _ = unwrap_obs(next_obs)
+
             early_stop = (early_stop + 1) if not reward else 0
             if record:
                 t += 1
@@ -125,27 +160,6 @@ if __name__ == "__main__":
             if early_stop == 10:
                 break
         success += info["is_success"]
-
-        import numpy as np
-
-        def serialize(x):
-            if isinstance(x, np.ndarray):
-                return x.tolist()
-            elif isinstance(x, Mapping):
-                for key, val in x.items():
-                    if key == "is_success":
-                        x[key] = bool(val)
-                    else:
-                        x[key] = serialize(val)
-                return x
-            elif isinstance(x, List):
-                return [serialize(item) for item in x]
-            else:
-                return x
-
-        serialize(c_info)
-        with open("contact_info_cube.json", "w") as f:
-            json.dump(c_info, f)
 
     if record:
         recorder.close()

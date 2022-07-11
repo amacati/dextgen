@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import jit
 
-from optim.geometry.rotations import quat2mat
+from optim.rotations import quat2mat
 
 
 @jit
@@ -23,12 +23,12 @@ def tf_matrix(v):
 @jit
 def tf_matrix_q(v):
     assert v.shape == (7,)
-    x, y, z = v[:3]
     q = v[3:]
     q = q / jnp.linalg.norm(q)
     rot = quat2mat(*q)
-    tf = jnp.array([[rot[0, 0], rot[0, 1], rot[0, 2], x], [rot[1, 0], rot[1, 1], rot[1, 2], y],
-                    [rot[2, 0], rot[2, 1], rot[2, 2], z], [0, 0, 0, 1]])
+    tf = jnp.array([[rot[0, 0], rot[0, 1], rot[0, 2],
+                     v[0]], [rot[1, 0], rot[1, 1], rot[1, 2], v[1]],
+                    [rot[2, 0], rot[2, 1], rot[2, 2], v[2]], [0, 0, 0, 1]])
     return tf
 
 

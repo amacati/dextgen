@@ -1,19 +1,15 @@
-import json
 from pathlib import Path
-import logging
+import json
+from venv import create
 
-from jax.config import config
-import jax.numpy as jnp
 import numpy as np
-import matplotlib.pyplot as plt
+import jax.numpy as jnp
 
-from optim.optimize import optimize
 from envs.rotations import mat2quat
-from optim.visualization import visualize_grasp, visualize_gripper
+from optim.objective import create_objective_2, create_objective_3
 from optim.grippers import get_gripper
 from optim.geometry import get_object
-
-logger = logging.getLogger(__name__)
+from optim.grippers.kinematics.parallel_jaw import _kinematics_right
 
 
 def main():
@@ -21,7 +17,6 @@ def main():
     path = Path(__file__).parent / "contact_info_cube.json"
     with open(path, "r") as f:
         info = json.load(f)
-    logger.info("Loaded contact info")
 
     filtered_con_info = [None, None]
     for con_info in info["contact_info"]:
@@ -50,22 +45,16 @@ def main():
         con_info["pos"] = pos
     obj = get_object(info)
 
-    logger.info("Optimizing contact points")
-    opt_config = optimize(info)
-
-    gripper.state = opt_config
-    fig = visualize_grasp(obj, gripper, opt_config)
-    gripper.state = xinit
-    fig = visualize_gripper(gripper, fig, color="k")
-    for con_pt in info["contact_info"]:
-        pos = con_pt["pos"]
-        fig.axes[0].scatter(*pos, color="b")
-    plt.show()
-    return opt_config
+    objective, hessian = create_objective_2(gripper, obj.planes[obj.contact_mapping[0]],
+                                            obj.planes[obj.contact_mapping[1]])
+    lagrangian, grad, hessian = create_objective_3(gripper, obj.planes[obj.contact_mapping[0]])
+    xinit = np.append(xinit, 1)
+    print(xinit)
+    _hessian = np.array(hessian(xinit))
+    print(_hessian)
 
 
 if __name__ == "__main__":
-    config.update("jax_debug_nans", True)
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
     main()
+
+# jacobian(x->gradient(f,x),xinit)

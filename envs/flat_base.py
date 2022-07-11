@@ -113,30 +113,30 @@ class FlatBase(envs.robot_env.RobotEnv):
                     "geom2": geom2,
                     "contact_force": contact_force,
                     "pos": contact.pos.copy(),
-                    "frame": frame
+                    "frame": frame.copy()
                 }
                 contact_info.append(info)
         return contact_info
 
     def _get_gripper_info(self) -> Dict:
-        pos = self.sim.data.get_site_xpos("robot0:grip")
-        orient = self.sim.data.get_site_xmat("robot0:grip")
+        pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+        orient = self.sim.data.get_site_xmat("robot0:grip").copy()
         robot_qpos, _ = envs.utils.robot_get_obs(self.sim)
         if self.gripper_type == "ParallelJaw":
-            state = robot_qpos[-2:]
+            state = robot_qpos[-2:].copy()
         elif self.gripper_type == "BarrettHand":
-            state = robot_qpos[-8:]
+            state = robot_qpos[-8:].copy()
         elif self.gripper_type == "ShadowHand":
             state = robot_qpos[-24:]
         elif self.gripper_type == "SeaClear":
-            state = robot_qpos[-2]
+            state = robot_qpos[-2].copy()
         else:
             raise RuntimeError("Gripper type not supported")
         return {"pos": pos, "orient": orient, "state": state, "type": self.gripper_type}
 
     def _get_object_info(self) -> Dict:
-        object_pos = self.sim.data.get_site_xpos(self.object_name)
-        object_orient = self.sim.data.get_site_xmat(self.object_name)
+        object_pos = self.sim.data.get_site_xpos(self.object_name).copy()
+        object_orient = self.sim.data.get_site_xmat(self.object_name).copy()
         object_size = self.sim.model.geom_size[self.sim.model.geom_name2id(self.object_name)]
         return {
             "pos": object_pos,

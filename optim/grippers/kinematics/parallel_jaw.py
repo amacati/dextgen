@@ -14,18 +14,22 @@ def pj_kinematics(link):
 @jit
 def pj_full_kinematics(x):
     w_T_root = tf_matrix_q(x[:7])
-    w_T_fr = w_T_root @ tf_matrix(jnp.array([0, 0, x[7] * JOINT_RANGE, 0, 0, 0]))
-    w_T_fl = w_T_root @ tf_matrix(jnp.array([0, 0, -x[7] * JOINT_RANGE, 0, 0, 0]))
-    return w_T_fr, w_T_fl
-
-
-@jit
-def _kinematics_left(x):
-    w_T_root = tf_matrix_q(x[:7])
-    return w_T_root @ tf_matrix(jnp.array([0, 0, -x[7] * JOINT_RANGE, 0, 0, 0]))
+    root_T_right = tf_matrix(np.array([0., 0.0159, 0.1, 0., np.pi / 2, 0]))
+    root_T_left = tf_matrix(np.array([0., -0.0159, 0.1, 0., np.pi / 2, 0]))
+    w_T_fr = w_T_root @ root_T_right @ tf_matrix(jnp.array([0, x[7], 0, 0, 0, 0]))
+    w_T_fl = w_T_root @ root_T_left @ tf_matrix(jnp.array([0, -x[7], 0, 0, 0, 0]))
+    return w_T_root, w_T_fr, w_T_fl
 
 
 @jit
 def _kinematics_right(x):
     w_T_root = tf_matrix_q(x[:7])
-    return w_T_root @ tf_matrix(jnp.array([0, 0, x[7] * JOINT_RANGE, 0, 0, 0]))
+    root_T_right = tf_matrix(np.array([0., 0.0159, 0.1, 0., np.pi / 2, 0]))
+    return w_T_root @ root_T_right @ tf_matrix(jnp.array([0, 0, x[7], 0, 0, 0]))
+
+
+@jit
+def _kinematics_left(x):
+    w_T_root = tf_matrix_q(x[:7])
+    root_T_left = tf_matrix(np.array([0., -0.0159, 0.1, 0., np.pi / 2, 0]))
+    return w_T_root @ root_T_left @ tf_matrix(jnp.array([0, 0, -x[7], 0, 0, 0]))
