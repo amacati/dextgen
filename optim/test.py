@@ -1,71 +1,86 @@
-import json
 from pathlib import Path
 import logging
+import pickle
+import time
 
-from jax.config import config
-import jax.numpy as jnp
-import numpy as np
-import matplotlib.pyplot as plt
+import torch
+import gym
+import mujoco_py
+import envs  # Import registers environments with gym  # noqa: F401
 
-from optim.optimize import optimize
-from envs.rotations import mat2quat
-from optim.visualization import visualize_grasp, visualize_gripper
-from optim.grippers import get_gripper
-from optim.geometry import get_object
+from mp_rl.core.actor import PosePolicyNet
+from mp_rl.core.utils import unwrap_obs
+from parse_args import parse_args
+
+from optim.utils import check_grasp
+from optim.control import Controller
 
 logger = logging.getLogger(__name__)
 
 
 def main():
-    jnp.set_printoptions(precision=3, suppress=True)
-    path = Path(__file__).parent / "contact_info_cube.json"
-    with open(path, "r") as f:
-        info = json.load(f)
-    logger.info("Loaded contact info")
+    args = parse_args()
+    assert args.env == "FlatPJCube-v0", "Only FlatPJCube-v0 supported for optimization"
+    logger = logging.getLogger("OptimTestScript")
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.INFO)
 
-    filtered_con_info = [None, None]
-    for con_info in info["contact_info"]:
-        if con_info["geom1"] == "robot0:r_gripper_finger_link":
-            filtered_con_info[0] = con_info
-        elif con_info["geom1"] == "robot0:l_gripper_finger_link":
-            filtered_con_info[1] = con_info
-    assert any([i is not None for i in filtered_con_info])
-    info["contact_info"] = filtered_con_info
+    env = gym.make(args.env)
+    size_g = len(env.observation_space["desired_goal"].low)
+    size_s = len(env.observation_space["observation"].low) + size_g
+    size_a = len(env.action_space.low)
+    actor = PosePolicyNet(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
+    path = Path(__file__).parent.parent / "saves" / args.env
+    actor.load_state_dict(torch.load(path / "actor.pt"))
+    with open(path / "state_norm.pkl", "rb") as f:
+        state_norm = pickle.load(f)
+    with open(path / "goal_norm.pkl", "rb") as f:
+        goal_norm = pickle.load(f)
+    success = 0.
+    render = args.render == "y"
+    env.use_contact_info()
+    env.save_reset()
+    controller = Controller()
 
-    # Change contact info from con_pts to kinematics for PJ gripper
-    nstates = len(info["gripper_info"]["state"])
-    if nstates == 2:
-        nstates = 1
-    xinit = np.zeros(7 + 2 * nstates)
-    xinit[:3] = info["gripper_info"]["pos"]
-    xinit[3:7] = mat2quat(np.array(info["gripper_info"]["orient"]))
-    xinit[7:7 + nstates] = np.mean(np.array(info["gripper_info"]["state"]))
-    # Convert action in [-1, 1] to angle in [0., 0.05]
-    xinit[7 + nstates:] = (info["gripper_info"]["next_state"][0] + 1) / 2 * 0.05
-
-    gripper = get_gripper(info)
-    kinematics = gripper.create_full_kinematics(gripper.con_links, None)
-    positions = kinematics(gripper.state)
-    for con_info, pos in zip(info["contact_info"], positions):
-        con_info["pos"] = pos
-    obj = get_object(info)
-
-    logger.info("Optimizing contact points")
-    opt_config = optimize(info)
-
-    gripper.state = opt_config
-    fig = visualize_grasp(obj, gripper, opt_config)
-    gripper.state = xinit
-    fig = visualize_gripper(gripper, fig, color="k")
-    for con_pt in info["contact_info"]:
-        pos = con_pt["pos"]
-        fig.axes[0].scatter(*pos, color="b")
-    plt.show()
-    return opt_config
+    for i in range(args.ntests):
+        state, goal, _ = unwrap_obs(env.reset())
+        done = False
+        early_stop = 0
+        while not done:
+            state, goal = state_norm(state), goal_norm(goal)
+            state = torch.as_tensor(state, dtype=torch.float32)
+            goal = torch.as_tensor(goal, dtype=torch.float32)
+            with torch.no_grad():
+                action = actor(torch.cat([state, goal])).numpy()
+            next_obs, reward, done, info = env.step(action)
+            state, goal, _ = unwrap_obs(next_obs)
+            if render:
+                try:
+                    env.render()
+                    time.sleep(0.04)  # Gym operates on 25 Hz
+                except mujoco_py.cymj.GlfwError:
+                    logger.warning("No display available, rendering disabled")
+                    render = False
+            if check_grasp(info):
+                info["gripper_info"]["next_state"] = 0.
+                break
+        if not check_grasp(info):
+            logger.warning("Failed to generate grasp proposal. Skipping trial")
+            continue
+        state, goal, _ = unwrap_obs(env.load_reset())
+        controller.reset()
+        logger.info("Failed to generate grasp proposal. Skipping trial")
+        controller.optimize_grasp(info)
+        done = False
+        while not done:
+            next_obs, reward, done, info = env.step(controller(state, goal))
+            state, goal, _ = unwrap_obs(next_obs)
+            early_stop = (early_stop + 1) if not reward else 0
+            if early_stop == 10:
+                break
+        success += info["is_success"]
+    logger.info(f"Agent success rate: {success/args.ntests:.2f}")
 
 
 if __name__ == "__main__":
-    config.update("jax_debug_nans", True)
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
     main()

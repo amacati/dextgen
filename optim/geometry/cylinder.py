@@ -14,16 +14,7 @@ class Cylinder(Geometry):
         raise NotImplementedError
 
     def create_normals(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def create_surface_constraints(self, gripper: Gripper, opt):
-        for idx, con_pt in enumerate(self.con_pts):
-            if self.contact_mapping[idx] == 0:
-                # Create upper disk constraint
-                ...
-            elif self.contact_mapping[idx] == 1:
-                # Create lower disk constraint
-                ...
-            else:
-                # Create lateral surface constraint
-                ...
+        raise NotImplementedError

@@ -88,8 +88,8 @@ if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
     env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
-    size_s = len(env.observation_space["observation"].low) + len(
-        env.observation_space["desired_goal"].low)
+    size_g = len(env.observation_space["desired_goal"].low)
+    size_s = len(env.observation_space["observation"].low) + size_g
     size_a = len(env.action_space.low)
     if args.actor_net_type == "DDP":
         actor = DDP(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
@@ -117,7 +117,6 @@ if __name__ == "__main__":
         t = 0
         early_stop = 0
         max_c = 0
-        fingers = ("robot0:r_gripper_finger_link", "robot0:l_gripper_finger_link")
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)
@@ -126,11 +125,7 @@ if __name__ == "__main__":
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)
 
-            # more_contacts = len(info["contact_info"]) > max_c
-            r_finger_contact = any([con["geom1"] == fingers[0] for con in info["contact_info"]])
-            l_finger_contact = any([con["geom1"] == fingers[1] for con in info["contact_info"]])
-            if r_finger_contact and l_finger_contact:  # and more_contacts
-                print("Proper grasp")
+            if True:
                 c_info = info
                 _state, _goal, _ = unwrap_obs(next_obs)
                 _state, _goal = state_norm(_state), goal_norm(_goal)
@@ -138,7 +133,7 @@ if __name__ == "__main__":
                 _goal = torch.as_tensor(_goal, dtype=torch.float32)
                 with torch.no_grad():
                     action = actor(torch.cat([state, goal])).numpy()
-                c_info["gripper_info"]["next_state"] = [float(action[12])]
+                c_info["gripper_info"]["next_state"] = action[12:].tolist()
                 serialize(c_info)
                 with open("contact_info_cube.json", "w") as f:
                     json.dump(c_info, f)

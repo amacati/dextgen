@@ -13,29 +13,29 @@
     </equality>
 
     <contact>
-        <exclude body1="finger1_prox" body2="finger2_prox"></exclude>
-        <exclude body1="finger1_prox" body2="finger2_med"></exclude>
-        <exclude body1="finger1_prox" body2="finger2_dist"></exclude>
-        <exclude body1="finger1_med" body2="finger2_prox"></exclude>
-        <exclude body1="finger1_med" body2="finger2_med"></exclude>
-        <exclude body1="finger1_med" body2="finger2_dist"></exclude>
-        <exclude body1="finger1_dist" body2="finger2_prox"></exclude>
-        <exclude body1="finger1_dist" body2="finger2_med"></exclude>
-        <exclude body1="finger1_dist" body2="finger2_dist"></exclude>
+        <exclude body1="robot0:finger1_prox" body2="robot0:finger2_prox"></exclude>
+        <exclude body1="robot0:finger1_prox" body2="robot0:finger2_med"></exclude>
+        <exclude body1="robot0:finger1_prox" body2="robot0:finger2_dist"></exclude>
+        <exclude body1="robot0:finger1_med" body2="robot0:finger2_prox"></exclude>
+        <exclude body1="robot0:finger1_med" body2="robot0:finger2_med"></exclude>
+        <exclude body1="robot0:finger1_med" body2="robot0:finger2_dist"></exclude>
+        <exclude body1="robot0:finger1_dist" body2="robot0:finger2_prox"></exclude>
+        <exclude body1="robot0:finger1_dist" body2="robot0:finger2_med"></exclude>
+        <exclude body1="robot0:finger1_dist" body2="robot0:finger2_dist"></exclude>
 
-        <exclude body1="finger2_prox" body2="finger3_med"></exclude>
-        <exclude body1="finger2_prox" body2="finger3_dist"></exclude>
-        <exclude body1="finger2_med" body2="finger3_med"></exclude>
-        <exclude body1="finger2_med" body2="finger3_dist"></exclude>
-        <exclude body1="finger2_dist" body2="finger3_med"></exclude>
-        <exclude body1="finger2_dist" body2="finger3_dist"></exclude>
+        <exclude body1="robot0:finger2_prox" body2="robot0:finger3_med"></exclude>
+        <exclude body1="robot0:finger2_prox" body2="robot0:finger3_dist"></exclude>
+        <exclude body1="robot0:finger2_med" body2="robot0:finger3_med"></exclude>
+        <exclude body1="robot0:finger2_med" body2="robot0:finger3_dist"></exclude>
+        <exclude body1="robot0:finger2_dist" body2="robot0:finger3_med"></exclude>
+        <exclude body1="robot0:finger2_dist" body2="robot0:finger3_dist"></exclude>
 
-        <exclude body1="finger1_prox" body2="finger3_med"></exclude>
-        <exclude body1="finger1_prox" body2="finger3_dist"></exclude>
-        <exclude body1="finger1_med" body2="finger3_med"></exclude>
-        <exclude body1="finger1_med" body2="finger3_dist"></exclude>
-        <exclude body1="finger1_dist" body2="finger3_med"></exclude>
-        <exclude body1="finger1_dist" body2="finger3_dist"></exclude>
+        <exclude body1="robot0:finger1_prox" body2="robot0:finger3_med"></exclude>
+        <exclude body1="robot0:finger1_prox" body2="robot0:finger3_dist"></exclude>
+        <exclude body1="robot0:finger1_med" body2="robot0:finger3_med"></exclude>
+        <exclude body1="robot0:finger1_med" body2="robot0:finger3_dist"></exclude>
+        <exclude body1="robot0:finger1_dist" body2="robot0:finger3_med"></exclude>
+        <exclude body1="robot0:finger1_dist" body2="robot0:finger3_dist"></exclude>
     </contact>
     
 	<actuator>

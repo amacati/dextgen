@@ -2,8 +2,8 @@ from typing import Dict
 
 import numpy as np
 
-from optim.grippers.grippers import Gripper
-from optim.geometry.base import Geometry
+from optim.grippers.base_gripper import Gripper
+from optim.geometry.base_geometry import Geometry
 from optim.geometry.normals import create_plane_normals
 from optim.constraints import create_plane_constraints
 
@@ -14,31 +14,38 @@ class Cube(Geometry):
         super().__init__(info)
         # Define the 6 sides of the cube as a plane with four border planes at the edges
         # Plane definition:
-        # Surface plane origin, surface plane normal
-        # Surface border0 origin, surface border0 normal ...
+        # Surface plane offset, surface border0 offset, ...
+        # Surface plane normal, surface border0 normal, ...
         ex, ey, ez = np.array([1., 0, 0]), np.array([0, 1., 0]), np.array([0, 0, 1.])
         sx, sy, sz = self.size
-        plane0 = np.array([[ex * sx, ex], [[sx, sy, 0], ey], [[sx, -sy, 0], -ey], [[sx, 0, sz], ez],
-                           [[sx, 0, -sz], -ez]])
-        plane1 = np.array([[-ex * sx, -ex], [[-sx, sy, 0], ey], [[-sx, -sy, 0], -ey],
-                           [[-sx, 0, sz], ez], [[-sx, 0, -sz], -ez]])
-        plane2 = np.array([[ey * sy, ey], [[sx, sy, 0], ex], [[-sx, sy, 0], -ex], [[0, sy, sz],
-                                                                                   -ez],
-                           [[0, sy, -sz], ez]])
-        plane3 = np.array([[-ey * sy, -ey], [[sx, -sy, 0], ex], [[-sx, -sy, 0], -ex],
-                           [[0, -sy, sz], -ez], [[0, -sy, -sz], ez]])
-        plane4 = np.array([[ez * sz, ez], [[sx, 0, sz], ex], [[-sx, 0, sz], -ex], [[0, sy, sz], ey],
-                           [[0, -sy, sz], -ey]])
-        plane5 = np.array([[-ez * sz, -ez], [[sx, 0, -sz], ex], [[-sx, 0, -sz], -ex],
-                           [[0, sy, -sz], ey], [[0, -sy, -sz], -ey]])
-        self.planes = np.array([plane0, plane1, plane2, plane3, plane4, plane5])
+        plane0_offsets = np.array([ex * sx, [sx, sy, 0], [sx, -sy, 0], [sx, 0, sz], [sx, 0, -sz]])
+        plane0_normals = np.array([ex, ey, -ey, ez, -ez])
+        plane1_offsets = np.array(
+            [-ex * sx, [-sx, sy, 0], [-sx, -sy, 0], [-sx, 0, sz], [-sx, 0, -sz]])
+        plane1_normals = np.array([-ex, ey, -ey, ez, -ez])
+        plane2_offsets = np.array([ey * sy, [sx, sy, 0], [-sx, sy, 0], [0, sy, sz], [0, sy, -sz]])
+        plane2_normals = np.array([ey, ex, -ex, ez, -ez])
+        plane3_offsets = np.array(
+            [-ey * sy, [sx, -sy, 0], [-sx, -sy, 0], [0, -sy, sz], [0, -sy, -sz]])
+        plane3_normals = np.array([-ey, ex, -ex, ez, -ez])
+        plane4_offsets = np.array([ez * sz, [sx, 0, sz], [-sx, 0, sz], [0, sy, sz], [0, -sy, sz]])
+        plane4_normals = np.array([ez, ex, -ex, ey, -ey])
+        plane5_offsets = np.array(
+            [-ez * sz, [sx, 0, -sz], [-sx, 0, -sz], [0, sy, -sz], [0, -sy, -sz]])
+        plane5_normals = np.array([-ez, ex, -ex, ey, -ey])
+        self.plane_offsets = np.array([
+            plane0_offsets, plane1_offsets, plane2_offsets, plane3_offsets, plane4_offsets,
+            plane5_offsets
+        ])
+        self.plane_normals = np.array([
+            plane0_normals, plane1_normals, plane2_normals, plane3_normals, plane4_normals,
+            plane5_normals
+        ])
         # Rotate and translate planes into correct object pose
-        for plane in self.planes:
-            for origin_normal in plane:
-                for i in range(2):
-                    origin_normal[i] = self.orient_mat @ origin_normal[i]  # Rotate all vectors
-                    if i == 0:
-                        origin_normal[i] += self.pos  # Add position offset to origin points only
+        for i in range(6):
+            for j in range(5):
+                self.plane_offsets[i, j] = self.orient_mat @ self.plane_offsets[i, j] + self.pos
+                self.plane_normals[i, j] = self.orient_mat @ self.plane_normals[i, j]
         self.contact_mapping = self._contact_mapping()
 
     def _contact_mapping(self):
@@ -46,19 +53,20 @@ class Cube(Geometry):
         # the plane with the smallest distance
         contact_mapping = {}
         for idx, con_pt in enumerate(self.con_pts):
-            dst = [np.linalg.norm(con_pt["pos"] - plane[0][0]) for plane in self.planes]
+            dst = [np.linalg.norm(con_pt["pos"] - pos[0]) for pos in self.plane_offsets]
             contact_mapping[idx] = np.argmin(np.abs(np.array(dst)))
         return contact_mapping
 
     def create_normals(self):
-        n = np.array([self.planes[self.contact_mapping[i]][0, 1] for i in range(len(self.con_pts))])
+        n_normals = len(self.con_pts)
+        n = np.array([self.plane_normals[self.contact_mapping[i]][0] for i in range(n_normals)])
         return create_plane_normals(n)
 
     def create_surface_constraints(self, gripper: Gripper, opt):
-        for idx, con_pt in enumerate(self.con_pts):
-            gripper_link = con_pt["geom1"]
-            kinematics = gripper.create_kinematics(gripper_link, con_pt)
-            plane = self.planes[self.contact_mapping[idx]]
-            plane_eq_cnst, plane_ineq_cnsts = create_plane_constraints(kinematics, plane)
-            opt.add_equality_constraint(plane_eq_cnst, self.EQ_CNST_TOL)
-            # opt.add_inequality_mconstraint(plane_ineq_cnsts, np.ones(4) * self.INEQ_CNST_TOL)
+        for i, con_pt in enumerate(self.con_pts):
+            kinematics = gripper.create_kinematics(self.con_links[i], con_pt)
+            plane_idx = self.contact_mapping[i]
+            offsets, normals = self.plane_offsets[plane_idx], self.plane_normals[plane_idx]
+            plane_eq_cnst, plane_ineq_cnsts = create_plane_constraints(kinematics, offsets, normals)
+            opt.add_equality_constraint(plane_eq_cnst)
+            opt.add_inequality_mconstraint(plane_ineq_cnsts)

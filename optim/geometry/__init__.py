@@ -1,12 +1,12 @@
 from typing import Dict
 
-from optim.geometry.base import Geometry
+from optim.geometry.base_geometry import Geometry
 from optim.geometry.cube import Cube
 from optim.geometry.cylinder import Cylinder
 from optim.geometry.sphere import Sphere
 
 
-def get_object(info: Dict) -> Geometry:
+def get_geometry(info: Dict) -> Geometry:
     name = info["object_info"]["name"]
     if name == "cube":
         return Cube(info)
@@ -14,4 +14,4 @@ def get_object(info: Dict) -> Geometry:
         return Cylinder(info)
     elif name == "sphere":
         return Sphere(info)
-    raise RuntimeError(f"Unsupported object {name}")
+    raise RuntimeError(f"Unsupported geometry {name}")

@@ -1,17 +1,26 @@
-def visualize_contacts(fig, obj, gripper):
+import matplotlib.pyplot as plt
+
+
+def visualize_contacts(con_pts, fig=None):
+    if fig is None:
+        fig = _get_fig()
     ax = fig.axes[0]
-    grasp_forces = gripper.create_grasp_forces(obj.con_links, obj.con_pts)
-    kinematics = gripper.create_full_frames(obj.con_links, obj.con_pts)
-    frames = kinematics(gripper.state)
-    forces = grasp_forces(gripper.state)
-    for frame, con_force, con_link in zip(frames, forces, obj.con_links):
-        pos = frame[:3, 3]
-        ex, ey, ez = frame[:3, 0] * .01 + pos, frame[:3, 1] * .01 + pos, frame[:3, 2] * .01 + pos
-        color = "r" if con_link == "robot0:r_gripper_finger_link" else "g"
-        ax.scatter(*pos, color=color)
-        for ei, color in zip([ex, ey, ez], ["r", "g", "b"]):
-            ax.plot([pos[0], ei[0]], [pos[1], ei[1]], zs=[pos[2], ei[2]], color=color)
-        con_force /= 1e5
-        fx, fy, fz = con_force[:3] + pos
-        ax.plot([pos[0], fx], [pos[1], fy], [pos[2], fz], color="r")
+    for con_pt in con_pts:
+        ax.scatter(*con_pt["pos"], color="r", s=2)
+    return fig
+
+
+def _get_fig(limits=None):
+    fig = plt.figure()
+    fig.suptitle("Contact point optimization")
+    ax = []
+    ax.append(fig.add_subplot(111, projection="3d"))
+    ax[0].set_box_aspect(aspect=(1, 1, 1))
+    ax[0].set_xlabel("x")
+    ax[0].set_ylabel("y")
+    ax[0].set_zlabel("z")
+    if limits is not None:
+        ax[0].set_xlim(limits[0])
+        ax[0].set_ylim(limits[1])
+        ax[0].set_zlim(limits[2])
     return fig

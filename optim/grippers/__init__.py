@@ -1,6 +1,9 @@
 from typing import Dict
 
-from optim.grippers.grippers import Gripper, ParallelJaw, BarrettHand, ShadowHand
+from optim.grippers.base_gripper import Gripper
+from optim.grippers.parallel_jaw import ParallelJaw
+from optim.grippers.barrett_hand import BarrettHand
+from optim.grippers.shadow_hand import ShadowHand
 
 
 def get_gripper(info: Dict) -> Gripper:

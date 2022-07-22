@@ -7,17 +7,17 @@ from optim.geometry import Cube, Cylinder, Sphere
 
 
 @singledispatch
-def visualize_object(obj):
+def visualize_geometry(obj):
     raise TypeError(f"Object type {type(obj)} not supported")
 
 
-@visualize_object.register
+@visualize_geometry.register
 def _(obj: Cube):
     fig = plt.figure()
     fig.suptitle("Contact point optimization")
     ax = []
     ax.append(fig.add_subplot(111, projection="3d"))
-    dst = np.linalg.norm(obj.planes[0, 1, 0] - obj.planes[0, 2, 0])
+    dst = np.linalg.norm(obj.plane_offsets[0, 1] - obj.plane_offsets[0, 2])
     ax[0].set_title("cube")
     ax[0].set_box_aspect(aspect=(1, 1, 1))
     ax[0].set_xlim(obj.com[0] + dst * np.array([-2, 2]))
@@ -27,13 +27,13 @@ def _(obj: Cube):
     ax[0].set_ylabel("y")
     ax[0].set_zlabel("z")
 
-    for k, surface in enumerate(obj.planes):
-        for i in range(1, len(surface)):
+    for k, offsets in enumerate(obj.plane_offsets):
+        for i in range(1, len(offsets)):
             j = 3 if i < 3 else 1
-            p0 = surface[i, 0] + (surface[j, 0] - surface[0, 0])
-            p1 = surface[i, 0] + (surface[j + 1, 0] - surface[0, 0])
+            p0 = offsets[i] + (offsets[j] - offsets[0])
+            p1 = offsets[i] + (offsets[j + 1] - offsets[0])
             ax[0].plot3D(*zip(p0, p1), color="k")
-        # ax[0].scatter(*surface[0, 0], color=("r", "g", "b", "c", "m", "y")[k])
+        ax[0].scatter(*offsets[0], color=("r", "g", "b", "c", "m", "y")[k])
     # Plot table surface
     xsupport = np.linspace(*(obj.com[0] + dst * np.array([-1, 1])), 2)
     ysupport = np.linspace(*(obj.com[1] + dst * np.array([-1, 1])), 2)
@@ -43,8 +43,9 @@ def _(obj: Cube):
     return fig
 
 
-@visualize_object.register
+@visualize_geometry.register
 def _(obj: Cylinder):
+    raise NotImplementedError
     radius = ...
     length = ...
     com = ...
@@ -87,11 +88,11 @@ def _(obj: Cylinder):
     yrot = x * rotation[1, 0] + y * rotation[1, 1] + z * rotation[1, 2] + com[1]
     zrot = x * rotation[2, 0] + y * rotation[2, 1] + z * rotation[2, 2] + com[2]
     ax[0].plot_surface(xrot, yrot, zrot, alpha=0.4)
-    return fig
 
 
-@visualize_object.register
+@visualize_geometry.register
 def _(obj: Sphere):
+    raise NotImplementedError
     com = ...
     radius = ...
 
@@ -113,7 +114,3 @@ def _(obj: Sphere):
     y = np.sin(u) * np.sin(v) * radius + com[1]
     z = np.cos(v) * radius + com[2]
     ax[0].plot_surface(x, y, z, alpha=0.4)
-
-    # for contact in contact_info:
-    #     ax[0].scatter(*contact["pos"])
-    return

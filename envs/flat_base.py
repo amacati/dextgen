@@ -8,6 +8,7 @@ See https://github.com/Farama-Foundation/Gym-Robotics/tree/main/gym_robotics/env
 """
 from typing import Dict, List, Optional
 import logging
+import copy
 
 import numpy as np
 import mujoco_py
@@ -59,6 +60,8 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.initial_qpos = initial_qpos
         self.initial_gripper = initial_gripper
         self.early_stop_ok = True  # Flag to prevent an early stop
+        self._reset_sim_state = None
+        self._reset_sim_goal = None
         assert object_size_multiplier > 0
         self.object_size_multiplier = object_size_multiplier
         assert object_size_range >= 0
@@ -159,6 +162,19 @@ class FlatBase(envs.robot_env.RobotEnv):
         site_id = self.sim.model.site_name2id("target0")
         self.sim.model.site_pos[site_id] = self.goal[:3]
         self.sim.forward()
+
+    def save_reset(self):
+        self._reset_sim_state = copy.deepcopy(self.sim.get_state())
+        self._reset_sim_goal = self.goal.copy()
+
+    def load_reset(self) -> Dict[str, np.ndarray]:
+        assert self._reset_sim_state is not None and self._reset_sim_goal is not None
+        super().reset()
+        self.sim.set_state(self._reset_sim_state)
+        self.sim.forward()
+        self.goal = self._reset_sim_goal
+        obs = self._get_obs()
+        return obs
 
     def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)
