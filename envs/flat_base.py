@@ -164,12 +164,22 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.sim.forward()
 
     def save_reset(self):
+        """Save the current environment state to load it with :meth:`~.save_reset`.
+
+        Note: Has to be called at least once before loading a reset point.
+        Warning: Experimental. Only introduced for optimization.
+        """
         self._reset_sim_state = copy.deepcopy(self.sim.get_state())
         self._reset_sim_goal = self.goal.copy()
 
     def load_reset(self) -> Dict[str, np.ndarray]:
+        """Load a saved environment state.
+
+        Warning: :meth:`~.reset` still has to be called before loading the state!
+        Warning: Experimental. Only introduced for optimization.
+        """
         assert self._reset_sim_state is not None and self._reset_sim_goal is not None
-        self.reset()
+        self.reset()  # Somehow not sufficient to reset the steps counter
         self.sim.set_state(self._reset_sim_state)
         self.goal = self._reset_sim_goal
         self.sim.forward()

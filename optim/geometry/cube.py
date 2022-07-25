@@ -5,7 +5,6 @@ import numpy as np
 from optim.grippers.base_gripper import Gripper
 from optim.grippers.kinematics.parallel_jaw import kin_pj_full
 from optim.geometry.base_geometry import Geometry
-from optim.geometry.normals import create_plane_normals
 from optim.constraints import create_plane_constraints
 
 
@@ -60,11 +59,6 @@ class Cube(Geometry):
             dst = [np.linalg.norm(con_pt_pos - pos[0]) for pos in self.plane_offsets]
             contact_mapping[idx] = np.argmin(np.abs(np.array(dst)))
         return contact_mapping
-
-    def create_normals(self):
-        n_normals = len(self.con_pts)
-        n = np.array([self.plane_normals[self.contact_mapping[i]][0] for i in range(n_normals)])
-        return create_plane_normals(n)
 
     def create_surface_constraints(self, gripper: Gripper, opt):
         for i, con_pt in enumerate(self.con_pts):

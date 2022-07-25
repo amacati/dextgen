@@ -75,6 +75,10 @@ class FlatPJBase(FlatBase):
         envs.utils.mocap_set_action(self.sim, pose_ctrl)
 
     def enable_full_orient_ctrl(self, val: bool = True):
+        """Enable full control over the gripper rotation for optimal control experiments.
+
+        Warning: Experimental. Only introduced for optimization.
+        """
         self._full_orient_ctrl = val
 
     def _get_obs(self) -> Dict[str, np.ndarray]:

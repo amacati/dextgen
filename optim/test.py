@@ -12,7 +12,7 @@ from mp_rl.core.actor import PosePolicyNet
 from mp_rl.core.utils import unwrap_obs
 from parse_args import parse_args
 
-from optim.utils import check_grasp
+from optim.utils.utils import check_grasp
 from optim.control import Controller
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ def main():
     logging.getLogger().setLevel(logging.INFO)
 
     env = gym.make(args.env)
+    env.seed(0)
     size_g = len(env.observation_space["desired_goal"].low)
     size_s = len(env.observation_space["observation"].low) + size_g
     size_a = len(env.action_space.low)
@@ -39,11 +40,11 @@ def main():
     success = 0.
     render = args.render == "y"
     env.use_contact_info()
-    env.save_reset()
     controller = Controller()
 
     for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
+        env.save_reset()
         done = False
         early_stop = 0
         while not done:
@@ -63,21 +64,30 @@ def main():
                     render = False
             if check_grasp(info):
                 info["gripper_info"]["next_state"] = 0.
+                logger.info("Successful grasp detected, optimizing grasp pose")
                 break
         if not check_grasp(info):
             logger.warning("Failed to generate grasp proposal. Skipping trial")
+            args.ntests -= 1
             continue
+        env.reset()
         state, goal, _ = unwrap_obs(env.load_reset())
+        if render:
+            env.render()
+        env.enable_full_orient_ctrl()
         controller.reset()
-        logger.info("Failed to generate grasp proposal. Skipping trial")
         controller.optimize_grasp(info)
         done = False
         while not done:
             next_obs, reward, done, info = env.step(controller(state, goal))
+            if render:
+                env.render()
             state, goal, _ = unwrap_obs(next_obs)
             early_stop = (early_stop + 1) if not reward else 0
             if early_stop == 10:
                 break
+        env.enable_full_orient_ctrl(False)
+        logger.info("Optimized control finished")
         success += info["is_success"]
     logger.info(f"Agent success rate: {success/args.ntests:.2f}")
 

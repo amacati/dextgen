@@ -27,10 +27,6 @@ class Geometry(ABC):
                 con_pt[key] = np.array(con_pt[key])
 
     @abstractmethod
-    def create_normals(self):
-        ...
-
-    @abstractmethod
     def create_surface_constraints(self, gripper, opt):
         ...
 
