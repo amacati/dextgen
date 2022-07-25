@@ -6,6 +6,10 @@ import time
 
 logger = logging.getLogger(__name__)
 
+# jacfwd used forward differentiation mode, jacrev uses reverse-mode. Both are equal up to numerical
+# precision, but jacfwd is faster for "tall" jacobians, jacrev is faster for "wide" jacobians. See
+# https://github.com/google/jax/issues/47
+
 
 def solve(f, ce, ci, x, niter=1000):
     logger.info("Interior point optimization routine called")
@@ -91,9 +95,12 @@ def solve(f, ce, ci, x, niter=1000):
 
         x, s, y, z = xall[:nf], xall[nf:nf + ni], xall[nf + ni:nf + ne + ni], xall[nf + ne + ni:]
 
+        if i % 100 == 0:
+            logger.info(f"Iteration {i}: dLnorm: {nfnew:.2e}")
+
         if nfnew < mu:
             mu = sigma * mu
-        elif nfnew < 1e-12:
+        elif nfnew < 1e-7:
             logger.info(f"Optimization converged after {i+1} iterations")
             break
         if i == niter - 1:

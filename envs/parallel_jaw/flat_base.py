@@ -55,6 +55,7 @@ class FlatPJBase(FlatBase):
         self._ctrl_range = self.sim.model.actuator_ctrlrange
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
+        self._full_orient_ctrl = False
 
     def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
@@ -64,13 +65,17 @@ class FlatPJBase(FlatBase):
         pos_ctrl *= 0.05  # limit maximum change in position
         # Transform rot_ctrl from matrix to quaternion
         rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
-        rot_ctrl *= 0.05  # limit maximum change in orientation
+        if not self._full_orient_ctrl:
+            rot_ctrl *= 0.05  # limit maximum change in orientation
         pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
 
         # Apply action to simulation.
         self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
         # envs.utils.ctrl_set_action(self.sim, action)
         envs.utils.mocap_set_action(self.sim, pose_ctrl)
+
+    def enable_full_orient_ctrl(self, val: bool = True):
+        self._full_orient_ctrl = val
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions

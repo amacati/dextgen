@@ -4,10 +4,6 @@ from itertools import combinations
 import numpy as np
 import jax.numpy as jnp
 
-# jacfwd used forward differentiation mode, jacrev uses reverse-mode. Both are equal up to numerical
-# precision, but jacfwd is faster for "tall" jacobians, jacrev is faster for "wide" jacobians. See
-# https://github.com/google/jax/issues/47
-
 
 def create_force_constraints(grasp_forces: Callable) -> Callable:
 

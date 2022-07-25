@@ -3,6 +3,7 @@ from typing import Dict
 import numpy as np
 
 from optim.grippers.base_gripper import Gripper
+from optim.grippers.kinematics.parallel_jaw import kin_pj_full
 from optim.geometry.base_geometry import Geometry
 from optim.geometry.normals import create_plane_normals
 from optim.constraints import create_plane_constraints
@@ -10,7 +11,7 @@ from optim.constraints import create_plane_constraints
 
 class Cube(Geometry):
 
-    def __init__(self, info: Dict):
+    def __init__(self, info: Dict, gripper: Gripper):
         super().__init__(info)
         # Define the 6 sides of the cube as a plane with four border planes at the edges
         # Plane definition:
@@ -46,14 +47,17 @@ class Cube(Geometry):
             for j in range(5):
                 self.plane_offsets[i, j] = self.orient_mat @ self.plane_offsets[i, j] + self.pos
                 self.plane_normals[i, j] = self.orient_mat @ self.plane_normals[i, j]
-        self.contact_mapping = self._contact_mapping()
+        self.contact_mapping = self._contact_mapping(gripper)
 
-    def _contact_mapping(self):
+    def _contact_mapping(self, gripper):
         # Calculate the distance of all contact points to all cube planes. Map the contact point to
         # the plane with the smallest distance
         contact_mapping = {}
+        frames = kin_pj_full(gripper.state)
+        posr, posl = frames[1][:3, 3], frames[3][:3, 3]
         for idx, con_pt in enumerate(self.con_pts):
-            dst = [np.linalg.norm(con_pt["pos"] - pos[0]) for pos in self.plane_offsets]
+            con_pt_pos = posr if con_pt["geom1"] == gripper.LINKS[0] else posl
+            dst = [np.linalg.norm(con_pt_pos - pos[0]) for pos in self.plane_offsets]
             contact_mapping[idx] = np.argmin(np.abs(np.array(dst)))
         return contact_mapping
 

@@ -3,7 +3,7 @@ from typing import Dict
 
 import numpy as np
 
-from optim.rotations import mat2quat
+from optim.utils.rotations import mat2quat
 
 
 def load_info(path):
@@ -38,18 +38,18 @@ def _filter_pj_info(info):
             filtered_con_info[1] = con_info
     assert any([i is not None for i in filtered_con_info])
     info["contact_info"] = filtered_con_info
-    nstates = 1
+    nstates = 2
     orient = np.array(info["gripper_info"]["orient"])
     info["gripper_info"]["orient"] = orient
-    info["gripper_info"]["state"] = np.array([np.mean(np.array(info["gripper_info"]["state"]))])
+    info["gripper_info"]["state"] = np.array(info["gripper_info"]["state"])
     # Convert action in [-1, 1] to angle in [0., 0.05]
     next_action = (info["gripper_info"]["next_state"] + 1) / 2 * 0.05
     info["gripper_info"]["next_state"] = next_action
-    xinit = np.zeros(7 + 2 * nstates)
+    xinit = np.zeros(7 + nstates)
     xinit[:3] = info["gripper_info"]["pos"]
     xinit[3:7] = mat2quat(info["gripper_info"]["orient"])
     xinit[7:7 + nstates] = info["gripper_info"]["state"]
-    xinit[7 + nstates:] = info["gripper_info"]["next_state"]
+    # xinit[7 + nstates:] = info["gripper_info"]["next_state"]
     return xinit, info
 
 

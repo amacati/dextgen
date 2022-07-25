@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from optim.rotations import quat2mat
+from optim.utils.rotations import quat2mat
 
 
 def tf_matrix(v):

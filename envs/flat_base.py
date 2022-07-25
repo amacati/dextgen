@@ -169,12 +169,11 @@ class FlatBase(envs.robot_env.RobotEnv):
 
     def load_reset(self) -> Dict[str, np.ndarray]:
         assert self._reset_sim_state is not None and self._reset_sim_goal is not None
-        super().reset()
+        self.reset()
         self.sim.set_state(self._reset_sim_state)
-        self.sim.forward()
         self.goal = self._reset_sim_goal
-        obs = self._get_obs()
-        return obs
+        self.sim.forward()
+        return self._get_obs()
 
     def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)

@@ -1,6 +1,7 @@
 from typing import Dict, Callable
 
 import jax.numpy as jnp
+from optim.core.optimizer import Optimizer
 
 from optim.grippers.base_gripper import Gripper
 from optim.grippers.kinematics.parallel_jaw import PJ_JOINT_LIMITS, kin_pj_right, kin_pj_left
@@ -31,10 +32,18 @@ class ParallelJaw(Gripper):
         assert link in self.LINKS
         kin_finger = kin_pj_right if link[0] == "r" else kin_pj_left
         link_axis = 1 if link == self.LINKS[0] else -1  # left gripper moves along -y axis
+        xidx = -1 if link == self.LINKS[0] else -2
 
         def grasp_force(x):
             frame = kin_finger(x)
-            f = frame[:3, 1] * link_axis * self.KP * (x[-1] - x[-2])
+            f = frame[:3, 1] * link_axis * self.KP * (-x[xidx])
             return jnp.array([*f, 0, 0, 0])  # Wrench with zero torque elements
 
         return grasp_force
+
+    def create_gripper_constraints(self, opt: Optimizer):
+
+        def pj_finger_constraint(x) -> float:
+            return (x[-1] - x[-2])**2
+
+        opt.add_equality_constraint(pj_finger_constraint)

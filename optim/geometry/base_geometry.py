@@ -3,7 +3,7 @@ from typing import Dict
 
 import numpy as np
 
-from optim.rotations import mat2quat
+from optim.utils.rotations import mat2quat
 
 
 class Geometry(ABC):
