@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 import time
 from typing import Optional, Tuple, Any, List, Mapping
-import json
 
 import numpy as np
 import pickle
@@ -110,13 +109,11 @@ if __name__ == "__main__":
         path = Path(__file__).parent / "video" / (args.env + ".mp4")
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
-    env.use_contact_info()
     for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
         t = 0
         early_stop = 0
-        max_c = 0
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)
@@ -124,20 +121,6 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)
-
-            if True:
-                c_info = info
-                _state, _goal, _ = unwrap_obs(next_obs)
-                _state, _goal = state_norm(_state), goal_norm(_goal)
-                _state = torch.as_tensor(_state, dtype=torch.float32)
-                _goal = torch.as_tensor(_goal, dtype=torch.float32)
-                with torch.no_grad():
-                    action = actor(torch.cat([state, goal])).numpy()
-                c_info["gripper_info"]["next_state"] = action[12:].tolist()
-                serialize(c_info)
-                with open("contact_info_cube.json", "w") as f:
-                    json.dump(c_info, f)
-
             state, goal, _ = unwrap_obs(next_obs)
 
             early_stop = (early_stop + 1) if not reward else 0
@@ -155,7 +138,6 @@ if __name__ == "__main__":
             if early_stop == 10:
                 break
         success += info["is_success"]
-
     if record:
         recorder.close()
         (Path(__file__).parent / "video" / (args.env + ".meta.json")).unlink()  # Delete metafile
