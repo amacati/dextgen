@@ -202,7 +202,8 @@ class SeaClear(FlatBase):
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[:3], desired_goal[:3])
-        return (d < self.target_threshold & np.logical_not(self._obs_violation)).astype(np.float32)
+        success = np.logical_and(d < self.target_threshold, np.logical_not(self._obs_violation))
+        return success.astype(np.float32)
 
     def _env_setup(self, initial_qpos: np.ndarray):
         self._modify_object_size()
