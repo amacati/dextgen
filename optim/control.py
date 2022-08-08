@@ -97,10 +97,6 @@ class Controller:
         self._check_geom(geom)
         geom.create_constraints(gripper, self.opt)
         gripper.create_constraints(self.opt)
-        # fig = visualize_geometry(geom)
-        # fig = visualize_gripper(gripper, fig)
-        # fig = visualize_contacts(geom.con_pts, fig)
-        # plt.show()
         self.opt.set_min_objective(create_cube_objective(xinit, geom.com))
         xopt = self.opt.optimize(xinit, 10_000)
         self.opt_pos_rel = xopt[:3] - geom.pos
@@ -111,6 +107,7 @@ class Controller:
         self.opt_grasp = np.array([(xopt[7] + xopt[8]) / 0.05 * 2 - 1])
         if self.opt.status != 0:
             raise RuntimeError("Optimization failed to converge!")
+        return xopt
 
     def _check_geom(self, geom):
         if abs(geom.contact_mapping[0] - geom.contact_mapping[1]) != 1:

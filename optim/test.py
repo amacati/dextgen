@@ -4,18 +4,36 @@ import pickle
 import time
 
 import torch
+import numpy as np
 import gym
 import mujoco_py
 import envs  # Import registers environments with gym  # noqa: F401
 
 from mp_rl.core.actor import PosePolicyNet
 from mp_rl.core.utils import unwrap_obs
+from optim.grippers import get_gripper
 from parse_args import parse_args
-
 from optim.utils.utils import check_grasp
 from optim.control import Controller
 
 logger = logging.getLogger(__name__)
+
+
+def compute_com_dist_improvement(info, xopt):
+    """Compute the improvement in distance of both fingers to the CoM.
+    """
+    gripper = get_gripper(info)
+    kin_init_1 = gripper.create_kinematics(gripper.LINKS[0], None)
+    kin_init_2 = gripper.create_kinematics(gripper.LINKS[1], None)
+    d1_init = np.linalg.norm(info["object_info"]["pos"] - kin_init_1(gripper.state))
+    d2_init = np.linalg.norm(info["object_info"]["pos"] - kin_init_2(gripper.state))
+    gripper.state = xopt
+    kin_init_1 = gripper.create_kinematics(gripper.LINKS[0], None)
+    kin_init_2 = gripper.create_kinematics(gripper.LINKS[1], None)
+    d1_opt = np.linalg.norm(info["object_info"]["pos"] - kin_init_1(gripper.state))
+    d2_opt = np.linalg.norm(info["object_info"]["pos"] - kin_init_2(gripper.state))
+    print(d1_init + d2_init - d1_opt - d2_opt)
+    return d1_init + d2_init - d1_opt - d2_opt
 
 
 def main():
@@ -41,55 +59,66 @@ def main():
     render = args.render == "y"
     env.use_contact_info()
     controller = Controller()
-
+    hasconverged = 0
+    com_dist_improvement = 0
     for i in range(args.ntests):
-        state, goal, _ = unwrap_obs(env.reset())
-        env.save_reset()
-        done = False
-        early_stop = 0
-        while not done:
-            state, goal = state_norm(state), goal_norm(goal)
-            state = torch.as_tensor(state, dtype=torch.float32)
-            goal = torch.as_tensor(goal, dtype=torch.float32)
-            with torch.no_grad():
-                action = actor(torch.cat([state, goal])).numpy()
-            next_obs, reward, done, info = env.step(action)
-            state, goal, _ = unwrap_obs(next_obs)
-            if render:
-                try:
-                    env.render()
-                    time.sleep(0.04)  # Gym operates on 25 Hz
-                except mujoco_py.cymj.GlfwError:
-                    logger.warning("No display available, rendering disabled")
-                    render = False
+        # Generate grasp proposal. If the agent fails, reset and try again
+        while True:
+            state, goal, _ = unwrap_obs(env.reset())
+            env.save_reset()
+            done = False
+            while not done:
+                state, goal = state_norm(state), goal_norm(goal)
+                state = torch.as_tensor(state, dtype=torch.float32)
+                goal = torch.as_tensor(goal, dtype=torch.float32)
+                with torch.no_grad():
+                    action = actor(torch.cat([state, goal])).numpy()
+                next_obs, _, done, info = env.step(action)
+                state, goal, _ = unwrap_obs(next_obs)
+                if render:
+                    try:
+                        env.render()
+                        time.sleep(0.04)  # Gym operates on 25 Hz
+                    except mujoco_py.cymj.GlfwError:
+                        logger.warning("No display available, rendering disabled")
+                        render = False
+                if check_grasp(info):
+                    info["gripper_info"]["next_state"] = 0.
+                    logger.info("Successful grasp detected, optimizing grasp pose")
+                    break
             if check_grasp(info):
-                info["gripper_info"]["next_state"] = 0.
-                logger.info("Successful grasp detected, optimizing grasp pose")
                 break
-        if not check_grasp(info):
-            logger.warning("Failed to generate grasp proposal. Skipping trial")
-            args.ntests -= 1
-            continue
+            logger.warning("Failed to generate grasp proposal. Retrying with another env")
+
+        # Optimize proposed grasp
         env.reset()
         state, goal, _ = unwrap_obs(env.load_reset())
         if render:
             env.render()
         env.enable_full_orient_ctrl()
         controller.reset()
-        controller.optimize_grasp(info)
-        done = False
-        while not done:
-            next_obs, reward, done, info = env.step(controller(state, goal))
-            if render:
-                env.render()
-            state, goal, _ = unwrap_obs(next_obs)
-            early_stop = (early_stop + 1) if not reward else 0
-            if early_stop == 10:
-                break
-        env.enable_full_orient_ctrl(False)
-        logger.info("Optimized control finished")
-        success += info["is_success"]
-    logger.info(f"Agent success rate: {success/args.ntests:.2f}")
+        try:
+            logger.info("Trying to optimize grasp")
+            xopt = controller.optimize_grasp(info)
+            hasconverged += 1
+            done = False
+            early_stop = 0
+            while not done:
+                next_obs, reward, done, info = env.step(controller(state, goal))
+                if render:
+                    env.render()
+                state, goal, _ = unwrap_obs(next_obs)
+                early_stop = (early_stop + 1) if not reward else 0
+                if early_stop == 10:
+                    break
+            env.enable_full_orient_ctrl(False)
+            logger.info("Optimized control finished")
+            success += info["is_success"]
+            com_dist_improvement += compute_com_dist_improvement(info, xopt)
+        except RuntimeError as e:
+            logger.warning(e)
+    logger.info(f"Agent success rate: {success/args.ntests:.2f}, converged: {hasconverged}")
+    logger.info(f"Average distance to CoM improvement: {com_dist_improvement/hasconverged}")
 
 
 if __name__ == "__main__":

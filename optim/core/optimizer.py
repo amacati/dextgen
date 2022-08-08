@@ -21,6 +21,7 @@ class Optimizer:
         self.inequality_constraints = []
         self.inequality_mconstraints = []
         self.status = 0
+        self.niter = 0
         self.xlow = None
         self.xup = None
         self.maxeval = None
@@ -83,8 +84,8 @@ class Optimizer:
         niter = niter or self.maxeval or 10_000
         ce = self._compile_equality_constraints()
         ci = self._compile_inequality_constraints(len(xinit))
-        xopt, status = solve(self.objective, ce, ci, xinit, niter)
-        self.status = status
+        xopt, status, niter = solve(self.objective, ce, ci, xinit, niter)
+        self.status, self.niter = status, niter
         self.last_optimum_value = self.objective(xopt)
         return xopt
 

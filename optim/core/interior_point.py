@@ -1,8 +1,9 @@
 import logging
+import time
+
 from jax import jacfwd, jacrev, grad, jit
 import numpy as np
 import jax.numpy as jnp
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,6 @@ def solve(f, ce, ci, x, niter=1000):
     jac_ci = jit(jacfwd(ci))
     grad_f = jit(grad(f))
 
-    logger.info("JIT derivatives created")
-
     N = nf + ni + ne + nz
     Mat = np.zeros((N, N))
     Mat[nf + ne + ni:, nf:nf + ni] = -np.eye(ni)
@@ -53,61 +52,66 @@ def solve(f, ce, ci, x, niter=1000):
     p = np.zeros(N)
 
     t0 = time.time()
-    for i in range(niter):
-        Ae = jac_ce(x)
-        Ai = jac_ci(x)
-        df = grad_f(x)
-        Z = jnp.diag(z)
-        S = jnp.diag(s)
-        Hl = hess_l(x, y, z, s)
-        if i == 0:
-            logger.info("JIT compile complete, starting optimization")
+    try:
+        for i in range(niter):
+            Ae = jac_ce(x)
+            Ai = jac_ci(x)
+            df = grad_f(x)
+            Z = jnp.diag(z)
+            S = jnp.diag(s)
+            Hl = hess_l(x, y, z, s)
+            if i == 0:
+                logger.debug("JIT compile complete, starting optimization")
 
-        Mat[:nf, :nf] = Hl
-        Mat[:nf, nf + ni:nf + ne + ni] = -Ae.T
-        Mat[:nf, nf + ne + ni:] = -Ai.T
-        Mat[nf:nf + ni, nf:nf + ni] = Z
-        Mat[nf:nf + ni, nf + ne + ni:] = S
-        Mat[nf + ni:nf + ne + ni, :nf] = Ae
-        Mat[nf + ne + ni:, :nf] = Ai
+            Mat[:nf, :nf] = Hl
+            Mat[:nf, nf + ni:nf + ne + ni] = -Ae.T
+            Mat[:nf, nf + ne + ni:] = -Ai.T
+            Mat[nf:nf + ni, nf:nf + ni] = Z
+            Mat[nf:nf + ni, nf + ne + ni:] = S
+            Mat[nf + ni:nf + ne + ni, :nf] = Ae
+            Mat[nf + ne + ni:, :nf] = Ai
 
-        vec[:nf] = -df + Ae.T @ y + Ai.T @ z
-        vec[nf:nf + ni] = -S @ z + mu * e
-        vec[nf + ni:nf + ne + ni] = -ce(x)
-        vec[nf + ne + ni:] = -ci(x) + s
+            vec[:nf] = -df + Ae.T @ y + Ai.T @ z
+            vec[nf:nf + ni] = -S @ z + mu * e
+            vec[nf + ni:nf + ne + ni] = -ce(x)
+            vec[nf + ne + ni:] = -ci(x) + s
 
-        sol = np.linalg.solve(Mat, vec)
-        px = sol[:nf]
-        ps = sol[nf:nf + ni]
-        py = sol[nf + ni:nf + ne + ni]
-        pz = sol[nf + ne + ni:]
+            sol = np.linalg.solve(Mat, vec)
+            px = sol[:nf]
+            ps = sol[nf:nf + ni]
+            py = sol[nf + ni:nf + ne + ni]
+            pz = sol[nf + ne + ni:]
 
-        xall[:nf] = x
-        xall[nf:nf + ni] = s
-        xall[nf + ni:nf + ne + ni] = y
-        xall[nf + ne + ni:] = z
+            xall[:nf] = x
+            xall[nf:nf + ni] = s
+            xall[nf + ni:nf + ne + ni] = y
+            xall[nf + ne + ni:] = z
 
-        p[:nf] = px
-        p[nf:nf + ni] = ps
-        p[nf + ni:nf + ne + ni] = py
-        p[nf + ne + ni:] = pz
-        xall[:], nfnew = linesearch(grad_lagrangian, xall, p, alpha_s_max, mu)
+            p[:nf] = px
+            p[nf:nf + ni] = ps
+            p[nf + ni:nf + ne + ni] = py
+            p[nf + ne + ni:] = pz
+            xall[:], nfnew = linesearch(grad_lagrangian, xall, p, alpha_s_max, mu)
 
-        x, s, y, z = xall[:nf], xall[nf:nf + ni], xall[nf + ni:nf + ne + ni], xall[nf + ne + ni:]
+            x, s = xall[:nf], xall[nf:nf + ni]
+            y, z = xall[nf + ni:nf + ne + ni], xall[nf + ne + ni:]
 
-        if i % 100 == 0:
-            logger.info(f"Iteration {i}: dLnorm: {nfnew:.2e}")
+            if i % 100 == 0:
+                logger.debug(f"Iteration {i}: dLnorm: {nfnew:.2e}")
 
-        if nfnew < mu:
-            mu = sigma * mu
-        elif nfnew < 1e-7:
-            logger.info(f"Optimization converged after {i+1} iterations")
-            break
-        if i == niter - 1:
-            logger.warning(f"Optimization failed to converge after {i+1} iterations")
-            status = -1
-    logger.info(f"Optimization took {time.time() - t0:.0f}s")
-    return x, status
+            if nfnew < mu:
+                mu = sigma * mu
+            elif nfnew < 1e-7:
+                logger.info(f"Optimization converged after {i+1} iterations")
+                break
+            if i == niter - 1:
+                logger.warning(f"Optimization failed to converge after {i+1} iterations")
+                status = -1
+    except np.linalg.LinAlgError as e:
+        logger.warning(f"Optimization error:\n{e}")
+        status = -1
+    logger.debug(f"Optimization took {time.time() - t0:.0f}s")
+    return x, status, i
 
 
 # We can't @jit linesearch because of the early stopping criteria
