@@ -200,6 +200,59 @@ def mat2quat(mat: np.ndarray) -> np.ndarray:
     return q
 
 
+def fastmat2quat(mat: np.ndarray) -> np.ndarray:
+    """Faster matrix to quaternion conversion.
+
+    See https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+    """
+    assert mat.shape[-2:] == (3, 3), f"Invalid shape matrix {mat}"
+
+    tr0 = 1.0 + mat[..., 0, 0] + mat[..., 1, 1] + mat[..., 2, 2]
+    tr1 = 1.0 + mat[..., 0, 0] - mat[..., 1, 1] - mat[..., 2, 2]
+    tr2 = 1.0 - mat[..., 0, 0] + mat[..., 1, 1] - mat[..., 2, 2]
+    tr3 = 1.0 - mat[..., 0, 0] - mat[..., 1, 1] + mat[..., 2, 2]
+
+    # Calculate which conversion to take for which matrix for best numeric stability
+    q = np.empty(mat.shape[:-2] + (4,))
+    # idx1 = np.logical_and(tr1 > tr2, tr1 > tr3)
+    # idx2 = np.logical_and(tr2 > tr1, tr2 > tr3)
+    # idx3 = np.logical_not(np.logical_or(idx1, idx2))
+
+    idx0 = tr0 > 0
+    nidx0 = np.logical_not(idx0)
+    idx1 = np.logical_and(np.logical_and(tr1 > tr2, tr1 > tr3), nidx0)
+    idx2 = np.logical_and(np.logical_and(tr2 > tr1, tr2 > tr3), nidx0)
+    idx3 = np.logical_and(np.logical_not(np.logical_or(idx1, idx2)), nidx0)
+
+    s0 = np.sqrt(tr0[idx0]) * 2
+    s1 = np.sqrt(tr1[idx1]) * 2
+    s2 = np.sqrt(tr2[idx2]) * 2
+    s3 = np.sqrt(tr3[idx3]) * 2
+
+    q[idx0, 0] = 0.25 * s0
+    q[idx0, 1] = (mat[idx0, 2, 1] - mat[idx0, 1, 2]) / s0
+    q[idx0, 2] = (mat[idx0, 0, 2] - mat[idx0, 2, 0]) / s0
+    q[idx0, 3] = (mat[idx0, 1, 0] - mat[idx0, 0, 1]) / s0
+
+    q[idx1, 0] = (mat[idx1, 2, 1] - mat[idx1, 1, 2]) / s1
+    q[idx1, 1] = 0.25 * s1
+    q[idx1, 2] = (mat[idx1, 0, 1] + mat[idx1, 1, 0]) / s1
+    q[idx1, 3] = (mat[idx1, 0, 2] + mat[idx1, 2, 0]) / s1
+
+    q[idx2, 0] = (mat[idx2, 0, 2] - mat[idx2, 2, 0]) / s2
+    q[idx2, 1] = (mat[idx2, 0, 1] + mat[idx2, 1, 0]) / s2
+    q[idx2, 2] = 0.25 * s2
+    q[idx2, 3] = (mat[idx2, 1, 2] + mat[idx2, 2, 1]) / s2
+
+    q[idx3, 0] = (mat[idx3, 1, 0] - mat[idx3, 0, 1]) / s3
+    q[idx3, 1] = (mat[idx3, 0, 2] + mat[idx3, 2, 0]) / s3
+    q[idx3, 2] = (mat[idx3, 1, 2] + mat[idx3, 2, 1]) / s3
+    q[idx3, 3] = 0.25 * s3
+
+    q[q[..., 0] < 0, :] *= -1  # Prefer quaternion with positive w
+    return q
+
+
 def quat2mat(quat: np.ndarray) -> np.ndarray:
     """Convert Quaternions to Euler Angles.
 
@@ -368,6 +421,56 @@ def embedding2quat(embedding: np.ndarray, regularize: bool = False) -> np.ndarra
         if q[it.multi_index][0] < 0:
             q[it.multi_index] *= -1
         it.iternext()
+    return q
+
+
+def fastembedding2quat(embedding: np.ndarray, regularize: bool = False) -> np.ndarray:
+    """Faster embedding to quaternion conversion.
+
+    See https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+    """
+    mat = embedding2mat(embedding, regularize=regularize)
+
+    tr0 = 1.0 + mat[..., 0, 0] + mat[..., 1, 1] + mat[..., 2, 2]
+    tr1 = 1.0 + mat[..., 0, 0] - mat[..., 1, 1] - mat[..., 2, 2]
+    tr2 = 1.0 - mat[..., 0, 0] + mat[..., 1, 1] - mat[..., 2, 2]
+    tr3 = 1.0 - mat[..., 0, 0] - mat[..., 1, 1] + mat[..., 2, 2]
+
+    # Calculate which conversion to take for which matrix for best numeric stability
+    q = np.empty(mat.shape[:-2] + (4,))
+
+    idx0 = tr0 > 0
+    nidx0 = np.logical_not(idx0)
+    idx1 = np.logical_and(np.logical_and(tr1 > tr2, tr1 > tr3), nidx0)
+    idx2 = np.logical_and(np.logical_and(tr2 > tr1, tr2 > tr3), nidx0)
+    idx3 = np.logical_and(np.logical_not(np.logical_or(idx1, idx2)), nidx0)
+
+    s0 = np.sqrt(tr0[idx0]) * 2
+    s1 = np.sqrt(tr1[idx1]) * 2
+    s2 = np.sqrt(tr2[idx2]) * 2
+    s3 = np.sqrt(tr3[idx3]) * 2
+
+    q[idx0, 0] = 0.25 * s0
+    q[idx0, 1] = (mat[idx0, 2, 1] - mat[idx0, 1, 2]) / s0
+    q[idx0, 2] = (mat[idx0, 0, 2] - mat[idx0, 2, 0]) / s0
+    q[idx0, 3] = (mat[idx0, 1, 0] - mat[idx0, 0, 1]) / s0
+
+    q[idx1, 0] = (mat[idx1, 2, 1] - mat[idx1, 1, 2]) / s1
+    q[idx1, 1] = 0.25 * s1
+    q[idx1, 2] = (mat[idx1, 0, 1] + mat[idx1, 1, 0]) / s1
+    q[idx1, 3] = (mat[idx1, 0, 2] + mat[idx1, 2, 0]) / s1
+
+    q[idx2, 0] = (mat[idx2, 0, 2] - mat[idx2, 2, 0]) / s2
+    q[idx2, 1] = (mat[idx2, 0, 1] + mat[idx2, 1, 0]) / s2
+    q[idx2, 2] = 0.25 * s2
+    q[idx2, 3] = (mat[idx2, 1, 2] + mat[idx2, 2, 1]) / s2
+
+    q[idx3, 0] = (mat[idx3, 1, 0] - mat[idx3, 0, 1]) / s3
+    q[idx3, 1] = (mat[idx3, 0, 2] + mat[idx3, 2, 0]) / s3
+    q[idx3, 2] = (mat[idx3, 1, 2] + mat[idx3, 2, 1]) / s3
+    q[idx3, 3] = 0.25 * s3
+
+    q[q[..., 0] < 0, :] *= -1  # Prefer quaternion with positive w
     return q
 
 

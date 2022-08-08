@@ -7,8 +7,8 @@ import numpy as np
 
 import envs
 from envs.shadow_hand.flat_base import FlatSHBase
-from envs.rotations import embedding2mat, embedding2quat, quat2embedding, mat2embedding, quat_mul
-from envs.rotations import axisangle2quat, mat2quat
+from envs.rotations import embedding2mat, embedding2quat, fastembedding2quat, quat2embedding
+from envs.rotations import axisangle2quat, mat2quat, quat_mul, mat2embedding
 
 MODEL_XML_PATH = str(Path("ShadowHand", "flat_orient.xml"))
 
@@ -163,8 +163,9 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
         d = envs.utils.goal_distance(achieved_goal[..., :3], goal[..., :3])
         if self.angle_threshold == np.pi:  # Speed up reward calculation for initial training
             return -(d > self.target_threshold).astype(np.float32)
-        qgoal = embedding2quat(goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        em2quat = embedding2quat if goal.ndim == 1 else fastembedding2quat
+        qgoal = em2quat(goal[..., 3:9])
+        qachieved_goal = em2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_error = d > self.target_threshold
@@ -173,8 +174,9 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[..., :3], desired_goal[..., :3])
-        qgoal = embedding2quat(desired_goal[..., 3:9])
-        qachieved_goal = embedding2quat(achieved_goal[..., 3:9])
+        em2quat = embedding2quat if desired_goal.ndim == 1 else fastembedding2quat
+        qgoal = em2quat(desired_goal[..., 3:9])
+        qachieved_goal = em2quat(achieved_goal[..., 3:9])
         angle = 2 * np.arccos(np.clip(np.abs(np.sum(qachieved_goal * qgoal, axis=-1)), -1, 1))
         assert (angle < np.pi + 1e-3).all(), "Angle greater than pi encountered in quat difference"
         pos_success = d < self.target_threshold

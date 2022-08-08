@@ -8,6 +8,7 @@ See https://github.com/Farama-Foundation/Gym-Robotics/tree/main/gym_robotics/env
 """
 from typing import Dict, List, Optional
 import logging
+import copy
 
 import numpy as np
 import mujoco_py
@@ -59,6 +60,8 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.initial_qpos = initial_qpos
         self.initial_gripper = initial_gripper
         self.early_stop_ok = True  # Flag to prevent an early stop
+        self._reset_sim_state = None
+        self._reset_sim_goal = None
         assert object_size_multiplier > 0
         self.object_size_multiplier = object_size_multiplier
         assert object_size_range >= 0
@@ -96,7 +99,12 @@ class FlatBase(envs.robot_env.RobotEnv):
             contact = self.sim.data.contact[i]
             geom1 = self.sim.model.geom_id2name(contact.geom1)
             geom2 = self.sim.model.geom_id2name(contact.geom2)
-            if self.object_name in (geom1, geom2):
+            if geom1 is None or geom2 is None:
+                continue
+            if self.object_name in (geom1, geom2) and ("robot0" in geom1 or "robot0" in geom2):
+                # Always have the gripper link as the first geometry and the object as the second
+                geom1 = geom2 if geom1 == self.object_name else geom1
+                geom2 = self.object_name
                 contact_force = np.zeros(6, dtype=np.float64)
                 # Contact force is 3 forces + 3 torques
                 mujoco_py.functions.mj_contactForce(self.sim.model, self.sim.data, i, contact_force)
@@ -108,10 +116,37 @@ class FlatBase(envs.robot_env.RobotEnv):
                     "geom2": geom2,
                     "contact_force": contact_force,
                     "pos": contact.pos.copy(),
-                    "frame": frame
+                    "frame": frame.copy()
                 }
                 contact_info.append(info)
         return contact_info
+
+    def _get_gripper_info(self) -> Dict:
+        pos = self.sim.data.get_site_xpos("robot0:grip").copy()
+        orient = self.sim.data.get_site_xmat("robot0:grip").copy()
+        robot_qpos, _ = envs.utils.robot_get_obs(self.sim)
+        if self.gripper_type == "ParallelJaw":
+            state = robot_qpos[-2:].copy()
+        elif self.gripper_type == "BarrettHand":
+            state = robot_qpos[-8:].copy()
+        elif self.gripper_type == "ShadowHand":
+            state = robot_qpos[-24:]
+        elif self.gripper_type == "SeaClear":
+            state = robot_qpos[-2].copy()
+        else:
+            raise RuntimeError("Gripper type not supported")
+        return {"pos": pos, "orient": orient, "state": state, "type": self.gripper_type}
+
+    def _get_object_info(self) -> Dict:
+        object_pos = self.sim.data.get_site_xpos(self.object_name).copy()
+        object_orient = self.sim.data.get_site_xmat(self.object_name).copy()
+        object_size = self.sim.model.geom_size[self.sim.model.geom_name2id(self.object_name)]
+        return {
+            "pos": object_pos,
+            "orient": object_orient,
+            "name": self.object_name,
+            "size": object_size
+        }
 
     def _viewer_setup(self):
         body_id = self.sim.model.body_name2id("robot0:gripper_link")
@@ -127,6 +162,28 @@ class FlatBase(envs.robot_env.RobotEnv):
         site_id = self.sim.model.site_name2id("target0")
         self.sim.model.site_pos[site_id] = self.goal[:3]
         self.sim.forward()
+
+    def save_reset(self):
+        """Save the current environment state to load it with :meth:`~.save_reset`.
+
+        Note: Has to be called at least once before loading a reset point.
+        Warning: Experimental. Only introduced for optimization.
+        """
+        self._reset_sim_state = copy.deepcopy(self.sim.get_state())
+        self._reset_sim_goal = self.goal.copy()
+
+    def load_reset(self) -> Dict[str, np.ndarray]:
+        """Load a saved environment state.
+
+        Warning: :meth:`~.reset` still has to be called before loading the state!
+        Warning: Experimental. Only introduced for optimization.
+        """
+        assert self._reset_sim_state is not None and self._reset_sim_goal is not None
+        self.reset()  # Somehow not sufficient to reset the steps counter
+        self.sim.set_state(self._reset_sim_state)
+        self.goal = self._reset_sim_goal
+        self.sim.forward()
+        return self._get_obs()
 
     def _reset_sim(self) -> bool:
         self.sim.set_state(self.initial_state)

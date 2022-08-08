@@ -6,8 +6,10 @@ The MuJoCoVideoRecorder is a wrapper around OpenAI's gym VideoRecorder.
 import logging
 from pathlib import Path
 import time
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List, Mapping
+import json
 
+import numpy as np
 import pickle
 import torch
 import gym
@@ -18,6 +20,22 @@ import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.actor import PosePolicyNet, DDP
 from parse_args import parse_args
+
+
+def serialize(x):
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    elif isinstance(x, Mapping):
+        for key, val in x.items():
+            if key == "is_success":
+                x[key] = bool(val)
+            else:
+                x[key] = serialize(val)
+        return x
+    elif isinstance(x, List):
+        return [serialize(item) for item in x]
+    else:
+        return x
 
 
 class MujocoVideoRecorder(VideoRecorder):
@@ -70,8 +88,8 @@ if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger().setLevel(loglvls[args.loglvl])
     env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
-    size_s = len(env.observation_space["observation"].low) + len(
-        env.observation_space["desired_goal"].low)
+    size_g = len(env.observation_space["desired_goal"].low)
+    size_s = len(env.observation_space["observation"].low) + size_g
     size_a = len(env.action_space.low)
     if args.actor_net_type == "DDP":
         actor = DDP(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
@@ -92,11 +110,13 @@ if __name__ == "__main__":
         path = Path(__file__).parent / "video" / (args.env + ".mp4")
         recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
         logger.info("Recording video, environment rendering disabled")
+    env.use_contact_info()
     for i in range(args.ntests):
         state, goal, _ = unwrap_obs(env.reset())
         done = False
         t = 0
         early_stop = 0
+        max_c = 0
         while not done:
             state, goal = state_norm(state), goal_norm(goal)
             state = torch.as_tensor(state, dtype=torch.float32)
@@ -104,7 +124,22 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action = actor(torch.cat([state, goal])).numpy()
             next_obs, reward, done, info = env.step(action)
+
+            if True:
+                c_info = info
+                _state, _goal, _ = unwrap_obs(next_obs)
+                _state, _goal = state_norm(_state), goal_norm(_goal)
+                _state = torch.as_tensor(_state, dtype=torch.float32)
+                _goal = torch.as_tensor(_goal, dtype=torch.float32)
+                with torch.no_grad():
+                    action = actor(torch.cat([state, goal])).numpy()
+                c_info["gripper_info"]["next_state"] = action[12:].tolist()
+                serialize(c_info)
+                with open("contact_info_cube.json", "w") as f:
+                    json.dump(c_info, f)
+
             state, goal, _ = unwrap_obs(next_obs)
+
             early_stop = (early_stop + 1) if not reward else 0
             if record:
                 t += 1
@@ -120,6 +155,7 @@ if __name__ == "__main__":
             if early_stop == 10:
                 break
         success += info["is_success"]
+
     if record:
         recorder.close()
         (Path(__file__).parent / "video" / (args.env + ".meta.json")).unlink()  # Delete metafile

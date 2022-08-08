@@ -53,6 +53,8 @@ class DDPG:
             dist: Toggles distributed training mode.
         """
         self.env = env
+        # Rewards are calculated from HER buffer. Disable computation for runtime improvement
+        self.env.use_step_reward(False)
         self.args = args
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
@@ -221,6 +223,7 @@ class DDPG:
         """
         self.actor.eval()
         success = 0
+        self.env.use_info(True)
         for _ in range(self.args.evals):
             state, goal, _ = unwrap_obs(self.env.reset())
             for t in range(self.T):
@@ -230,6 +233,7 @@ class DDPG:
                 state, goal, _ = unwrap_obs(next_obs)
             success += info["is_success"]
         self.actor.train()
+        self.env.use_info(False)
         if self.dist:
             success_rate = np.array([success / self.args.evals])
             MPI.COMM_WORLD.Allreduce(success_rate, success_rate, op=MPI.SUM)
