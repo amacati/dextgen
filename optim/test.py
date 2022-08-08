@@ -89,6 +89,7 @@ def main():
             if check_grasp(info):
                 break
             logger.warning("Failed to generate grasp proposal. Retrying with another env")
+            input("Press enter to continue")
 
         # Optimize proposed grasp
         env.reset()
@@ -111,12 +112,12 @@ def main():
                 early_stop = (early_stop + 1) if not reward else 0
                 if early_stop == 10:
                     break
-            env.enable_full_orient_ctrl(False)
             logger.info("Optimized control finished")
             success += info["is_success"]
             com_dist_improvement += compute_com_dist_improvement(info, xopt)
         except RuntimeError as e:
             logger.warning(e)
+        env.enable_full_orient_ctrl(False)
     logger.info(f"Agent success rate: {success/args.ntests:.2f}, converged: {hasconverged}")
     logger.info(f"Average distance to CoM improvement: {com_dist_improvement/hasconverged}")
 
