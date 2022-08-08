@@ -134,7 +134,7 @@ class SeaClear(FlatBase):
     def _step_callback(self):
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         goal_d = goal_distance(object_pos[:3], self.goal[3:6])
-        self._obs_violation = goal_d > self._obs_threshold and self._obs_violation
+        self._obs_violation = goal_d < self._obs_threshold or self._obs_violation
 
     def _set_object_pose(self):
         object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
