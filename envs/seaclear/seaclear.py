@@ -29,7 +29,8 @@ class SeaClear(FlatBase):
             fancy_world: Loads a version with plants for visualization if True.
         """
         self.mocap_offset = np.array([0., 0., 0.])
-        self._obs_threshold = 0.15
+        self._obs_threshold = 0.2  # Inflated threshold for training
+        self._obs_check_threshold = 0.15  # Threshold used for success checks
         self._obs_range = 0.05  # Inner obstacle range for opposing goal and object positions
         self._obs_violation = False
         self._opposing_goal_object = False
@@ -134,7 +135,7 @@ class SeaClear(FlatBase):
     def _step_callback(self):
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         goal_d = goal_distance(object_pos[:3], self.goal[3:6])
-        self._obs_violation = goal_d < self._obs_threshold or self._obs_violation
+        self._obs_violation = goal_d < self._obs_check_threshold or self._obs_violation
 
     def _set_object_pose(self):
         object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
