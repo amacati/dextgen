@@ -114,7 +114,6 @@ class Controller:
     def set_geom(self, info):
         gripper = get_gripper(info)
         self.geom = get_geometry(info, gripper)
-        print(f"geom pos: {self.geom.pos}")
 
     def set_xopt(self, xopt):
         assert self.geom is not None, "Geometry has to be set to set xopt"
