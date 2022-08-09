@@ -1,18 +1,19 @@
 from functools import singledispatch
+from matplotlib.figure import Figure
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from optim.geometry import Cube, Cylinder, Sphere
+from optim.geometry import Cube, Cylinder, Sphere, Geometry
 
 
 @singledispatch
-def visualize_geometry(obj):
+def visualize_geometry(obj: Geometry) -> Figure:
     raise TypeError(f"Object type {type(obj)} not supported")
 
 
 @visualize_geometry.register
-def _(obj: Cube):
+def _(obj: Cube) -> Figure:
     fig = plt.figure()
     fig.suptitle("Contact point optimization")
     ax = []

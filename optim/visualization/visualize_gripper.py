@@ -1,14 +1,15 @@
 from functools import singledispatch
+from matplotlib.figure import Figure
 
 import matplotlib.pyplot as plt
 
-from optim.grippers import ParallelJaw, BarrettHand, ShadowHand
+from optim.grippers import ParallelJaw, BarrettHand, ShadowHand, Gripper
 from optim.grippers.kinematics.parallel_jaw import kin_pj_full
 from optim.grippers.kinematics.barrett_hand import kin_bh_full
 
 
 @singledispatch
-def visualize_gripper(gripper, fig, color="#777777"):
+def visualize_gripper(gripper: Gripper, fig, color="#777777") -> Figure:
     raise RuntimeError(f"Gripper of type {type(gripper)} not supported")
 
 
