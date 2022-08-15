@@ -21,7 +21,8 @@
 		<body name="can" pos="0 0 0.01">
 			<joint name="can:joint" type="free" damping="0.01"></joint>
 			<geom type="mesh" mesh="can" rgba="1 0 0 1" conaffinity="0" contype="0"></geom>
-			<geom size="0.022 0.043" pos="0 0 0.043" type="cylinder" condim="4" mass="1" name="cylinder" rgba="0 0 0 0" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.022 0.043" pos="0 0 0.043" type="cylinder" condim="4" mass="0.05" name="cylinder" rgba="0 0 0 0" solimp="0.999 0.999 0.001" solref="0.02 1"></geom>
+			<geom size="0.01 0.01 0.01" pos="0 0 0.01" type="sphere" mass="0.05" name="inertia_mass" rgba="0 0 0 0" conaffinity="0" contype="0"></geom>
 			<site name="can" pos="0 0 0" size="0.01 0.01 0.01" rgba="1 0 0 1" type="sphere"></site>
 		</body>
 		<light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 0 4" dir="0 0 -1" name="light0"></light>

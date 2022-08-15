@@ -149,7 +149,7 @@ class Optimizer:
         assert self.objective is not None
         assert self.status == 0
         assert self.equality_constraints or self.equality_mconstraints
-        # assert self.inequality_constraints or self.inequality_mconstraints
+        assert self.inequality_constraints or self.inequality_mconstraints
         assert self.xlow is not None and self.xup is not None
         niter = niter or self.maxeval or 10_000
         ce = self._compile_equality_constraints()

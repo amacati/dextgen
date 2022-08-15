@@ -1,5 +1,6 @@
+"""Controller module."""
 import logging
-from typing import Dict
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -14,11 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 class Controller:
+    """Controller class for controlling the agent with the optimized grasp configuration."""
 
-    GRIPPER_EPS = 1e-2
-    r_R_v = np.array([[0., 1., 0.], [0., 0., 1.], [1., 0., 0.]])
+    GRIPPER_EPS = 1e-3
+    r_T_v = np.array([[0., 1., 0., 0.], [0., 0., 1., 0.], [1., 0., 0., 0.], [0., 0., 0., 1.]])
 
     def __init__(self):
+        """Initialize the controller and its optimizer."""
         self.opt = Optimizer()
         self.opt_pos = None
         self.opt_orient = None
@@ -26,78 +29,97 @@ class Controller:
         self._is_reached = False
         self._is_lowered = False
         self._is_grasped = False
+        self.geom = None
 
     def reset(self):
+        """Reset the controller."""
         self._is_reached = False
         self._is_lowered = False
         self._is_grasped = False
         self.opt_pos = None
         self.opt_orient = None
         self.opt_grasp = None
+        self.opt.reset()
 
-    def __call__(self, state, goal):
-        assert self.opt_grasp is not None
-        robot_pos, w_R_r = state[:3], embedding2mat(state[3:9])
+    def __call__(self, state: np.ndarray, goal: np.ndarray) -> np.ndarray:
+        """Compute the control input for the environment given the current state and goal.
+
+        Args:
+            state: Current (unnormalized) environment state.
+            goal: Current (unnormalized) environment goal.
+
+        Returns:
+            The control vector.
+
+        Raises:
+            AssertionError: No optimal grasp is registered.
+        """
+        assert self.opt_grasp is not None, "No optimal grasp registered"
         gripper_state = state[9:11]
-        geom_pos, w_R_g = state[14:17], embedding2mat(state[20:26])
-        des_pos = geom_pos + self.opt_pos_rel
-        w_R_rdes = w_R_g @ self.g_R_r
-        reach_offset = np.array([0., 0, 0.055])
-        if self._check_reached(robot_pos, des_pos + reach_offset, w_R_r, w_R_rdes):
+        w_T_r = np.eye(4)  # Robot transformation
+        w_T_r[:3, :3] = embedding2mat(state[3:9])
+        w_T_r[:3, 3] = state[:3]
+        w_T_g = np.eye(4)  # Geometry transformation
+        w_T_g[:3, :3] = embedding2mat(state[20:26])
+        w_T_g[:3, 3] = state[14:17]
+        w_T_rdes = w_T_g @ self.g_T_r
+        reach_offset = np.zeros((4, 4))
+        reach_offset[:3, 3] = [0., 0, 0.055]
+        if self._check_reached(w_T_r, w_T_rdes + reach_offset):
             logger.debug("reaching is complete")
             self._is_reached = True
-        if self._check_reached(robot_pos, des_pos, w_R_r, w_R_rdes):
+        if self._check_reached(w_T_r, w_T_rdes):
             logger.debug("lowering is complete")
             self._is_lowered = True
         if not self._is_reached:
             logger.debug("reaching phase")
-            pos_ctrl = self._compute_pos_ctrl(robot_pos, des_pos + reach_offset)
+            pos_ctrl, rot_ctrl = self._compute_ctrl(w_T_r, w_T_rdes + reach_offset)
             gripper_ctrl = self.opt_grasp + self.GRIPPER_EPS
         elif not self._is_lowered:
             logger.debug("lowering phase")
-            pos_ctrl = self._compute_pos_ctrl(robot_pos, des_pos)
+            pos_ctrl, rot_ctrl = self._compute_ctrl(w_T_r, w_T_rdes)
             gripper_ctrl = self.opt_grasp + self.GRIPPER_EPS
         elif not self._is_grasped:
             logger.debug("grasping phase")
-            pos_ctrl = self._compute_pos_ctrl(robot_pos, des_pos)
+            pos_ctrl, rot_ctrl = self._compute_ctrl(w_T_r, w_T_rdes)
             gripper_ctrl = -np.ones(1)
             if np.mean(gripper_state) < 0.03:
                 self._is_grasped = True
         else:
             logger.debug("goal reaching phase")
-            pos_ctrl = self._compute_pos_ctrl(geom_pos, goal)
+            w_T_goal = w_T_rdes.copy()
+            w_T_goal[:3, 3] = goal
+            pos_ctrl, rot_ctrl = self._compute_ctrl(w_T_g, w_T_goal)
             gripper_ctrl = -np.ones(1)
-        rot_ctrl = self._compute_rot_ctrl(w_R_g)
         return np.concatenate((pos_ctrl, rot_ctrl, gripper_ctrl))
 
-    @staticmethod
-    def _compute_pos_ctrl(pos, des_pos):
-        dx = (des_pos - pos)
-        dx = dx / (np.linalg.norm(dx) + 1e-2)
-        return dx
-
-    def _compute_rot_ctrl(self, w_R_g):
-        w_R_r = w_R_g @ self.g_R_r
-        w_R_v = w_R_r @ self.r_R_v
-        rot_ctrl = w_R_v.flatten()
-        return rot_ctrl
-
-    def _check_reached(self, pos: np.ndarray, des_pos: np.ndarray, orient: np.ndarray,
-                       des_orient: np.ndarray) -> bool:
-        """Check if the desired pose has been reached given a fixed tolerance.
+    def _compute_ctrl(self, w_T_r: np.ndarray, w_T_d: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Compute the pose control input given the current pose and a target pose.
 
         Args:
-            pos: Current position.
-            des_pos: Desired position.
-            orient: Current orientation as rotation matrix.
-            des_orient: Desired orientation as rotation matrix.
+            w_T_r: Current pose as homogeneous transformation matrix.
+            w_T_d: Desired pose as homogeneous transformation matrix.
+
+        Returns:
+            The position control and the orientation control as flattened rotation matrix.
+        """
+        dx = (w_T_d[:3, 3] - w_T_r[:3, 3])
+        dx = dx / (np.linalg.norm(dx) + 1e-2)
+        dr = (w_T_d @ self.r_T_v)[:3, :3]
+        return dx, dr.flatten()
+
+    def _check_reached(self, w_T_r: np.ndarray, w_T_d: np.ndarray) -> bool:
+        """Check if the current pose is within target tolerances of the desired pose.
+
+        Args:
+            w_T_r: Current pose as homogeneous transformation matrix.
+            w_T_d: Desired pose as homogeneous transformation matrix.
 
         Returns:
             True if the pose is within tolerances, else False.
         """
-        dx = pos - des_pos
-        orient, des_orient = mat2quat(orient), mat2quat(des_orient)
-        # Calculate the angle between the two orientations
+        dx = w_T_r[:3, 3] - w_T_d[:3, 3]
+        orient, des_orient = mat2quat(w_T_r[:3, :3]), mat2quat(w_T_d[:3, :3])
         dq = 2 * np.arccos(np.clip(np.abs(np.sum(orient * des_orient, axis=-1)), -1, 1))
         pos_reached, orient_reached = np.linalg.norm(dx) < 5e-3, dq < 1e-2
         return pos_reached and orient_reached
@@ -117,33 +139,63 @@ class Controller:
         xinit, info = filter_info(info)
         self.opt.reset()
         gripper = get_gripper(info)
-        cube = get_geometry(info, gripper)
-        self._check_geom(cube)
-        cube.create_constraints(gripper, self.opt)
+        self.geom = get_geometry(info, gripper)
+        self._check_geom(self.geom)
+        self.geom.create_constraints(gripper, self.opt)
         gripper.create_constraints(self.opt)
-        self.opt.set_min_objective(create_cube_objective(xinit, cube.com))
+        self.opt.set_min_objective(create_cube_objective(xinit, self.geom.com))
         xopt = self.opt.optimize(xinit, 10_000)
-        self.opt_pos_rel = xopt[:3] - cube.pos
-        w_R_r = quat2mat(xopt[3:7])
-        w_R_g = cube.orient_mat
-        self.g_R_r = w_R_g.T @ w_R_r
-        # Convert from joint angle to interval of [-1, 1]
+        w_T_r = np.zeros((4, 4))
+        w_T_r[:3, :3] = quat2mat(xopt[3:7])
+        w_T_r[:4, 3] = np.concatenate((xopt[:3], np.array([1])))
+        w_T_g = np.zeros((4, 4))
+        w_T_g[:3, :3] = self.geom.orient_mat
+        w_T_g[:4, 3] = np.concatenate((self.geom.pos, np.array([1])))
+        self.g_T_r = np.linalg.inv(w_T_g) @ w_T_r
         self.opt_grasp = np.array([(xopt[7] + xopt[8]) / 0.05 * 2 - 1])
         if self.opt.status != 0:
             raise RuntimeError("Optimization failed to converge!")
         return xopt
 
-    def _check_geom(self, cube: Cube):
+    def set_geom(self, info: Dict):
+        """Set the current controller target geometry.
+
+        Args:
+            info: Contact information dictionary.
+        """
+        gripper = get_gripper(info)
+        self.geom = get_geometry(info, gripper)
+
+    def set_xopt(self, xopt: np.ndarray):
+        """Set the current solution of the controller.
+
+        Warning:
+            The controller target geometry has to be set first with `set_geom`!
+
+        Args:
+            xopt: Optimal gripper configuration.
+        """
+        assert self.geom is not None, "Geometry has to be set to set xopt"
+        w_T_r = np.zeros((4, 4))
+        w_T_r[:3, :3] = quat2mat(xopt[3:7])
+        w_T_r[:4, 3] = np.concatenate((xopt[:3], np.array([1])))
+        w_T_g = np.zeros((4, 4))
+        w_T_g[:3, :3] = self.geom.orient_mat
+        w_T_g[:4, 3] = np.concatenate((self.geom.pos, np.array([1])))
+        self.g_T_r = np.linalg.inv(w_T_g) @ w_T_r
+        self.opt_grasp = np.array([(xopt[7] + xopt[8]) / 0.05 * 2 - 1])
+
+    def _check_geom(self, geom: Cube):
         """Check if the object contacts are in a valid configuration for the optimization.
 
         Contacts have to lie on opposing sides of the cube since otherwise, the contact force
         constraints are violated.
 
         Args:
-            cube: The cube object.
+            geom: The cube object.
 
         Raises:
             RuntimeError: The contacts don't lie on opposing sides of the cube.
         """
-        if abs(cube.contact_mapping[0] - cube.contact_mapping[1]) != 1:
+        if abs(geom.contact_mapping[0] - geom.contact_mapping[1]) != 1:
             raise RuntimeError("Contacts don't lie on opposing sides of the cube")

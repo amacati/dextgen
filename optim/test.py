@@ -32,15 +32,12 @@ def compute_com_dist_improvement(info: Dict, xopt: np.ndarray) -> float:
         The summed distance difference between the initial and optimal configuration of the fingers.
     """
     gripper = get_gripper(info)
-    kin_init_1 = gripper.create_kinematics(gripper.LINKS[0], None)
-    kin_init_2 = gripper.create_kinematics(gripper.LINKS[1], None)
-    d1_init = np.linalg.norm(info["object_info"]["pos"] - kin_init_1(gripper.state))
-    d2_init = np.linalg.norm(info["object_info"]["pos"] - kin_init_2(gripper.state))
-    gripper.state = xopt
-    kin_init_1 = gripper.create_kinematics(gripper.LINKS[0], None)
-    kin_init_2 = gripper.create_kinematics(gripper.LINKS[1], None)
-    d1_opt = np.linalg.norm(info["object_info"]["pos"] - kin_init_1(gripper.state))
-    d2_opt = np.linalg.norm(info["object_info"]["pos"] - kin_init_2(gripper.state))
+    kin_fr = gripper.create_kinematics(gripper.LINKS[0], None)
+    kin_fl = gripper.create_kinematics(gripper.LINKS[1], None)
+    d1_init = np.linalg.norm(info["object_info"]["pos"] - kin_fr(gripper.state))
+    d2_init = np.linalg.norm(info["object_info"]["pos"] - kin_fl(gripper.state))
+    d1_opt = np.linalg.norm(info["object_info"]["pos"] - kin_fr(xopt))
+    d2_opt = np.linalg.norm(info["object_info"]["pos"] - kin_fl(xopt))
     return d1_init + d2_init - d1_opt - d2_opt
 
 
@@ -58,7 +55,7 @@ def main():
     assert args.env == "FlatPJCube-v0", "Only FlatPJCube-v0 supported for optimization"
     logger = logging.getLogger("OptimTestScript")
     logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(args.loglvl)
 
     env = gym.make(args.env)
     env.seed(0)
@@ -102,6 +99,7 @@ def main():
                 if check_grasp(info):
                     info["gripper_info"]["next_state"] = 0.
                     logger.info("Successful grasp detected, optimizing grasp pose")
+                    # input("press enter to continue")
                     break
             if check_grasp(info):
                 break
@@ -121,19 +119,19 @@ def main():
             done = False
             early_stop = 0
             while not done:
-                next_obs, reward, done, info = env.step(controller(state, goal))
+                next_obs, reward, done, _info = env.step(controller(state, goal))
                 if render:
                     env.render()
                 state, goal, _ = unwrap_obs(next_obs)
                 early_stop = (early_stop + 1) if not reward else 0
                 if early_stop == 10:
                     break
-            env.enable_full_orient_ctrl(False)
             logger.info("Optimized control finished")
-            success += info["is_success"]
+            success += _info["is_success"]
             com_dist_improvement += compute_com_dist_improvement(info, xopt)
         except RuntimeError as e:
             logger.warning(e)
+        env.enable_full_orient_ctrl(False)
     logger.info(f"Agent success rate: {success/args.ntests:.2f}, converged: {hasconverged}")
     logger.info(f"Average distance to CoM improvement: {com_dist_improvement/hasconverged}")
 

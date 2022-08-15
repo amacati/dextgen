@@ -5,11 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
-from optim.geometry import Cube
+from optim.geometry import Cube, Geometry
 
 
 @singledispatch
-def visualize_geometry(geom):
+def visualize_geometry(geom: Geometry):
     """Visualize dispatch function for geometries.
 
     Args:

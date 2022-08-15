@@ -29,7 +29,8 @@ class SeaClear(FlatBase):
             fancy_world: Loads a version with plants for visualization if True.
         """
         self.mocap_offset = np.array([0., 0., 0.])
-        self._obs_threshold = 0.15
+        self._obs_threshold = 0.2  # Inflated threshold for training
+        self._obs_check_threshold = 0.15  # Threshold used for success checks
         self._obs_range = 0.05  # Inner obstacle range for opposing goal and object positions
         self._obs_violation = False
         self._opposing_goal_object = False
@@ -134,7 +135,7 @@ class SeaClear(FlatBase):
     def _step_callback(self):
         object_pos = self.sim.data.get_site_xpos(self.object_name)
         goal_d = goal_distance(object_pos[:3], self.goal[3:6])
-        self._obs_violation = goal_d < self._obs_threshold or self._obs_violation
+        self._obs_violation = goal_d < self._obs_check_threshold or self._obs_violation
 
     def _set_object_pose(self):
         object_pose = self.sim.data.get_joint_qpos(self.object_name + ":joint")
@@ -202,7 +203,8 @@ class SeaClear(FlatBase):
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
         d = envs.utils.goal_distance(achieved_goal[:3], desired_goal[:3])
-        return (d < self.target_threshold and not self._obs_violation).astype(np.float32)
+        success = np.logical_and(d < self.target_threshold, np.logical_not(self._obs_violation))
+        return success.astype(np.float32)
 
     def _env_setup(self, initial_qpos: np.ndarray):
         self._modify_object_size()
