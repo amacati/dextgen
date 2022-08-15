@@ -1,7 +1,9 @@
+"""Cube class module."""
 from typing import Dict
 
 import numpy as np
 
+from optim.core.optimizer import Optimizer
 from optim.grippers.base_gripper import Gripper
 from optim.grippers.kinematics.parallel_jaw import kin_pj_full
 from optim.geometry.base_geometry import Geometry
@@ -9,8 +11,15 @@ from optim.constraints import create_plane_constraints
 
 
 class Cube(Geometry):
+    """Cube class to interface with the object information from the environment."""
 
     def __init__(self, info: Dict, gripper: Gripper):
+        """Create, scale and rotate the cube's planes and map the planes to the contact points.
+
+        Args:
+            info: Info dictionary.
+            gripper: Gripper.
+        """
         super().__init__(info)
         # Define the 6 sides of the cube as a plane with four border planes at the edges
         # Plane definition:
@@ -48,7 +57,15 @@ class Cube(Geometry):
                 self.plane_normals[i, j] = self.orient_mat @ self.plane_normals[i, j]
         self.contact_mapping = self._contact_mapping(gripper)
 
-    def _contact_mapping(self, gripper):
+    def _contact_mapping(self, gripper: Gripper) -> Dict:
+        """Map the contact points of the gripper to the closest plane of the cube.
+
+        Args:
+            gripper: Gripper.
+
+        Returns:
+            The contact mapping dictionary.
+        """
         # Calculate the distance of all contact points to all cube planes. Map the contact point to
         # the plane with the smallest distance
         contact_mapping = {}
@@ -60,7 +77,16 @@ class Cube(Geometry):
             contact_mapping[idx] = np.argmin(np.abs(np.array(dst)))
         return contact_mapping
 
-    def create_surface_constraints(self, gripper: Gripper, opt):
+    def create_surface_constraints(self, gripper: Gripper, opt: Optimizer):
+        """Create constraints to keep contact points on the surface of the cube.
+
+        Constraints are registered with the optimizer. Uses the gripper kinematics to calculate the
+        current position of the contact point.
+
+        Args:
+            gripper: Gripper.
+            opt: Optimizer.
+        """
         for i, con_pt in enumerate(self.con_pts):
             kinematics = gripper.create_kinematics(self.con_links[i], con_pt)
             plane_idx = self.contact_mapping[i]

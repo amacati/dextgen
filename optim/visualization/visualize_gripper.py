@@ -1,6 +1,9 @@
+"""Gripper visualization module."""
 from functools import singledispatch
+from typing import Optional, List
 
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 from optim.grippers import ParallelJaw, BarrettHand, ShadowHand
 from optim.grippers.kinematics.parallel_jaw import kin_pj_full
@@ -8,12 +11,35 @@ from optim.grippers.kinematics.barrett_hand import kin_bh_full
 
 
 @singledispatch
-def visualize_gripper(gripper, fig, color="#777777"):
+def visualize_gripper(gripper, fig: Figure, color: str = "#777777") -> Figure:
+    """Dispatch function for plotting a gripper.
+
+    Args:
+        gripper: Gripper.
+        fig: Optional figure to plot into.
+        color: Optional matplotlib compatible color string.
+
+    Returns:
+        The figure.
+
+    Raises:
+        RuntimeError: Gripper type is not supported.
+    """
     raise RuntimeError(f"Gripper of type {type(gripper)} not supported")
 
 
 @visualize_gripper.register
-def _(gripper: ParallelJaw, fig=None, color="#777777"):
+def _(gripper: ParallelJaw, fig: Optional[Figure] = None, color: str = "#777777") -> Figure:
+    """Plot a ParallelJaw gripper.
+
+    Args:
+        gripper: Gripper.
+        fig: Optional figure to plot into.
+        color: Optional matplotlib compatible color string.
+
+    Returns:
+        The figure.
+    """
     if fig is None:
         fig = _get_fig()
     frames = kin_pj_full(gripper.state)
@@ -41,7 +67,17 @@ def _(gripper: ParallelJaw, fig=None, color="#777777"):
 
 
 @visualize_gripper.register
-def _(gripper: BarrettHand, fig=None, color="#777777"):
+def _(gripper: BarrettHand, fig: Optional[Figure] = None, color: str = "#777777") -> Figure:
+    """Plot a BarrettHand.
+
+    Args:
+        gripper: Gripper.
+        fig: Optional figure to plot into.
+        color: Optional matplotlib compatible color string.
+
+    Returns:
+        The figure.
+    """
     if fig is None:
         fig = _get_fig()
     frames = kin_bh_full(gripper.state)
@@ -60,11 +96,32 @@ def _(gripper: BarrettHand, fig=None, color="#777777"):
 
 
 @visualize_gripper.register
-def _(gripper: ShadowHand, fig=None, color="#777777"):
+def _(gripper: ShadowHand, fig: Optional[Figure] = None, color: str = "#777777"):
+    """Plot a ShadowHand.
+
+    Args:
+        gripper: Gripper.
+        fig: Optional figure to plot into.
+        color: Optional matplotlib compatible color string.
+
+    Returns:
+        The figure.
+
+    Raises:
+        NotImplementedError: Function is currently not implemented.
+    """
     raise NotImplementedError
 
 
-def _get_fig(limits=None):
+def _get_fig(limits: Optional[List] = None) -> Figure:
+    """Create a figure to plot into.
+
+    Args:
+        limits: Optional plot axis limits.
+
+    Returns:
+        The figure.
+    """
     fig = plt.figure()
     fig.suptitle("Contact point optimization")
     ax = []

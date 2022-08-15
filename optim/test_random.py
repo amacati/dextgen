@@ -1,3 +1,4 @@
+"""Test script for randomly sampled optimization initializations."""
 import logging
 
 import numpy as np
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    """Reset the simulation, sample a random initialization and run the optimization."""
     args = parse_args()
     assert args.env == "FlatPJCube-v0", "Only FlatPJCube-v0 supported for optimization"
     logger = logging.getLogger("OptimTestScript")

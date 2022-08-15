@@ -1,7 +1,9 @@
+"""Optimization test script with learned initializations."""
 from pathlib import Path
 import logging
 import pickle
 import time
+from typing import Dict
 
 import torch
 import numpy as np
@@ -19,8 +21,15 @@ from optim.control import Controller
 logger = logging.getLogger(__name__)
 
 
-def compute_com_dist_improvement(info, xopt):
+def compute_com_dist_improvement(info: Dict, xopt: np.ndarray) -> float:
     """Compute the improvement in distance of both fingers to the CoM.
+
+    Args:
+        info: Contact information dictionary.
+        xopt: Optimized gripper configuration.
+
+    Returns:
+        The summed distance difference between the initial and optimal configuration of the fingers.
     """
     gripper = get_gripper(info)
     kin_init_1 = gripper.create_kinematics(gripper.LINKS[0], None)
@@ -32,11 +41,19 @@ def compute_com_dist_improvement(info, xopt):
     kin_init_2 = gripper.create_kinematics(gripper.LINKS[1], None)
     d1_opt = np.linalg.norm(info["object_info"]["pos"] - kin_init_1(gripper.state))
     d2_opt = np.linalg.norm(info["object_info"]["pos"] - kin_init_2(gripper.state))
-    print(d1_init + d2_init - d1_opt - d2_opt)
     return d1_init + d2_init - d1_opt - d2_opt
 
 
 def main():
+    """Test the optimization scheme with learned priors.
+
+    Loads the most recently trained agent from the saves dictionary, simulates the environment until
+    a valid grasp has been found, resets the environment to the episode start, optimizes the gripper
+    configuration and then tries to grasp the object with a controller.
+
+    Note:
+        Controller is not optimized, optimized grasps are not always achieved.
+    """
     args = parse_args()
     assert args.env == "FlatPJCube-v0", "Only FlatPJCube-v0 supported for optimization"
     logger = logging.getLogger("OptimTestScript")

@@ -1,15 +1,25 @@
+"""Gripper base module."""
 from abc import ABC, abstractmethod, abstractproperty
-from typing import Dict, Callable
+from typing import Dict, Callable, TYPE_CHECKING
 
 import numpy as np
 
-from optim.utils.rotations import mat2quat
+from envs.rotations import mat2quat
+
 from optim.constraints import quaternion_cnst
+if TYPE_CHECKING:
+    from optim.core.optimizer import Optimizer
 
 
 class Gripper(ABC):
+    """Base class for grippers that interface the gripper kinematics with the optimization."""
 
     def __init__(self, info: Dict):
+        """Initialize the gripper configuration.
+
+        Args:
+            info: Contact and gripper info dict.
+        """
         self.pos = np.array(info["gripper_info"]["pos"])
         self.orient_q = mat2quat(np.array(info["gripper_info"]["orient"]))
         self.grip_state = np.array(info["gripper_info"]["state"])
@@ -18,17 +28,37 @@ class Gripper(ABC):
 
     @abstractmethod
     def create_kinematics(self, con_pt: Dict) -> Callable:
-        ...
+        """Define a function that calculates the link's contact point position.
+
+        Args:
+            link: The link name.
+
+        Returns:
+            A function that calculates the contact point position given the gripper configuration.
+        """
 
     @abstractmethod
-    def create_gripper_constraints(self, opt):
-        ...
+    def create_gripper_constraints(self, opt: Optimizer) -> Callable:
+        """Create and add gripper specific constraints to the optimizer.
+
+        Args:
+            opt: Optimizer.
+        """
 
     @abstractproperty
-    def joint_limits(self):
-        ...
+    def joint_limits(self) -> np.ndarray:
+        """Joint limit property.
 
-    def create_constraints(self, opt):
+        Returns:
+            The joint limits.
+        """
+
+    def create_constraints(self, opt: Optimizer):
+        """Create the gripper configuration constraints.
+
+        Args:
+            opt: Optimizer.
+        """
         # Unit quaternion constraint for orientation
         opt.add_equality_constraint(quaternion_cnst)
         self.create_gripper_constraints(opt)

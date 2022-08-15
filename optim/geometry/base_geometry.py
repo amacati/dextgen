@@ -1,12 +1,17 @@
+"""Geometry base class module."""
 from abc import ABC, abstractmethod
 from typing import Dict
 
 import numpy as np
 
-from optim.utils.rotations import mat2quat
+from envs.rotations import mat2quat
+
+from optim.grippers import Gripper
+from optim.core.optimizer import Optimizer
 
 
 class Geometry(ABC):
+    """Base class for all object geometries."""
 
     EQ_CNST_TOL = 1e-3
     INEQ_CNST_TOL = 1e-3
@@ -15,6 +20,11 @@ class Geometry(ABC):
     MIN_DST = 0.001
 
     def __init__(self, info: Dict):
+        """Initialize the geometry with pose and contact points data from the info dict.
+
+        Args:
+            info: Info dictionary.
+        """
         self.com = np.array(info["object_info"]["pos"])
         self.pos = np.array(info["object_info"]["pos"])
         self.orient_mat = np.array(info["object_info"]["orient"])
@@ -27,8 +37,19 @@ class Geometry(ABC):
                 con_pt[key] = np.array(con_pt[key])
 
     @abstractmethod
-    def create_surface_constraints(self, gripper, opt):
-        ...
+    def create_surface_constraints(self, gripper: Gripper, opt: Optimizer):
+        """Create and register the constraints restricting contact points to the object surface.
 
-    def create_constraints(self, gripper, opt):
+        Args:
+            gripper: Gripper.
+            opt: Optimizer.
+        """
+
+    def create_constraints(self, gripper: Gripper, opt: Optimizer):
+        """Create and register all object constraints.
+
+        Args:
+            gripper: Gripper.
+            opt: Optimizer.
+        """
         self.create_surface_constraints(gripper, opt)

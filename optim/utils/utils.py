@@ -1,27 +1,44 @@
-import json
-from typing import Dict
+"""Utility module."""
+from typing import Dict, Tuple
 
 import numpy as np
 
-from optim.utils.rotations import mat2quat
+from envs.rotations import mat2quat
 
 
-def load_info(path):
-    with open(path, "r") as f:
-        info = json.load(f)
-    return filter_info(info)
+def filter_info(info: Dict) -> Tuple[np.ndarray, Dict]:
+    """Filter the contact info of a contact information dictionary.
 
+    Dispatch function for general contact info dicts. Since the gripper type is given as a string
+    and not as an object, we do not use a proper singledispatch.
 
-def filter_info(info):
+    Args:
+        info: Contact information dictionary.
+
+    Returns:
+        The initial gripper configuration for the optimization and the filtered contact info.
+
+    Raises:
+        KeyError: Gripper type is not supported.
+    """
     if info["gripper_info"]["type"] == "ParallelJaw":
         return _filter_pj_info(info)
-    elif info["gripper_info"]["type"] == "BarrettHand":
-        return _filter_bh_info(info)
     else:
         raise KeyError(f"Gripper {info['gripper_info']['type']} not supported!")
 
 
 def check_grasp(info: Dict) -> bool:
+    """Check if the current grasp constitutes a valid configuration.
+
+    Args:
+        info: Contact information dictionary.
+
+    Returns:
+        True if the grasp is an optimization initialization candidate, else False.
+
+    Raises:
+        AssertionError: Contact info contains an unsupported gripper type.
+    """
     assert info["gripper_info"]["type"] == "ParallelJaw", "Only ParallelJaw gripper supported"
     links = [con_pt["geom1"] for con_pt in info["contact_info"]]
     if "robot0:r_gripper_finger_link" in links and "robot0:l_gripper_finger_link" in links:
@@ -29,7 +46,17 @@ def check_grasp(info: Dict) -> bool:
     return False
 
 
-def _filter_pj_info(info):
+def _filter_pj_info(info: Dict) -> Tuple[np.ndarray, Dict]:
+    """Filter information from the ParallelJaw gripper and extract the initial configuration.
+
+    Convert joint angles to the range of -1, 1, numpify arrays and convert orientation descriptions.
+
+    Args:
+        info: Contact information dictionary.
+
+    Returns:
+        The initial gripper configuration for the optimization and the converted contact dictionary.
+    """
     filtered_con_info = [None, None]
     for con_info in info["contact_info"]:
         if con_info["geom1"] == "robot0:r_gripper_finger_link":
@@ -49,18 +76,4 @@ def _filter_pj_info(info):
     xinit[:3] = info["gripper_info"]["pos"]
     xinit[3:7] = mat2quat(info["gripper_info"]["orient"])
     xinit[7:7 + nstates] = info["gripper_info"]["state"]
-    # xinit[7 + nstates:] = info["gripper_info"]["next_state"]
-    return xinit, info
-
-
-def _filter_bh_info(info):
-    nstates = 4
-    naction = 4
-    xinit = np.zeros(7 + nstates + naction)
-    xinit[:3] = info["gripper_info"]["pos"]
-    xinit[3:7] = mat2quat(np.array(info["gripper_info"]["orient"]))
-    joints = np.array(info["gripper_info"]["state"])
-    theta, f1m, f2m, f3m = (joints[0] + joints[3]) / 2, joints[1], joints[4], joints[6]
-    xinit[7:7 + nstates] = [theta, f1m, f2m, f3m]
-    xinit[-naction:] = info["gripper_info"]["next_state"]
     return xinit, info

@@ -1,7 +1,22 @@
+"""Contact visualization module."""
+from typing import Dict, List, Optional
+
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 
-def visualize_contacts(con_pts, fig=None):
+def visualize_contacts(con_pts: List[Dict], fig: Optional[Figure] = None) -> Figure:
+    """Visualize the contact points.
+
+    Only plots into a figure. `plt.show` has to be invoked manually.
+
+    Args:
+        con_pts: Contact point list.
+        fig: Optional figure to plot the contact points into. Allows to plot multiple objects.
+
+    Returns:
+        The figure.
+    """
     if fig is None:
         fig = _get_fig()
     ax = fig.axes[0]
@@ -10,7 +25,15 @@ def visualize_contacts(con_pts, fig=None):
     return fig
 
 
-def _get_fig(limits=None):
+def _get_fig(limits: Optional[List] = None) -> Figure:
+    """Create a figure to plot into.
+
+    Args:
+        limits: Optional plot axis limits.
+
+    Returns:
+        The figure.
+    """
     fig = plt.figure()
     fig.suptitle("Contact point optimization")
     ax = []

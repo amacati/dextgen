@@ -1,9 +1,11 @@
+"""Interior point optimization module."""
 import logging
 import time
+from typing import Callable, Tuple
 
 from jax import jacfwd, jacrev, grad, jit
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,18 @@ logger = logging.getLogger(__name__)
 # https://github.com/google/jax/issues/47
 
 
-def solve(f, ce, ci, x, niter=1000):
+def solve(f: Callable,
+          ce: Callable,
+          ci: Callable,
+          x: np.ndarray,
+          niter: int = 1000) -> Tuple[np.ndarray, int, int]:
+    """Optimize a function with equality and inequality constraints with the interior point method.
+
+    Callables have to be compatible with JAX autodiff.
+
+    Returns:
+        The optimized variables, the optimization status, and the number of required iterations.
+    """
     logger.info("Interior point optimization routine called")
     nf, ni, ne = len(x), len(ci(x)), len(ce(x))
     nz = ni
@@ -28,11 +41,31 @@ def solve(f, ce, ci, x, niter=1000):
     alpha_s_max = 1.
 
     @jit
-    def lagrangian(x, y, z, s):
+    def lagrangian(x: np.ndarray, y: np.ndarray, z: np.ndarray, s: np.ndarray) -> float:
+        """Calculate the lagrangian.
+
+        Args:
+            x: Optimization variables.
+            y: Equality constraint lambdas.
+            z: Inequality constraint lambdas.
+            s: Inequality slack vector.
+
+        Returns:
+            The value of the lagrangian.
+        """
         return f(x) - jnp.dot(y, ce(x)) - jnp.dot(z, (ci(x) - s))
 
     @jit
-    def grad_lagrangian(xall, mu):
+    def grad_lagrangian(xall: np.ndarray, mu: float) -> jnp.ndarray:
+        """Calculate the gradient of the lagrangian.
+
+        Args:
+            xall: Complete variable vector with the lambdas of equality and inequality constraints.
+            mu: Current slack of the inequality constraints.
+
+        Returns:
+            The gradient of the lagrangian.
+        """
         x, s, y, z = xall[:nf], xall[nf:nf + ni], xall[nf + ni:nf + ne + ni], xall[nf + ne + ni:]
         Ae = jac_ce(x)
         Ai = jac_ci(x)
@@ -91,6 +124,9 @@ def solve(f, ce, ci, x, niter=1000):
             p[nf:nf + ni] = ps
             p[nf + ni:nf + ne + ni] = py
             p[nf + ne + ni:] = pz
+
+            # Perform a linesearch on the norm of the gradient of the lagrangian to ensure a
+            # suitable stepsize and a decrease of the objective function.
             xall[:], nfnew = linesearch(grad_lagrangian, xall, p, alpha_s_max, mu)
 
             x, s = xall[:nf], xall[nf:nf + ni]
@@ -115,7 +151,23 @@ def solve(f, ce, ci, x, niter=1000):
 
 
 # We can't @jit linesearch because of the early stopping criteria
-def linesearch(f, x0, d, alpha, mu):
+def linesearch(f: Callable, x0: np.ndarray, d: np.ndarray, alpha: float,
+               mu: float) -> Tuple[np.ndarray, float]:
+    """Linesearch to calculate a suitable step size.
+
+    We can't JIT compile the linesearch because of the early stopping criteria (JAX functions can't
+    contain control flows defined during runtime). Possibly circumvented by using Numba.
+
+    Args:
+        f: Target function for the linesearch.
+        x0: Initial starting point variables.
+        d: Search direction vector.
+        alpha: Initial step size.
+        mu: Allowed slack of inequality constraints.
+
+    Returns:
+        The updated variable and the new norm of the target function.
+    """
     nf0 = jnp.linalg.norm(f(x0, mu))
     scale = 0.
     for _ in range(10):

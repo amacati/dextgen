@@ -6,9 +6,8 @@ The MuJoCoVideoRecorder is a wrapper around OpenAI's gym VideoRecorder.
 import logging
 from pathlib import Path
 import time
-from typing import Optional, Tuple, Any, List, Mapping
+from typing import Optional, Tuple, Any
 
-import numpy as np
 import pickle
 import torch
 import gym
@@ -19,22 +18,6 @@ import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.actor import PosePolicyNet, DDP
 from parse_args import parse_args
-
-
-def serialize(x):
-    if isinstance(x, np.ndarray):
-        return x.tolist()
-    elif isinstance(x, Mapping):
-        for key, val in x.items():
-            if key == "is_success":
-                x[key] = bool(val)
-            else:
-                x[key] = serialize(val)
-        return x
-    elif isinstance(x, List):
-        return [serialize(item) for item in x]
-    else:
-        return x
 
 
 class MujocoVideoRecorder(VideoRecorder):

@@ -7,6 +7,14 @@ from optim.grippers.shadow_hand import ShadowHand
 
 
 def get_gripper(info: Dict) -> Gripper:
+    """Create a gripper depending on the information in the contact dict.
+
+    Args:
+        info: The contact dict.
+
+    Returns:
+        The corresponding gripper object.
+    """
     gripper = info["gripper_info"]["type"]
     if gripper == "ParallelJaw":
         return ParallelJaw(info)
