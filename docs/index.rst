@@ -40,6 +40,23 @@ Dext-Gen uses deep reinforcement learning with hindsight learning to achieve dex
    mp_rl/core.utils
 
 .. toctree::
+   :glob:
+   :maxdepth: 1
+   :caption: Optimization Documentation
+
+   optim/optim
+   optim/core
+   optim/core.optimizer
+   optim/core.interior_point
+   optim/geometry
+   optim/grippers
+   optim/grippers.kinematics
+   optim/objective
+   optim/constraints
+   optim/control
+   optim/utils
+
+.. toctree::
    :maxdepth: 1
    :caption: Notes
 
