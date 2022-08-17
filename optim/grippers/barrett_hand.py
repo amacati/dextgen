@@ -1,10 +1,13 @@
 """BarrettHand module."""
+from __future__ import annotations
 from typing import Dict, Callable
-
-import numpy as np
 
 from optim.grippers.base_gripper import Gripper
 from optim.grippers.kinematics.barrett_hand import BH_JOINT_LIMITS
+from optim.utils.utils import import_guard
+
+if import_guard():
+    import numpy as np  # noqa: TC002, is guarded
 
 
 class BarrettHand(Gripper):

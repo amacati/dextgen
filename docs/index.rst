@@ -12,6 +12,7 @@ Dext-Gen uses deep reinforcement learning with hindsight learning to achieve dex
 
    getting_started/setup
    getting_started/training
+   getting_started/testing
 
 .. toctree::
    :glob:
@@ -22,6 +23,7 @@ Dext-Gen uses deep reinforcement learning with hindsight learning to achieve dex
    envs/parallel_jaw
    envs/barrett_hand
    envs/shadow_hand
+   envs/seaclear
    envs/rotations
    envs/utils
 

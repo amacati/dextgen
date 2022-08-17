@@ -1,8 +1,13 @@
 """Contact visualization module."""
+from __future__ import annotations
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from matplotlib.figure import Figure  # noqa: TC002, is guarded
 
 
 def visualize_contacts(con_pts: List[Dict], fig: Optional[Figure] = None) -> Figure:

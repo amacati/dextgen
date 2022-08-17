@@ -1,11 +1,15 @@
 """Geometry visualization module."""
+from __future__ import annotations
 from functools import singledispatch
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 
-from optim.geometry import Cube, Geometry
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from matplotlib.figure import Figure  # noqa: TC002, is guarded
+    from optim.geometry import Cube, Geometry  # noqa: TC001, is guarded
 
 
 @singledispatch

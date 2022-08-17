@@ -1,13 +1,17 @@
 """Gripper visualization module."""
+from __future__ import annotations
 from functools import singledispatch
 from typing import Optional, List
 
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 
-from optim.grippers import ParallelJaw, BarrettHand, ShadowHand
 from optim.grippers.kinematics.parallel_jaw import kin_pj_full
 from optim.grippers.kinematics.barrett_hand import kin_bh_full
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from matplotlib.figure import Figure  # noqa: TC002, is guarded
+    from optim.grippers import ParallelJaw, BarrettHand, ShadowHand  # noqa: TC001, is guarded
 
 
 @singledispatch

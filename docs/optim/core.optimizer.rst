@@ -11,3 +11,4 @@ Since all constraints, objectives and lagrangians are written in Python, the spe
 
 .. automodule:: optim.core.optimizer
     :members:
+    :private-members:

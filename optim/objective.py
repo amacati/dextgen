@@ -4,7 +4,7 @@ from typing import Callable, Tuple
 import numpy as np
 import jax.numpy as jnp
 
-from grippers.kinematics.parallel_jaw import kin_pj_right, kin_pj_left
+from optim.grippers.kinematics.parallel_jaw import kin_pj_right, kin_pj_left
 
 
 def create_cube_objective(xinit: Tuple[np.ndarray, jnp.ndarray], com: np.ndarray) -> Callable:

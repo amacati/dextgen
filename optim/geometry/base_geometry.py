@@ -1,4 +1,5 @@
 """Geometry base class module."""
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict
 
@@ -6,8 +7,11 @@ import numpy as np
 
 from envs.rotations import mat2quat
 
-from optim.grippers import Gripper
-from optim.core.optimizer import Optimizer
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from optim.grippers import Gripper  # noqa: TC001, is guarded
+    from optim.core.optimizer import Optimizer  # noqa: TC001, is guarded
 
 
 class Geometry(ABC):

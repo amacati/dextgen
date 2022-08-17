@@ -8,10 +8,14 @@
 
 import os
 import sys
+import builtins
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if on_rtd:
     sys.path.insert(0, os.path.abspath("../."))
+
+# Enable scripts to check if sphinx builds docs
+builtins.__sphinx_build__ = True
 
 # -- Project information -----------------------------------------------------
 

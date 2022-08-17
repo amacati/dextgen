@@ -1,5 +1,5 @@
 """Utility module."""
-from typing import Dict, Tuple
+from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
@@ -77,3 +77,18 @@ def _filter_pj_info(info: Dict) -> Tuple[np.ndarray, Dict]:
     xinit[3:7] = mat2quat(info["gripper_info"]["orient"])
     xinit[7:7 + nstates] = info["gripper_info"]["state"]
     return xinit, info
+
+
+def import_guard() -> bool:
+    """Check if type checking is active or sphinx is trying to build the docs.
+
+    Returns:
+        True if either type checking is active or sphinx builds the docs, else False.
+    """
+    if TYPE_CHECKING:
+        return True
+    try:  # Not unreachable, TYPE_CHECKING deactivated for sphinx docs build
+        if __sphinx_build__:
+            return True
+    except NameError:
+        return False

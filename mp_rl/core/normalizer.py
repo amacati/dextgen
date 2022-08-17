@@ -3,12 +3,17 @@
 Enables distributed normalizers to keep preprocessing consistent across all nodes. The normalizer is
 based on the implementation in https://github.com/openai/baselines.
 """
-from pathlib import Path
+from __future__ import annotations
 from typing import Optional
 
 import pickle
 import numpy as np
 from mpi4py import MPI
+
+from mp_rl.utils import import_guard
+
+if import_guard():
+    from pathlib import Path  # noqa: TC003, is guarded
 
 
 class Normalizer:

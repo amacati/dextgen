@@ -4,3 +4,5 @@ core.normalizer
 ===============
 .. automodule:: mp_rl.core.normalizer
     :members:
+    :special-members:
+    :private-members:

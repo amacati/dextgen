@@ -6,13 +6,17 @@ the :class:`.HERBuffer` as well as a default :class:`.MemoryBuffer` without spec
 The :class:`.TrajectoryBuffer` is not a replay buffer, but holds experience from an episode of fixed
 time length. It is a convenience class for storing experience in an orderly fashion during training.
 """
-
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Callable, Union, Tuple, List
 from collections import deque
-from collections.abc import Iterator, KeysView, ValuesView, ItemsView
 
 import numpy as np
+
+from mp_rl.utils import import_guard
+
+if import_guard():
+    from collections.abc import Iterator, KeysView, ValuesView, ItemsView  # noqa: TC003, is guarded
 
 
 class ReplayBuffer(ABC):

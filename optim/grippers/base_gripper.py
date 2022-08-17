@@ -1,14 +1,17 @@
 """Gripper base module."""
+from __future__ import annotations
 from abc import ABC, abstractmethod, abstractproperty
-from typing import Dict, Callable, TYPE_CHECKING
+from typing import Dict, Callable
 
 import numpy as np
 
 from envs.rotations import mat2quat
 
 from optim.constraints import quaternion_cnst
-if TYPE_CHECKING:
-    from optim.core.optimizer import Optimizer
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from optim.core.optimizer import Optimizer  # noqa: TC001, is guarded
 
 
 class Gripper(ABC):

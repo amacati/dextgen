@@ -11,7 +11,7 @@ internal orientation representation that smoothly varies in SO(3). See `On the C
 Rotation Representations in Neural Networks <https://ieeexplore.ieee.org/document/8953486>`_ for
 details.
 """
-
+from __future__ import annotations
 from pathlib import Path
 from typing import Tuple
 from uuid import uuid4
@@ -21,7 +21,10 @@ import torch.nn as nn
 import numpy as np
 
 from mp_rl.core.utils import soft_update, sync_networks, sync_grads
-from mp_rl.core.noise import NoiseProcess
+from mp_rl.utils import import_guard
+
+if import_guard():
+    from mp_rl.core.noise import NoiseProcess  # noqa: TC001, is guarded
 
 
 class Actor:

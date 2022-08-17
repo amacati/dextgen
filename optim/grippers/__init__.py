@@ -1,9 +1,13 @@
+from __future__ import annotations
 from typing import Dict
 
-from optim.grippers.base_gripper import Gripper
 from optim.grippers.parallel_jaw import ParallelJaw
 from optim.grippers.barrett_hand import BarrettHand
 from optim.grippers.shadow_hand import ShadowHand
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from optim.grippers import Gripper  # noqa: TC001, is guarded
 
 
 def get_gripper(info: Dict) -> Gripper:

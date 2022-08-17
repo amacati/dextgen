@@ -1,13 +1,17 @@
 """Cube class module."""
+from __future__ import annotations
 from typing import Dict
 
 import numpy as np
 
-from optim.core.optimizer import Optimizer
-from optim.grippers.base_gripper import Gripper
 from optim.grippers.kinematics.parallel_jaw import kin_pj_full
-from optim.geometry.base_geometry import Geometry
 from optim.constraints import create_plane_constraints
+from optim.utils.utils import import_guard
+
+if import_guard():
+    from optim.grippers import Gripper  # noqa: TC001, is guarded
+    from optim.geometry import Geometry  # noqa: TC001, is guarded
+    from optim.core.optimizer import Optimizer  # noqa: TC001, is guarded
 
 
 class Cube(Geometry):
