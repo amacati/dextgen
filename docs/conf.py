@@ -54,6 +54,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 #
 html_theme = 'sphinx_book_theme'
 html_logo = "img/dextgen_logo.png"
+html_favicon = "img/dextgen_logo.png"
 html_theme_options = {
     "repository_url": "https://github.com/amacati/rl",
     "use_repository_button": True,
