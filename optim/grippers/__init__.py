@@ -7,7 +7,7 @@ from optim.grippers.shadow_hand import ShadowHand
 from optim.utils.utils import import_guard
 
 if import_guard():
-    from optim.grippers import Gripper  # noqa: TC001, is guarded
+    from optim.grippers.base_gripper import Gripper  # noqa: TC001, is guarded
 
 
 def get_gripper(info: Dict) -> Gripper:

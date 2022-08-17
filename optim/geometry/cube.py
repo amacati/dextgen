@@ -9,8 +9,8 @@ from optim.constraints import create_plane_constraints
 from optim.utils.utils import import_guard
 
 if import_guard():
-    from optim.grippers import Gripper  # noqa: TC001, is guarded
-    from optim.geometry import Geometry  # noqa: TC001, is guarded
+    from optim.grippers.base_gripper import Gripper  # noqa: TC001, is guarded
+    from optim.geometry.base_geometry import Geometry  # noqa: TC001, is guarded
     from optim.core.optimizer import Optimizer  # noqa: TC001, is guarded
 
 
