@@ -23,7 +23,7 @@ After installing the environment, make sure to activate it and run
 
 .. code-block:: bash
 
-   $ python setup.py install
+   $ pip install .
 
 from the repositories root folder to install the dext-gen packages.
 

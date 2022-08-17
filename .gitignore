@@ -5,12 +5,14 @@ saves/**/*.png
 *.ipynb_checkpoints
 *.pkl
 *.json
-/mp_rl.egg-info
+**/*.egg-info
 /build
 /tests/test.py
-/.pytest_cache
+**/.pytest_cache
 scripts
 *.mp4
 !envs/shadow_hand/eigengrasps.json
 !envs/barrett_hand/eigengrasps.json
 /docs/_build
+/dist
+.vscode

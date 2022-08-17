@@ -1,0 +1,3 @@
+recursive-include envs *.xml
+recursive-include envs *.stl
+include envs **/*eigengrasps.json

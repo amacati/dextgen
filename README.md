@@ -8,6 +8,17 @@ In order to run the code from this project, install anaconda and create a conda 
 ```
 user@pc: $ conda create -f environment.yaml
 ```
+, activate the new environment with
+
+```
+user@pc: $ conda activate dextgen
+```
+
+and install the dextgen packages from the project root folder with
+
+```
+user@pc: $ pip install .
+```
 
 Instructions on how to use the project are available in the [package documentation](docs/). To read the documentation, build it from the [docs directory](docs/) with
 
@@ -23,3 +34,5 @@ user@pc: $ firefox _build/html/index.html
 
 The experiment environments are located in the [envs](envs/) module, the learning algorithm is located under [mp_rl](mp_rl/). The grasp optimization routines are organized in the [optim](optim/) module.
 Credit to code from external repositories is given in the individual source files.
+
+If you have any issues with the installation of MuJoCo and mujoco-py such as the osmesa.h error, see the [instructions](mujoco_install.md) on how to resolve common issues.
