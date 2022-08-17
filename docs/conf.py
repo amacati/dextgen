@@ -53,9 +53,11 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # a list of builtin themes.
 #
 html_theme = 'sphinx_book_theme'
+html_logo = "img/dextgen_logo.png"
 html_theme_options = {
     "repository_url": "https://github.com/amacati/rl",
-    "use_repository_button": True
+    "use_repository_button": True,
+    'logo_only': True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

@@ -5,8 +5,6 @@ Dext-Gen documentation
 
 Dext-Gen uses deep reinforcement learning with hindsight learning to achieve dexterous grasping in MuJoCo with different gripper types. It builds on OpenAI's gym.
 
-.. image:: ../img/logo.png
-
 .. toctree::
    :maxdepth: 1
    :caption: Getting Started
