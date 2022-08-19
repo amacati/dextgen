@@ -22,7 +22,7 @@ from mpi4py import MPI
 import json
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.noise import GaussianNoise, OrnsteinUhlenbeckNoise
+from mp_rl.core.noise import UniformNoise, GaussianNoise, OrnsteinUhlenbeckNoise
 from mp_rl.core.actor import Actor, PosePolicyNet
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
@@ -59,7 +59,9 @@ class DDPG:
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
-        if args.noise_process == "Gaussian":
+        if args.noise_process == "Uniform":
+            noise_process = UniformNoise(size_a)
+        elif args.noise_process == "Gaussian":
             noise_process = GaussianNoise(size_a, *args.noise_process_params)
         elif args.noise_process == "OrnsteinUhlenbeck":
             noise_process = OrnsteinUhlenbeckNoise(size_a, *args.noise_process_params)

@@ -87,10 +87,10 @@ class Actor:
         if self._train:  # With noise process + random sampling for exploration
             actions = self.action_net(states).numpy()
             if np.random.rand() < self.eps:
-                actions = np.random.uniform(-self.action_clip, self.action_clip, actions.shape)
+                actions = self.noise_process.sample()
             else:
-                actions += self.noise_process.sample()
-                np.clip(actions, -self.action_clip, self.action_clip, out=actions)  # In-place op
+                actions += np.random.normal(0, 0.2, actions.shape)
+            np.clip(actions, -self.action_clip, self.action_clip, out=actions)  # In-place op
         else:  # No random exploration moves
             actions = self.action_net(states).numpy()
             np.clip(actions, -self.action_clip, self.action_clip, out=actions)

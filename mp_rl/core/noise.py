@@ -96,3 +96,26 @@ class GaussianNoise(NoiseProcess):
 
     def reset(self):
         """Gaussian noise is stateless, reset is a no-op."""
+
+
+class UniformNoise(NoiseProcess):
+    """Uniformly distributed noise with uncorrelated samples."""
+
+    def __init__(self, dims: int):
+        """Initialize the noise process.
+
+        Args:
+            dims: Noise dimension.
+        """
+        self.dims = dims
+
+    def sample(self) -> np.ndarray:
+        """Sample from the noise process.
+
+        Returns:
+            A numpy array of uniformly distributed noise.
+        """
+        return np.random.uniform(-1., 1., self.dims)
+
+    def reset(self):
+        """Uniform noise is stateless, reset is a no-op."""

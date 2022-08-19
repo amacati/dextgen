@@ -13,8 +13,8 @@ Default:
   tau: 0.05  # 1-tau is Polyak factor
 
   eps: 0.3  # Fraction of completely random actions
-  noise_process: "Gaussian"  # Either Gaussian or Ornstein-Uhlenbeck
-  noise_process_params: [0., 0.2]  # For Gaussian noise: mean, variance. For Ornstein-Uhlenbeck: mu, sigma, Optional[clipping]
+  noise_process: "Uniform"  # Either Uniform, Gaussian or Ornstein-Uhlenbeck
+  noise_process_params: [0., 0.2]  # For Uniform noise: unused. Gaussian noise: mean, variance. For Ornstein-Uhlenbeck: mu, sigma, Optional[clipping]
   k: 4  # Ratio of HER experience vs normal experience
 
   action_clip: 1.
