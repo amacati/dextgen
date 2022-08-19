@@ -178,7 +178,9 @@ FetchPickAndPlace-v1:
   actor_net_type: "DDP"
 
 FlatPJOrientQuat-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
   actor_net_type: "DDP"
 
 FlatPJOrientAxisAngle-v0:
+  state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
   actor_net_type: "DDP"
