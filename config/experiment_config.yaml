@@ -156,6 +156,8 @@ FlatPJOrient-v0:
 # Try reducing fraction of random actions?
   goal_norm_idx: [0, 1, 2]  # Orient includes orientation goal that should not be normalized
   state_norm_idx: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
+  noise_process: "IntegratingGripperNoise"  # Either Uniform, Gaussian or Ornstein-Uhlenbeck
+  noise_process_params: [0.05, 12]  # For Uniform noise: unused. Gaussian noise: mean, variance. For Ornstein-Uhlenbeck: mu, sigma, Optional[clipping]
 
 # grip_pos (0:3), grip_rot (3:6), grip_state (6:8), grip_velp (8:11), object_pos (11:14),
 # object_rel_pos (14:17), object_rot (17:20), object_rel_rot (20:23), object_velp (23:26),

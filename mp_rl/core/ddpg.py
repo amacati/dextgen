@@ -22,7 +22,7 @@ from mpi4py import MPI
 import json
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.noise import UniformNoise, GaussianNoise, OrnsteinUhlenbeckNoise
+from mp_rl.core.noise import UniformNoise, GaussianNoise, OrnsteinUhlenbeckNoise, IntegratingGripperNoise
 from mp_rl.core.actor import Actor, PosePolicyNet
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
@@ -65,6 +65,8 @@ class DDPG:
             noise_process = GaussianNoise(size_a, *args.noise_process_params)
         elif args.noise_process == "OrnsteinUhlenbeck":
             noise_process = OrnsteinUhlenbeckNoise(size_a, *args.noise_process_params)
+        elif args.noise_process == "IntegratingGripperNoise":
+            noise_process = IntegratingGripperNoise(size_a, *args.noise_process_params)
         else:
             raise argparse.ArgumentError("Required argument 'noise_process' is missing")
         self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,

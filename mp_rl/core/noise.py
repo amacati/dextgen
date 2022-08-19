@@ -119,3 +119,29 @@ class UniformNoise(NoiseProcess):
 
     def reset(self):
         """Uniform noise is stateless, reset is a no-op."""
+
+
+class IntegratingGripperNoise(NoiseProcess):
+
+    def __init__(self, dims: int, mu: float, idx: int):
+        assert idx < dims
+        self.dims = dims
+        self.ni_dims = dims - idx
+        self.mu = mu
+        self.idx = idx
+        self.noise = np.zeros(dims, dtype=np.float32)
+
+    def sample(self) -> np.ndarray:
+        """Sample from the noise process.
+
+        Returns:
+            A numpy array of integrated uniformly distributed noise.
+        """
+        self.noise[:self.idx] = np.random.uniform(-1., 1., self.idx)
+        self.noise[self.idx:] -= self.noise[self.idx:] * self.mu + np.random.uniform(
+            -1., 1., self.ni_dims)
+        self.noise = np.clip(self.noise, -1., 1.)
+        return self.noise
+
+    def reset(self):
+        """Uniform noise is stateless, reset is a no-op."""
