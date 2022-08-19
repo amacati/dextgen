@@ -68,7 +68,7 @@ class FlatPJOrientAxisAngle(FlatPJBase, utils.EzPickle):
 
         pos_ctrl *= 0.05  # limit maximum change in position
         # Transform rot_ctrl from axisangle to quaternion
-        rot_ctrl[3] = (rot_ctrl[3] * np.pi + np.pi) % np.pi  # Map to angle from [0 to 2pi]
+        rot_ctrl[3] = (rot_ctrl[3] + 1) * np.pi  # Map to angle from [0 to 2pi]
         rot_ctrl[:3] /= np.linalg.norm(rot_ctrl[:3])
         rot_ctrl = axisangle2quat(*rot_ctrl)
         rot_ctrl *= 0.05  # limit maximum change in orientation
