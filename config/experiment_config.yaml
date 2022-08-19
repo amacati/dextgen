@@ -176,3 +176,9 @@ SeaClear-v0:
 
 FetchPickAndPlace-v1:
   actor_net_type: "DDP"
+
+FlatPJOrientQuat-v0:
+  actor_net_type: "DDP"
+
+FlatPJOrientAxisAngle-v0:
+  actor_net_type: "DDP"
