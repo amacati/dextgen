@@ -7,7 +7,7 @@ import numpy as np
 
 import envs
 from envs.parallel_jaw.flat_base import FlatPJBase
-from envs.rotations import embedding2mat, embedding2quat, fastembedding2quat, euler2quat
+from envs.rotations import embedding2mat, embedding2quat, fastembedding2quat, euler2quat, vec2quat
 from envs.rotations import mat2embedding, quat2embedding
 
 MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
@@ -70,7 +70,7 @@ class FlatPJOrientQuat(FlatPJBase, utils.EzPickle):
 
         pos_ctrl *= 0.05  # limit maximum change in position
         # Transform rot_ctrl to quaternion
-        rot_ctrl /= np.linalg.norm(rot_ctrl)
+        rot_ctrl = vec2quat(rot_ctrl)
         rot_ctrl *= 0.05  # limit maximum change in orientation
         gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
         pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
