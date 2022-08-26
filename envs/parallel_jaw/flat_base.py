@@ -39,6 +39,8 @@ class FlatPJBase(FlatBase):
             "panda_joint5": 0,
             "panda_joint6": 2.8,
             "panda_joint7": 0,
+            "robot0:l_gripper_finger_joint": 0,
+            "robot0:r_gripper_finger_joint": 0,
             "cube:joint": [.1, -.1, .025, 1., 0, 0, 0],
             "cylinder:joint": [-.1, .1, .025, 1., 0, 0, 0],
             "sphere:joint": [.1, .1, .025, 1., 0, 0, 0],

@@ -337,6 +337,23 @@ def quat_conjugate(q: np.array) -> np.array:
     return inv_q
 
 
+def vec2quat(x: np.ndarray) -> np.ndarray:
+    """Convert vectors to UnitQuaternions.
+
+    Args:
+        x: Vector or tensor of vectors.
+
+    Returns:
+        The normalized quaternions.
+    """
+    assert x.shape[-1] == 4
+    q = x / np.linalg.norm(x, axis=-1, keepdims=True)
+    # Prefer quaternion with positive w
+    # (q * -1 corresponds to same rotation as q)
+    q[q[..., 0] < 0] *= -1
+    return q
+
+
 def axisangle2quat(x: float, y: float, z: float, a: float) -> np.ndarray:
     """Convert a single axis-angle to a Quaternion.
 
