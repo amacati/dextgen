@@ -7,7 +7,7 @@ import numpy as np
 
 import envs
 from envs.shadow_hand.flat_base import FlatSHBase
-from envs.rotations import embedding2mat, embedding2quat, fastembedding2quat, quat2embedding
+from envs.rotations import embedding2mat, embedding2quat, fastembedding2quat, quat2embedding, vec2quat
 from envs.rotations import axisangle2quat, mat2quat, quat_mul, mat2embedding
 
 MODEL_XML_PATH = str(Path("ShadowHand", "flat_orient.xml"))
@@ -144,11 +144,7 @@ class FlatSHOrient(FlatSHBase, utils.EzPickle):
         goal[2] = self.height_offset
         if self.np_random.uniform() < 0.5:
             goal[2] += self.np_random.uniform(0, self.goal_max_height)
-        q_1 = axisangle2quat(0, 0, 1, (self.np_random.rand() - 0.5) * np.pi)
-        q_2 = axisangle2quat(1, 0, 0, (self.np_random.rand() - 0.5) * np.pi / 5)
-        q_3 = axisangle2quat(0, 1, 0, (self.np_random.rand() - 0.5) * np.pi / 5)
-        q = quat_mul(q_1, q_2)
-        q = quat_mul(q, q_3)
+        q = vec2quat(self.np_random.uniform(-1, 1, 4))
         goal[3:9] = quat2embedding(q)
         return goal.copy()
 
