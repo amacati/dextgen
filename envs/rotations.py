@@ -337,7 +337,16 @@ def quat_conjugate(q: np.array) -> np.array:
     return inv_q
 
 
-def vec2quat(x):
+def vec2quat(x: np.ndarray) -> np.ndarray:
+    """Convert vectors to UnitQuaternions.
+
+    Args:
+        x: Vector or tensor of vectors.
+
+    Returns:
+        The normalized quaternions.
+    """
+    assert x.shape[-1] == 4
     q = x / np.linalg.norm(x, axis=-1, keepdims=True)
     # Prefer quaternion with positive w
     # (q * -1 corresponds to same rotation as q)

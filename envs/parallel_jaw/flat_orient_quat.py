@@ -1,4 +1,4 @@
-"""FlatPJOrient environment module."""
+"""FlatPJOrientQuat environment module."""
 from pathlib import Path
 from typing import Any, Dict
 

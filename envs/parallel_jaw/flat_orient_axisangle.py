@@ -1,4 +1,4 @@
-"""FlatPJOrient environment module."""
+"""FlatPJOrientAxisAngle environment module."""
 from pathlib import Path
 from typing import Any, Dict
 
@@ -14,7 +14,7 @@ MODEL_XML_PATH = str(Path("PJ", "flat_orient.xml"))
 
 
 class FlatPJOrientAxisAngle(FlatPJBase, utils.EzPickle):
-    """FlatPJOrientAA environment class."""
+    """FlatPJOrientAxisAngle environment class."""
 
     def __init__(self,
                  object_size_multiplier: float = 1.,
