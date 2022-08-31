@@ -155,7 +155,6 @@ class Optimizer:
         ce = self._compile_equality_constraints()
         ci = self._compile_inequality_constraints(len(xinit))
         xopt, status, niter = solve(self.objective, ce, ci, xinit, niter)
-        print(type(xopt))
         self.status, self.niter = status, niter
         self.last_optimum_value = self.objective(xopt)
         return xopt

@@ -67,6 +67,8 @@ This can be resolved by adding an additional environment variable to your .bashr
 
 ```$ echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so' >> ~/.bashrc```
 
+>**Note**: Depending on the installed version, it may also be required to **remove** this line. If you get an error with this line in your bashrc, try removing it.
+
 ## GL/osmesa.h: No such file or directory
 If this error occures, you are missing libraries for the cython extension compilation. Install the necessary libraries with
 
