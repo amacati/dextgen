@@ -62,6 +62,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.early_stop_ok = True  # Flag to prevent an early stop
         self._reset_sim_state = None
         self._reset_sim_goal = None
+        self.p_high_goal = 0  # Probability of a high goal
         assert object_size_multiplier > 0
         self.object_size_multiplier = object_size_multiplier
         assert object_size_range >= 0
@@ -214,8 +215,9 @@ class FlatBase(envs.robot_env.RobotEnv):
             goal = table_pos.copy()
             goal[:2] += self.np_random.uniform(-self.target_range, self.target_range, size=2)
         goal[2] = self.height_offset
-        if self.np_random.uniform() < 0.5:
-            goal[2] += self.np_random.uniform(0, self.goal_max_height)
+        # Random goal height
+        if self.np_random.uniform() < self.p_high_goal:
+            goal[2] += self.np_random.uniform(self.goal_max_height / 2, self.goal_max_height)
         return goal.copy()
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:

@@ -63,11 +63,11 @@ class FlatPJBase(FlatBase):
 
         pos_ctrl *= 0.05  # limit maximum change in position
         rot_ctrl = [
-                1.0,
-                0.0,
-                1.0,
-                0.0,
-            ]
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+        ]
         pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
         # Apply action to simulation.
         self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
