@@ -6,7 +6,7 @@ import numpy as np
 
 import envs
 from envs.flat_base import FlatBase
-from envs.rotations import mat2quat, mat2embedding
+from envs.rotations import mat2embedding
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class FlatPJBase(FlatBase):
                  model_xml_path: str,
                  object_size_multiplier: float = 1.,
                  object_size_range: float = 0.,
-                 n_actions: int = 13):
+                 n_actions: int = 4):
         """Initialize a flat parallel jaw environment.
 
         Args:
@@ -55,20 +55,20 @@ class FlatPJBase(FlatBase):
         self._ctrl_range = self.sim.model.actuator_ctrlrange
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
-        self._full_orient_ctrl = False
 
     def _set_action(self, action: np.ndarray):
         assert action.shape == (self.n_actions,)
         action = (action.copy())  # ensure that we don't change the action outside of this scope
-        pos_ctrl, rot_ctrl, gripper_ctrl = action[:3], action[3:12], action[12]
+        pos_ctrl, gripper_ctrl = action[:3], action[3]
 
         pos_ctrl *= 0.05  # limit maximum change in position
-        # Transform rot_ctrl from matrix to quaternion
-        rot_ctrl = mat2quat(rot_ctrl.reshape(3, 3))
-        if not self._full_orient_ctrl:
-            rot_ctrl *= 0.05  # limit maximum change in orientation
+        rot_ctrl = [
+                1.0,
+                0.0,
+                1.0,
+                0.0,
+            ]
         pose_ctrl = np.concatenate([pos_ctrl, rot_ctrl])
-
         # Apply action to simulation.
         self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
         # envs.utils.ctrl_set_action(self.sim, action)

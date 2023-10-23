@@ -88,6 +88,8 @@ class DDPG:
         self.dist = False
         self.world_size = world_size
         self.rank = rank
+        self._total_train_steps = self.args.n_total_steps // self.T // self.world_size
+        self._last_eval_steps = 0
         if dist and world_size > 1:
             self.init_dist()
         if self.args.save:
@@ -119,59 +121,74 @@ class DDPG:
 
         `HER paper <https://arxiv.org/pdf/1707.01495.pdf>`_
         """
+        total_train_steps = self.args.n_total_steps // self.T // self.world_size
         if self.rank == 0:
-            status_bar = tqdm(total=self.args.epochs, desc="Epochs", position=0, leave=True)
-            success_log = tqdm(total=0, position=1, bar_format='{desc}', leave=True)
+            status_bar = tqdm(total=total_train_steps,
+                              desc="Training steps",
+                              position=0,
+                              leave=True,
+                              dynamic_ncols=True)
+            success_log = tqdm(total=0,
+                               position=1,
+                               bar_format='{desc}',
+                               leave=True,
+                               dynamic_ncols=True)
             ep_success = []
             ep_time = []
-        for epoch in range(self.args.epochs):
+            ep_steps = []
+        current_step = 0
+        for epoch in range(total_train_steps):
             epoch_start = time.perf_counter()
-            for _ in range(self.args.cycles):
-                for _ in range(self.args.rollouts):
-                    ep_buffer = self.buffer.get_trajectory_buffer()
-                    obs = self.env.reset()
-                    state, goal, agoal = unwrap_obs(obs)
-                    for t in range(self.T):
-                        with torch.no_grad():
-                            action = self.actor.select_action(self.wrap_obs(state, goal))
-                        next_obs, _, _, _ = self.env.step(action)
-                        next_state, _, next_agoal = unwrap_obs(next_obs)
-                        ep_buffer.append(state, action, goal, agoal)
-                        state, agoal = next_state, next_agoal
-                    ep_buffer.append(state, agoal)
-                    self.buffer.append(ep_buffer)
-                    self.actor.noise_process.reset()
+            for _ in range(self.args.rollouts):
+                ep_buffer = self.buffer.get_trajectory_buffer()
+                obs = self.env.reset()
+                state, goal, agoal = unwrap_obs(obs)
+                for _ in range(self.T):
+                    with torch.no_grad():
+                        action = self.actor.select_action(self.wrap_obs(state, goal))
+                    next_obs, _, _, _ = self.env.step(action)
+                    next_state, _, next_agoal = unwrap_obs(next_obs)
+                    ep_buffer.append(state, action, goal, agoal)
+                    state, agoal = next_state, next_agoal
+                ep_buffer.append(state, agoal)
+                self.buffer.append(ep_buffer)
+                self.actor.noise_process.reset()
                 self._update_norm(ep_buffer)
-                for _ in range(self.args.batches):
-                    self._train_agent()
-                self.actor.update_target(self.args.tau)
-                self.critic.update_target(self.args.tau)
+            current_step += self.world_size * self.T * self.args.rollouts
+            for _ in range(self.args.batches):
+                self._train_agent()
+            self.actor.update_target(self.args.tau)
+            self.critic.update_target(self.args.tau)
             epoch_end = time.perf_counter()
-            av_success = self.eval_agent()
+            if current_step - self._last_eval_steps >= self.args.eval_interval:
+                self._last_eval_steps = current_step
+                av_success = self.eval_agent()
+                if self.rank == 0:
+                    ep_success.append(av_success)
+                    ep_time.append(epoch_end - epoch_start)
+                    ep_steps.append(current_step)
+                    success_log.set_description_str(f"Current success rate: {av_success:.3f}")
+                    if self.args.save:
+                        self.save_models()
+                        self.save_plots(ep_success, ep_steps, ep_time)
+                        self.save_stats(ep_success, ep_steps, ep_time)
+                if av_success >= self.args.early_stop and self.env.early_stop_ok:
+                    if self.rank == 0 and self.args.save:
+                        self.save_models()
+                        self.save_models(path=self.BACKUP_PATH)
+                        self.save_plots(ep_success, ep_steps, ep_time)
+                        self.save_stats(ep_success, ep_steps, ep_time)
+                    return
+            if self.rank == 0:
+                status_bar.update()
             if hasattr(self.env, "epoch_callback"):
                 assert callable(self.env.epoch_callback)
                 self.env.epoch_callback(epoch, av_success)
-            if self.rank == 0:
-                ep_success.append(av_success)
-                ep_time.append(epoch_end - epoch_start)
-                success_log.set_description_str("Current success rate: {:.3f}".format(av_success))
-                status_bar.update()
-                if self.args.save:
-                    self.save_models()
-                    self.save_plots(ep_success, ep_time)
-                    self.save_stats(ep_success, ep_time)
-            if av_success >= self.args.early_stop and self.env.early_stop_ok:
-                if self.rank == 0 and self.args.save:
-                    self.save_models()
-                    self.save_models(path=self.BACKUP_PATH)
-                    self.save_plots(ep_success, ep_time)
-                    self.save_stats(ep_success, ep_time)
-                return
         if self.rank == 0 and self.args.save:
             self.save_models()
             self.save_models(path=self.BACKUP_PATH)
-            self.save_plots(ep_success, ep_time)
-            self.save_stats(ep_success, ep_time)
+            self.save_plots(ep_success, ep_steps, ep_time)
+            self.save_stats(ep_success, ep_steps, ep_time)
 
     def _train_agent(self):
         """Train the agent and critic network with experience sampled from the replay buffer."""
@@ -187,7 +204,6 @@ class DDPG:
             torch.clip(rewards_T, -1 / (1 - self.args.gamma), 0, out=rewards_T)
         q_T = self.critic(obs_T, actions_T)
         critic_loss_T = (rewards_T - q_T).pow(2).mean()
-
         # Regularize tanh activation in PosePolicyNets to prevent saturation and possibly parallel
         # rotation vectors (leads to random orientations and bad policies, see ``PosePolicyNet`` for
         # details)
@@ -238,8 +254,9 @@ class DDPG:
         self.env.use_info(False)
         if self.dist:
             success_rate = np.array([success / self.args.evals])
-            MPI.COMM_WORLD.Allreduce(success_rate, success_rate, op=MPI.SUM)
-            return success_rate[0] / self.world_size
+            summed_success_rate = np.zeros_like(success_rate)
+            MPI.COMM_WORLD.Allreduce(success_rate, summed_success_rate, op=MPI.SUM)
+            return summed_success_rate[0] / self.world_size
         return success / self.args.evals
 
     def save_models(self, path: Optional[Path] = None):
@@ -260,7 +277,7 @@ class DDPG:
         self.state_norm.save(path / "state_norm.pkl")
         self.goal_norm.save(path / "goal_norm.pkl")
 
-    def save_plots(self, ep_success: List[float], ep_time: List[float]):
+    def save_plots(self, ep_success: List[float], ep_steps: List[float], ep_time: List[float]):
         """Generate and save a plot from training statistics.
 
         Saves are located under `/save/<env_name>/`. Additional backup saves with the current
@@ -273,15 +290,15 @@ class DDPG:
         """
         assert self.rank == 0
         fig, ax = plt.subplots(1, 2, figsize=(15, 4))
-        ax[0].plot(ep_success)
-        ax[0].set_xlabel('Episode')
+        ax[0].plot(ep_steps, ep_success)
+        ax[0].set_xlabel('Steps')
         ax[0].set_ylabel('Success rate')
         ax[0].set_ylim([0., 1.])
         ax[0].set_title('Agent performance over time')
         ax[0].xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        ax[1].plot(ep_time)
-        ax[1].set_xlabel('Episode')
+        ax[1].plot(ep_steps, ep_time)
+        ax[1].set_xlabel('Steps')
         ax[1].set_ylabel('Time in s')
         ax[1].set_title('Episode compute times')
         ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -289,7 +306,7 @@ class DDPG:
         plt.savefig(self.BACKUP_PATH / "stats.png")
         plt.close()
 
-    def save_stats(self, ep_success: List[float], ep_time: List[float]):
+    def save_stats(self, ep_success: List[float], ep_steps: List[float], ep_time: List[float]):
         """Save the current stats to a json file.
 
         Saves are located under `/save/<env_name>/`. Additional backup saves with the current
@@ -303,6 +320,7 @@ class DDPG:
         world_size = None if self.world_size == 1 else self.world_size
         stats = {
             "ep_success": ep_success,
+            "ep_steps": ep_steps,
             "ep_time": ep_time,
             "args": vars(self.args),
             "mpi": world_size
