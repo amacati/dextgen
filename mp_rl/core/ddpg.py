@@ -7,19 +7,15 @@ loading if starting from pre-trained networks. It assumes dictionary gym environ
 
 import argparse
 import logging
-from typing import List, Optional
+from typing import Optional
 from pathlib import Path
 import time
-from datetime import datetime
 
 import numpy as np
 import torch
 from tqdm import tqdm
 import gym
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 from mpi4py import MPI
-import json
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.noise import UniformNoise, GaussianNoise, OrnsteinUhlenbeckNoise
@@ -27,6 +23,7 @@ from mp_rl.core.actor import Actor, PosePolicyNet
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
 from mp_rl.core.replay_buffer import HERBuffer, TrajectoryBuffer
+from mp_rl.utils import Logger
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +37,7 @@ class DDPG:
     def __init__(self,
                  env: gym.Env,
                  args: argparse.Namespace,
+                 logger: Logger,
                  world_size: int = 1,
                  rank: int = 0,
                  dist: bool = False):
@@ -59,6 +57,7 @@ class DDPG:
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
+        # Create exploration noise process
         if args.noise_process == "Uniform":
             noise_process = UniformNoise(size_a)
         elif args.noise_process == "Gaussian":
@@ -67,15 +66,18 @@ class DDPG:
             noise_process = OrnsteinUhlenbeckNoise(size_a, *args.noise_process_params)
         else:
             raise argparse.ArgumentError("Required argument 'noise_process' is missing")
+        # Create actor and critic networks
         self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
                            args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
                            args.action_clip, args.grad_clip)
         self.critic = Critic(size_s + size_g, size_a, args.critic_net_nlayers,
                              args.critic_net_layer_width, args.critic_lr, args.grad_clip)
+        # Create normalizers
         state_norm_idx = getattr(args, "state_norm_idx", None)
         goal_norm_idx = getattr(args, "goal_norm_idx", None)
         self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip, idx=state_norm_idx)
         self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip, idx=goal_norm_idx)
+        # Create replay buffer
         self.T = env._max_episode_steps
         self.buffer = HERBuffer(size_s,
                                 size_a,
@@ -85,6 +87,7 @@ class DDPG:
                                 args.buffer_size,
                                 reward_fun=self.env.compute_reward)
         self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
+        # Initialize distributed training
         self.dist = False
         self.world_size = world_size
         self.rank = rank
@@ -92,24 +95,7 @@ class DDPG:
         self._last_eval_steps = 0
         if dist and world_size > 1:
             self.init_dist()
-        if self.args.save:
-            self.PATH = Path(__file__).parents[2] / "saves" / self.args.env
-            if not self.PATH.is_dir():
-                self.PATH.mkdir(parents=True, exist_ok=True)
-            # Create a unique backup path with the current time and resolve name collisions
-            if self.rank == 0:
-                self.BACKUP_PATH = self.PATH / "backup" / datetime.now().strftime("%Y_%m_%d_%H_%M")
-                if not self.BACKUP_PATH.is_dir():
-                    self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
-                else:
-                    t = 1
-                    while self.BACKUP_PATH.is_dir():
-                        self.BACKUP_PATH = self.PATH / "backup" / (
-                            datetime.now().strftime("%Y_%m_%d_%H_%M") + f"_({t})")
-                        t += 1
-                    self.BACKUP_PATH.mkdir(parents=True, exist_ok=True)
-            else:
-                self.BACKUP_PATH = None
+        self.logger = logger
 
     def train(self):
         """Train a policy to solve the environment with DDPG.
@@ -133,12 +119,10 @@ class DDPG:
                                bar_format='{desc}',
                                leave=True,
                                dynamic_ncols=True)
-            ep_success = []
-            ep_time = []
-            ep_steps = []
         current_step = 0
+        training_start = time.time()
+        # Main training loop
         for epoch in range(total_train_steps):
-            epoch_start = time.perf_counter()
             for _ in range(self.args.rollouts):
                 ep_buffer = self.buffer.get_trajectory_buffer()
                 obs = self.env.reset()
@@ -155,42 +139,40 @@ class DDPG:
                 self.actor.noise_process.reset()
                 self._update_norm(ep_buffer)
             current_step += self.world_size * self.T * self.args.rollouts
-            for _ in range(self.args.batches):
-                self._train_agent()
+            # Perform policy and critic network updates
+            for train_step in range(self.args.batches):
+                self._train_agent(log=train_step == self.args.batches - 1)
             self.actor.update_target(self.args.tau)
             self.critic.update_target(self.args.tau)
-            epoch_end = time.perf_counter()
+            # Evaluate the current performance of the agent
             if current_step - self._last_eval_steps >= self.args.eval_interval:
                 self._last_eval_steps = current_step
-                av_success = self.eval_agent()
+                av_success, av_reward = self.eval_agent()
+                log = {
+                    "eval/success_rate": av_success,
+                    "eval/mean_reward": av_reward,
+                    "time/time_elapsed": time.time() - training_start,
+                    "time/total_timesteps": current_step,
+                    "time/fps": current_step / (time.time() - training_start)
+                }
+                self.logger.log(log, current_step)
                 if self.rank == 0:
-                    ep_success.append(av_success)
-                    ep_time.append(epoch_end - epoch_start)
-                    ep_steps.append(current_step)
-                    success_log.set_description_str(f"Current success rate: {av_success:.3f}")
+                    runtime = (time.time() - training_start) / 60  # In minutes
+                    success_log.set_description_str((f"Success rate: {av_success:.2f}, "
+                                                     f"Total runtime: {runtime:.0f}m"))
                     if self.args.save:
-                        self.save_models()
-                        self.save_plots(ep_success, ep_steps, ep_time)
-                        self.save_stats(ep_success, ep_steps, ep_time)
+                        self.save_models(self.logger.path)
                 if av_success >= self.args.early_stop and self.env.early_stop_ok:
-                    if self.rank == 0 and self.args.save:
-                        self.save_models()
-                        self.save_models(path=self.BACKUP_PATH)
-                        self.save_plots(ep_success, ep_steps, ep_time)
-                        self.save_stats(ep_success, ep_steps, ep_time)
-                    return
+                    break
             if self.rank == 0:
                 status_bar.update()
             if hasattr(self.env, "epoch_callback"):
                 assert callable(self.env.epoch_callback)
                 self.env.epoch_callback(epoch, av_success)
         if self.rank == 0 and self.args.save:
-            self.save_models()
-            self.save_models(path=self.BACKUP_PATH)
-            self.save_plots(ep_success, ep_steps, ep_time)
-            self.save_stats(ep_success, ep_steps, ep_time)
+            self.save_models(self.logger.path)
 
-    def _train_agent(self):
+    def _train_agent(self, log: bool = False):
         """Train the agent and critic network with experience sampled from the replay buffer."""
         states, actions, rewards, next_states, goals = self.buffer.sample(self.args.batch_size)
         obs_T, obs_next_T = self.wrap_obs(states, goals), self.wrap_obs(next_states, goals)
@@ -219,6 +201,11 @@ class DDPG:
             actor_loss_T = -next_q_T.mean()
         self.actor.backward_step(actor_loss_T)
         self.critic.backward_step(critic_loss_T)
+        if log:
+            self.logger.log({
+                "train/actor_loss": actor_loss_T.item(),
+                "train/critic_loss": critic_loss_T.item()
+            })
 
     def _update_norm(self, ep_buffer: TrajectoryBuffer):
         """Update the normalizers with an episode of play experience.
@@ -233,7 +220,7 @@ class DDPG:
         self.state_norm.update(states)
         self.goal_norm.update(goals)
 
-    def eval_agent(self) -> float:
+    def eval_agent(self) -> tuple[float, float]:
         """Evaluate the current agent performance on the gym task.
 
         Runs `args.evals` times and averages the success rate. If distributed training is enabled,
@@ -242,22 +229,24 @@ class DDPG:
         self.actor.eval()
         success = 0
         self.env.use_info(True)
+        total_reward = 0
         for _ in range(self.args.evals):
             state, goal, _ = unwrap_obs(self.env.reset())
             for t in range(self.T):
                 with torch.no_grad():
                     action = self.actor.select_action(self.wrap_obs(state, goal))
-                next_obs, _, _, info = self.env.step(action)
+                next_obs, reward, _, info = self.env.step(action)
+                total_reward += reward
                 state, goal, _ = unwrap_obs(next_obs)
             success += info["is_success"]
         self.actor.train()
         self.env.use_info(False)
         if self.dist:
-            success_rate = np.array([success / self.args.evals])
-            summed_success_rate = np.zeros_like(success_rate)
-            MPI.COMM_WORLD.Allreduce(success_rate, summed_success_rate, op=MPI.SUM)
-            return summed_success_rate[0] / self.world_size
-        return success / self.args.evals
+            eval_info = np.array([success, total_reward]) / self.args.evals
+            world_eval_info = np.zeros_like(eval_info)
+            MPI.COMM_WORLD.Allreduce(eval_info, world_eval_info, op=MPI.SUM)
+            return world_eval_info[0] / self.world_size, world_eval_info[1] / self.world_size
+        return success / self.args.evals, total_reward / self.args.evals
 
     def save_models(self, path: Optional[Path] = None):
         """Save the actor and critic network and the normalizers for testing and inference.
@@ -276,60 +265,6 @@ class DDPG:
         torch.save(self.critic.critic_net.state_dict(), path / "critic.pt")
         self.state_norm.save(path / "state_norm.pkl")
         self.goal_norm.save(path / "goal_norm.pkl")
-
-    def save_plots(self, ep_success: List[float], ep_steps: List[float], ep_time: List[float]):
-        """Generate and save a plot from training statistics.
-
-        Saves are located under `/save/<env_name>/`. Additional backup saves with the current
-        timestamp are created under `/save/<env_name>/.backup/<date>`. Can only be called from rank
-        0.
-
-        Args:
-            ep_success: Episode agent evaluation success rate.
-            ep_time: Episode training process time. Excludes the evaluation timing.
-        """
-        assert self.rank == 0
-        fig, ax = plt.subplots(1, 2, figsize=(15, 4))
-        ax[0].plot(ep_steps, ep_success)
-        ax[0].set_xlabel('Steps')
-        ax[0].set_ylabel('Success rate')
-        ax[0].set_ylim([0., 1.])
-        ax[0].set_title('Agent performance over time')
-        ax[0].xaxis.set_major_locator(MaxNLocator(integer=True))
-
-        ax[1].plot(ep_steps, ep_time)
-        ax[1].set_xlabel('Steps')
-        ax[1].set_ylabel('Time in s')
-        ax[1].set_title('Episode compute times')
-        ax[1].xaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.savefig(self.PATH / "stats.png")
-        plt.savefig(self.BACKUP_PATH / "stats.png")
-        plt.close()
-
-    def save_stats(self, ep_success: List[float], ep_steps: List[float], ep_time: List[float]):
-        """Save the current stats to a json file.
-
-        Saves are located under `/save/<env_name>/`. Additional backup saves with the current
-        timestamp are created under `/save/<env_name>/.backup/<date>`. Can only be called from rank
-        0.
-
-        Args:
-            ep_success: Episode evaluation success rate array.
-            ep_time: Episode compute time array.
-        """
-        world_size = None if self.world_size == 1 else self.world_size
-        stats = {
-            "ep_success": ep_success,
-            "ep_steps": ep_steps,
-            "ep_time": ep_time,
-            "args": vars(self.args),
-            "mpi": world_size
-        }
-        assert self.rank == 0
-        with open(self.PATH / "stats.json", "w") as f:
-            json.dump(stats, f)
-        with open(self.BACKUP_PATH / "stats.json", "w") as f:
-            json.dump(stats, f)
 
     def load_pretrained(self, path: Path):
         """Load pretrained networks for the actor, critic and normalizers."""

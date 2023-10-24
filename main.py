@@ -11,6 +11,7 @@ from mpi4py import MPI
 
 import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.ddpg import DDPG
+from mp_rl.utils import DummyLogger, WandBLogger
 from parse_args import parse_args
 
 
@@ -42,14 +43,6 @@ if __name__ == "__main__":
     if args.seed:
         assert isinstance(args.seed, int)
         set_seed(env, args.seed + comm.Get_rank())
-    ddpg = DDPG(env, args, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
-    if args.load_pretrained:
-        path = Path(__file__).parent / "saves" / "pretrain" / args.env
-        if path.exists():
-            logger.info(f"Loading pretrained DDPG model from {path}")
-            ddpg.load_pretrained(path)
-        else:
-            path = Path(__file__).parent / "saves" / "pretrain" / env.gripper_type
-            logger.info(f"Loading default pretrained DDPG model from {path}")
-            ddpg.load_pretrained(path)
+    logger = WandBLogger(run) if comm.Get_rank() == 0 else DummyLogger()
+    ddpg = DDPG(env, args, logger, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
     ddpg.train()
