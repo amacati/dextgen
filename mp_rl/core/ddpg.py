@@ -18,7 +18,7 @@ import gym
 from mpi4py import MPI
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.noise import UniformNoise, GaussianNoise, OrnsteinUhlenbeckNoise
+from mp_rl.core.noise import UniformNoise
 from mp_rl.core.actor import Actor, PosePolicyNet
 from mp_rl.core.critic import Critic
 from mp_rl.core.normalizer import Normalizer
@@ -52,20 +52,11 @@ class DDPG:
         """
         self.env = env
         # Rewards are calculated from HER buffer. Disable computation for runtime improvement
-        self.env.use_step_reward(False)
         self.args = args
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
-        # Create exploration noise process
-        if args.noise_process == "Uniform":
-            noise_process = UniformNoise(size_a)
-        elif args.noise_process == "Gaussian":
-            noise_process = GaussianNoise(size_a, *args.noise_process_params)
-        elif args.noise_process == "OrnsteinUhlenbeck":
-            noise_process = OrnsteinUhlenbeckNoise(size_a, *args.noise_process_params)
-        else:
-            raise argparse.ArgumentError("Required argument 'noise_process' is missing")
+        noise_process = UniformNoise(size_a)
         # Create actor and critic networks
         self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
                            args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
@@ -83,7 +74,7 @@ class DDPG:
                                 size_a,
                                 size_g,
                                 self.T,
-                                args.k,
+                                args.her_n_sampled_goal,
                                 args.buffer_size,
                                 reward_fun=self.env.compute_reward)
         self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
@@ -140,8 +131,8 @@ class DDPG:
                 self._update_norm(ep_buffer)
             current_step += self.world_size * self.T * self.args.rollouts
             # Perform policy and critic network updates
-            for train_step in range(self.args.batches):
-                self._train_agent(log=train_step == self.args.batches - 1)
+            for train_step in range(self.args.gradient_steps):
+                self._train_agent(log=train_step == self.args.gradient_steps - 1)
             self.actor.update_target(self.args.tau)
             self.critic.update_target(self.args.tau)
             # Evaluate the current performance of the agent
@@ -157,9 +148,7 @@ class DDPG:
                 }
                 self.logger.log(log, current_step)
                 if self.rank == 0:
-                    runtime = (time.time() - training_start) / 60  # In minutes
-                    success_log.set_description_str((f"Success rate: {av_success:.2f}, "
-                                                     f"Total runtime: {runtime:.0f}m"))
+                    success_log.set_description_str(f"Success rate: {av_success:.2f}")
                     if self.args.save:
                         self.save_models(self.logger.path)
                 if av_success >= self.args.early_stop and self.env.early_stop_ok:
@@ -223,14 +212,14 @@ class DDPG:
     def eval_agent(self) -> tuple[float, float]:
         """Evaluate the current agent performance on the gym task.
 
-        Runs `args.evals` times and averages the success rate. If distributed training is enabled,
-        further averages over all distributed evaluations.
+        Runs `args.num_evals` times and averages the success rate. If distributed training is
+        enabled, further averages over all distributed evaluations.
         """
         self.actor.eval()
         success = 0
         self.env.use_info(True)
         total_reward = 0
-        for _ in range(self.args.evals):
+        for _ in range(self.args.num_evals):
             state, goal, _ = unwrap_obs(self.env.reset())
             for t in range(self.T):
                 with torch.no_grad():
@@ -242,11 +231,11 @@ class DDPG:
         self.actor.train()
         self.env.use_info(False)
         if self.dist:
-            eval_info = np.array([success, total_reward]) / self.args.evals
+            eval_info = np.array([success, total_reward]) / self.args.num_evals
             world_eval_info = np.zeros_like(eval_info)
             MPI.COMM_WORLD.Allreduce(eval_info, world_eval_info, op=MPI.SUM)
             return world_eval_info[0] / self.world_size, world_eval_info[1] / self.world_size
-        return success / self.args.evals, total_reward / self.args.evals
+        return success / self.args.num_evals, total_reward / self.args.num_evals
 
     def save_models(self, path: Optional[Path] = None):
         """Save the actor and critic network and the normalizers for testing and inference.

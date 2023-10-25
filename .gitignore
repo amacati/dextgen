@@ -1,7 +1,7 @@
 *__pycache__
 *.pyc
 *.pt
-saves/**/*.png
+saves/*
 *.ipynb_checkpoints
 *.pkl
 *.json
