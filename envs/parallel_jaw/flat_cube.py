@@ -1,7 +1,7 @@
 """FlatPJCube environment module."""
 from pathlib import Path
 
-from gym import utils
+from gymnasium import utils
 import numpy as np
 
 from envs.parallel_jaw.flat_base import FlatPJBase

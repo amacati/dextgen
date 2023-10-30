@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from mp_rl.core.utils import soft_update, sync_networks, sync_grads
+from mp_rl.core.utils import soft_update
 from mp_rl.utils import import_guard
 
 if import_guard():
@@ -80,8 +80,6 @@ class Critic:
         """
         self.optim.zero_grad()
         loss.backward()
-        if self.dist:
-            sync_grads(self.critic_net)
         self.optim.step()
 
     def update_target(self, tau: float):
@@ -92,14 +90,6 @@ class Critic:
         """
         soft_update(self.critic_net, self.target_net, tau)
 
-    def init_dist(self):
-        """Synchronize the critic network across MPI workers and reload the target network."""
-        self.dist = True
-        sync_networks(self.critic_net)
-        # Target reloads state dict because network sync overwrites weights in process rank 1 to n
-        # with the weights of action_net from process rank 0
-        self.target_net.load_state_dict(self.critic_net.state_dict())
-
     def load(self, path: Path):
         """Load saved network weights for the critic and take care of syncronizations.
 
@@ -107,8 +97,6 @@ class Critic:
             path: Path to the saved state dict.
         """
         self.critic_net.load_state_dict(torch.load(path))
-        if self.dist:
-            sync_networks(self.critic_net)
         self.target_net.load_state_dict(self.critic_net.state_dict())
 
 

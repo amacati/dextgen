@@ -2,20 +2,19 @@
 import random
 from pathlib import Path
 
-import gym
+import gymnasium
 import fire
 import yaml
 import numpy as np
 import torch
-from mpi4py import MPI
 import wandb
 
 import envs  # Import registers environments with gym  # noqa: F401
 from mp_rl.core.ddpg import DDPG
-from mp_rl.utils import DummyLogger, WandBLogger, DummyWandBConfig
+from mp_rl.utils import WandBLogger, DummyWandBConfig
 
 
-def set_seed(env: gym.Env, seed: int):
+def set_seed(env: gymnasium.Env, seed: int):
     """Set the random seed of all relevant modules for reproducible experiments.
 
     Args:
@@ -45,33 +44,22 @@ def load_config(path: Path):
 def main(env_name: str):
     env_cfg = env_name.lower().replace("_", "-")[:-3] + "-config.yaml"
     config_path = Path(__file__).parent / "config" / env_cfg
-    cfg = load_config(config_path)  # Load a dummy WandB config for all ranks > 0
-
     save_path = Path(__file__).parent / "saves" / env_name
-    save_path.mkdir(parents=True, exist_ok=True)
 
-    env = gym.make(env_name, **cfg.kwargs) if hasattr(cfg, "kwargs") else gym.make(env_name)
-    comm = MPI.COMM_WORLD
-    if cfg.seed:
-        assert isinstance(cfg.seed, int)
-        set_seed(env, cfg.seed + comm.Get_rank())
-    if comm.Get_rank() == 0:
-        with wandb.init(project=env_name,
-                        entity="amacati",
-                        config=str(config_path),
-                        save_code=True,
-                        dir=save_path) as run:
-            logger = WandBLogger(run)
-            ddpg = DDPG(env,
-                        run.config,
-                        logger,
-                        world_size=comm.Get_size(),
-                        rank=comm.Get_rank(),
-                        dist=True)
-            ddpg.train()
-    else:
-        logger = DummyLogger()
-        ddpg = DDPG(env, cfg, logger, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
+    with wandb.init(project=env_name,
+                    entity="amacati",
+                    config=str(config_path),
+                    save_code=True,
+                    dir=save_path) as run:
+
+        save_path = Path(__file__).parent / "saves" / env_name
+        save_path.mkdir(parents=True, exist_ok=True)
+        kwargs = getattr(run.config, "env_kwargs", {})
+        env = gymnasium.make(env_name, **kwargs)
+        assert isinstance(run.config.seed, int)
+        set_seed(env, run.config.seed)
+        logger = WandBLogger(run)
+        ddpg = DDPG2(env, run.config, logger)
         ddpg.train()
 
 

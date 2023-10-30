@@ -1,10 +1,3 @@
-"""``DDPG`` module encapsulating the Deep Deterministic Policy Gradient algorithm.
-
-:class:`.DDPG` initializes the actor, critic, normalizers and noise processes, manages the
-synchronization between MPI nodes and takes care of checkpoints during training as well as network
-loading if starting from pre-trained networks. It assumes dictionary gym environments.
-"""
-
 import argparse
 import logging
 from typing import Optional
@@ -14,8 +7,7 @@ import time
 import numpy as np
 import torch
 from tqdm import tqdm
-import gym
-from mpi4py import MPI
+import gymnasium
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.noise import UniformNoise
@@ -29,30 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class DDPG:
-    """Deep Deterministic Policy Gradient algorithm class.
 
-    Uses a state/goal normalizer and the HER sampling method to solve sparse reward environments.
-    """
-
-    def __init__(self,
-                 env: gym.Env,
-                 args: argparse.Namespace,
-                 logger: Logger,
-                 world_size: int = 1,
-                 rank: int = 0,
-                 dist: bool = False):
-        """Initialize the Actor, Critic, HERBuffer and activate MPI synchronization if required.
-
-        Args:
-            env: OpenAI dictionary gym environment.
-            args: User settings and configs merged into a single namespace.
-            world_size: Process group world size for distributed training.
-            rank: Process rank for distributed training.
-            dist: Toggles distributed training mode.
-        """
+    def __init__(self, env: gymnasium.Env, args: argparse.Namespace, logger: Logger):
         self.env = env
-        # Rewards are calculated from HER buffer. Disable computation for runtime improvement
         self.args = args
+        self.dev = self.args.device
         size_s = len(env.observation_space["observation"].low)
         size_a = len(env.action_space.low)
         size_g = len(env.observation_space["desired_goal"].low)
@@ -60,14 +33,15 @@ class DDPG:
         # Create actor and critic networks
         self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
                            args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
-                           args.action_clip, args.grad_clip)
+                           args.action_clip, args.grad_clip).to(self.dev)
         self.critic = Critic(size_s + size_g, size_a, args.critic_net_nlayers,
-                             args.critic_net_layer_width, args.critic_lr, args.grad_clip)
+                             args.critic_net_layer_width, args.critic_lr,
+                             args.grad_clip).to(self.dev)
         # Create normalizers
         state_norm_idx = getattr(args, "state_norm_idx", None)
         goal_norm_idx = getattr(args, "goal_norm_idx", None)
-        self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip, idx=state_norm_idx)
-        self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip, idx=goal_norm_idx)
+        self.state_norm = Normalizer(size_s, clip=args.state_clip, idx=state_norm_idx)
+        self.goal_norm = Normalizer(size_g, clip=args.goal_clip, idx=goal_norm_idx)
         # Create replay buffer
         self.T = env._max_episode_steps
         self.buffer = HERBuffer(size_s,
@@ -79,13 +53,8 @@ class DDPG:
                                 reward_fun=self.env.compute_reward)
         self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
         # Initialize distributed training
-        self.dist = False
-        self.world_size = world_size
-        self.rank = rank
-        self._total_train_steps = self.args.n_total_steps // self.T // self.world_size
+        self._total_sample_steps = self.args.n_total_steps // self.T // self.env.num_envs
         self._last_eval_steps = 0
-        if dist and world_size > 1:
-            self.init_dist()
         self.logger = logger
 
     def train(self):
@@ -99,17 +68,12 @@ class DDPG:
         `HER paper <https://arxiv.org/pdf/1707.01495.pdf>`_
         """
         total_train_steps = self.args.n_total_steps // self.T // self.world_size
-        if self.rank == 0:
-            status_bar = tqdm(total=total_train_steps,
-                              desc="Training steps",
-                              position=0,
-                              leave=True,
-                              dynamic_ncols=True)
-            success_log = tqdm(total=0,
-                               position=1,
-                               bar_format='{desc}',
-                               leave=True,
-                               dynamic_ncols=True)
+        status_bar = tqdm(total=total_train_steps,
+                          desc="Training steps",
+                          position=0,
+                          leave=True,
+                          dynamic_ncols=True)
+        success_log = tqdm(total=0, position=1, bar_format='{desc}', leave=True, dynamic_ncols=True)
         current_step = 0
         training_start = time.time()
         # Main training loop
@@ -147,18 +111,16 @@ class DDPG:
                     "time/fps": current_step / (time.time() - training_start)
                 }
                 self.logger.log(log, current_step)
-                if self.rank == 0:
-                    success_log.set_description_str(f"Success rate: {av_success:.2f}")
-                    if self.args.save:
-                        self.save_models(self.logger.path)
+                success_log.set_description_str(f"Success rate: {av_success:.2f}")
+                if self.args.save:
+                    self.save_models(self.logger.path)
                 if av_success >= self.args.early_stop and self.env.early_stop_ok:
                     break
-            if self.rank == 0:
-                status_bar.update()
+            status_bar.update()
             if hasattr(self.env, "epoch_callback"):
                 assert callable(self.env.epoch_callback)
                 self.env.epoch_callback(epoch, av_success)
-        if self.rank == 0 and self.args.save:
+        if self.args.save:
             self.save_models(self.logger.path)
 
     def _train_agent(self, log: bool = False):
@@ -230,25 +192,16 @@ class DDPG:
             success += info["is_success"]
         self.actor.train()
         self.env.use_info(False)
-        if self.dist:
-            eval_info = np.array([success, total_reward]) / self.args.num_evals
-            world_eval_info = np.zeros_like(eval_info)
-            MPI.COMM_WORLD.Allreduce(eval_info, world_eval_info, op=MPI.SUM)
-            return world_eval_info[0] / self.world_size, world_eval_info[1] / self.world_size
         return success / self.args.num_evals, total_reward / self.args.num_evals
 
     def save_models(self, path: Optional[Path] = None):
         """Save the actor and critic network and the normalizers for testing and inference.
 
-        Saves are located under `/save/<env_name>/` by default. Only saves if called from rank 0,
-        returns without saving otherwise.
+        Saves are located under `/save/<env_name>/` by default.
 
         Args:
             path: Path to the save directory.
         """
-        if self.rank != 0:
-            logger.warning(f"save_models called with rank {self.rank}. Exiting without save.")
-            return
         path = path or self.PATH
         torch.save(self.actor.action_net.state_dict(), path / "actor.pt")
         torch.save(self.critic.critic_net.state_dict(), path / "critic.pt")

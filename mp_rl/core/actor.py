@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from mp_rl.core.utils import soft_update, sync_networks, sync_grads
+from mp_rl.core.utils import soft_update
 from mp_rl.utils import import_guard
 
 if import_guard():
@@ -66,7 +66,6 @@ class Actor:
         self.action_clip = action_clip
         self.grad_clip = grad_clip
         self._train = True
-        self.dist = False
 
     def select_action(self, states: torch.Tensor) -> np.ndarray:
         """Select an action for the given input states.
@@ -115,8 +114,6 @@ class Actor:
         """
         self.optim.zero_grad()
         loss.backward()
-        if self.dist:
-            sync_grads(self.action_net)
         self.optim.step()
 
     def target(self, states: torch.Tensor) -> torch.Tensor:
@@ -148,14 +145,6 @@ class Actor:
         """
         soft_update(self.action_net, self.target_net, tau)
 
-    def init_dist(self):
-        """Synchronize the actor network across MPI nodes and reload the target network."""
-        self.dist = True
-        sync_networks(self.action_net)
-        # Target reloads state dict because network sync overwrites weights in process rank 1 to n
-        # with the weights of action_net from process rank 0
-        self.target_net.load_state_dict(self.action_net.state_dict())
-
     def load(self, path: Path):
         """Load saved network weights for the actor and take care of syncronizations.
 
@@ -163,8 +152,6 @@ class Actor:
             path: Path to the saved state dict.
         """
         self.action_net.load_state_dict(torch.load(path))
-        if self.dist:
-            sync_networks(self.action_net)
         self.target_net.load_state_dict(self.action_net.state_dict())
 
 

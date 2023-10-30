@@ -8,7 +8,6 @@ from typing import Optional
 
 import pickle
 import numpy as np
-from mpi4py import MPI
 
 from mp_rl.utils import import_guard
 
@@ -25,7 +24,6 @@ class Normalizer:
 
     def __init__(self,
                  size: int,
-                 world_size: int,
                  eps: float = 1e-2,
                  clip: float = np.inf,
                  idx: Optional[np.ndarray] = None):
@@ -33,29 +31,22 @@ class Normalizer:
 
         Args:
             size: Data dimension. Each dimensions mean and variance is tracked individually.
-            world_size: MPI communication group size.
             eps: Minimum variance value to ensure numeric stability. Has to be larger than 0.
             clip: Clipping value for normalized data.
             idx: Optional index list that selects which entries should be normalized.
         """
         self.size = size
-        self.world_size = world_size
         self.eps2 = np.ones(size, dtype=np.float32) * eps**2
         self.clip = clip
         # Arrays for allreduce ops to transfer stats between processe via MPI. Local arrays hold
         # stats from the current update, accumulate external stats in the all_reduce phase, transfer
         # the accumulated values into the all-time arrays and reset to zero. This avoids including
         # past stats from other processes as own values for the current run
-        self.lsum = np.zeros(size, dtype=np.float32)
-        self.lsum_sq = np.zeros(size, dtype=np.float32)
-        self.lcount = np.zeros(1, dtype=np.float32)
         self.sum = np.zeros(size, dtype=np.float32)
         self.sum_sq = np.zeros(size, dtype=np.float32)
-        self.count = np.zeros(1, dtype=np.float32)
+        self.count = 0
         self.mean = np.zeros(size, dtype=np.float32)
         self.std = np.ones(size, dtype=np.float32)
-        self.coal_buffer = np.zeros(size * 2 + 1, dtype=np.float32)
-        self.dist = False
         self.idx = idx
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
@@ -94,39 +85,13 @@ class Normalizer:
             AssertionError: Shape check failed.
         """
         assert x.ndim != 3, "Expecting 3D arrays of shape (episodes, timestep, data dimension)!"
-        self.lsum = np.sum(x, axis=0, dtype=np.float32)
-        self.lsum_sq = np.sum(x**2, axis=0, dtype=np.float32)
-        self.lcount[0] = x.shape[0]
-        if self.dist:
-            # Coalesce tensors to reduce communication overhead of all_reduce
-            self.coal_buffer[0:self.size] = self.lsum
-            self.coal_buffer[self.size:self.size * 2] = self.lsum_sq
-            self.coal_buffer[self.size * 2] = self.lcount[0]
-            MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, self.coal_buffer, op=MPI.SUM)
-            self.lsum = self.coal_buffer[0:self.size]
-            self.lsum_sq = self.coal_buffer[self.size:self.size * 2]
-            self.lcount[0] = self.coal_buffer[self.size * 2]
-        self._transfer_buffers()
+        self.sum += np.sum(x, axis=0, dtype=np.float32)
+        self.sum_sq += np.sum(x**2, axis=0, dtype=np.float32)
+        self.count += x.shape[0]
         self.mean = self.sum / self.count
         self.std = (self.sum_sq / self.count - (self.sum / self.count)**2)
         np.maximum(self.eps2, self.std, out=self.std)  # Numeric stability
         np.sqrt(self.std, out=self.std)
-
-    def init_dist(self):
-        """Initialize distributed mode."""
-        self.dist = True
-
-    def _transfer_buffers(self):
-        """Add the local buffers to the global estimate and reset the buffers.
-
-        Average before summing to normalizer.
-        """
-        self.sum += self.lsum / self.world_size
-        self.sum_sq += self.lsum_sq / self.world_size
-        self.count += self.lcount / self.world_size
-        self.lsum[:] = 0  # Reset local tensors to not sum up previous runs
-        self.lsum_sq[:] = 0
-        self.lcount[:] = 0
 
     def save(self, path: Path):
         """Save the normalizer as a pickle object.

@@ -1,0 +1,82 @@
+# FlatPJCube-v0 experiment config file
+env_name:
+  desc: Name of the environment to train on
+  value: FlatPJCube-v0
+rollouts:
+  desc: Number of rollouts to perform before learning is started (all rollouts are 50 steps long)
+  value: 2
+eval_interval:
+  desc: Number of training steps between evaluations
+  value: 6_400
+num_evals:
+  desc: Number of evaluations to perform on each worker
+  value: 10
+batch_size:
+  desc: Size of each mini-batch
+  value: 256
+gamma:
+  desc: Discount factor
+  value: 0.98
+actor_lr:
+  desc: Learning rate for the actor
+  value: 0.001
+critic_lr:
+  desc: Learning rate for the critic
+  value: 0.001
+tau:
+  desc: Polyak factor, only applied once for every gradient_steps network updates
+  value: 0.05
+gradient_steps:
+  desc: Number of gradient steps to perform in each training update
+  value: 40
+buffer_size:
+  desc: Size of the replay buffer in each worker
+  value: 1_000_000
+eps:
+  desc: Fraction of completely random actions
+  value: 0.3
+her_n_sampled_goal:
+  desc: Number of virtual goals to sample per real transition
+  value: 4
+action_clip:
+  desc: Maximum absolute value of actions
+  value: 1.0
+state_clip:
+  desc: Maximum absolute value of states
+  value: 200.0
+goal_clip:
+  desc: Maximum absolute value of goals
+  value: 200.0
+grad_clip:
+  desc: Maximum absolute value of gradients
+  value: 5.0
+actor_net_type:
+  desc: Type of actor network to use
+  value: DDP
+actor_net_nlayers:
+  desc: Number of layers in the actor network
+  value: 4
+actor_net_layer_width:
+  desc: Width of each layer in the actor network
+  value: 256
+critic_net_nlayers:
+  desc: Number of layers in the critic network
+  value: 4
+critic_net_layer_width:
+  desc: Width of each layer in the critic network
+  value: 256
+early_stop:
+  desc: Stop training if the mean reward over the last 10 evaluations is greater than this value
+  value: 0.95
+save:
+  desc: Save the model after training
+  value: True
+seed:
+  desc: Seed to use for training
+  value: 0
+n_total_steps:
+  desc: Total number of steps to train over
+  value: 4_000_000
+state_norm_idx:
+  desc: Indices of the state vector to normalize
+  value: [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 32, 33, 34, 35, 36, 37]
