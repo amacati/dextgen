@@ -217,7 +217,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         goal[2] = self.height_offset
         # Random goal height
         if self.np_random.uniform() < self.p_high_goal:
-            goal[2] += self.np_random.uniform(self.goal_max_height / 2, self.goal_max_height)
+            goal[2] += self.np_random.uniform(0, self.goal_max_height)
         return goal.copy()
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
