@@ -1,9 +1,12 @@
+group:
+  desc: "Group name"
+  value: ""
 n_total_steps:
   desc: "Total number of environment steps"
   value: 4_000_000
 eval_interval:
   desc: "Number of training steps between evaluations"
-  value: 100
+  value: 6400
 rollouts:
   desc: "Number of rollouts per training step"
   value: 2

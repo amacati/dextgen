@@ -58,7 +58,7 @@ def main(env_name: str):
     if comm.Get_rank() == 0:
         with wandb.init(project=env_name,
                         entity="amacati",
-                        group=env_cfg["group"]["value"] if hasattr(cfg, "group") else None,
+                        group=cfg.group if hasattr(cfg, "group") else None,
                         config=str(config_path),
                         save_code=True,
                         dir=save_path) as run:
