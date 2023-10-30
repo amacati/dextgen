@@ -98,9 +98,9 @@ class DDPG:
 
         `HER paper <https://arxiv.org/pdf/1707.01495.pdf>`_
         """
-        total_train_steps = self.args.n_total_steps // self.T // self.world_size
+        epochs = self.args.n_total_steps // self.T // self.args.rollouts // self.world_size
         if self.rank == 0:
-            status_bar = tqdm(total=total_train_steps,
+            status_bar = tqdm(total=epochs,
                               desc="Training steps",
                               position=0,
                               leave=True,
@@ -113,8 +113,8 @@ class DDPG:
         current_step = 0
         training_start = time.time()
         # Main training loop
-        for epoch in range(total_train_steps):
-            for _ in range(self.args.num_evals):
+        for epoch in range(epochs):
+            for _ in range(self.args.rollouts):
                 ep_buffer = self.buffer.get_trajectory_buffer()
                 obs = self.env.reset()
                 state, goal, agoal = unwrap_obs(obs)
