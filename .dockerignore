@@ -7,4 +7,5 @@ pytest_cache
 *.pyc
 scripts
 saves/*
+dextgen_package_collection.egg-info/*
 /docs

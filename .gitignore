@@ -1,7 +1,7 @@
 *__pycache__
 *.pyc
 *.pt
-saves/**/*.png
+saves/**/*
 *.ipynb_checkpoints
 *.pkl
 *.json
@@ -14,3 +14,4 @@ scripts
 !envs/shadow_hand/eigengrasps.json
 !envs/barrett_hand/eigengrasps.json
 /docs/_build
+/dextgen_package_collection.egg-info/*
