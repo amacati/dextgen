@@ -42,7 +42,7 @@ def load_config(path: Path):
     return DummyWandBConfig(config)
 
 
-def main(env_name: str):
+def main(env_name: str, nruns: int = 1):
     env_cfg = env_name.lower().replace("_", "-")[:-3] + "-config.yaml"
     config_path = Path(__file__).parent / "config" / env_cfg
     cfg = load_config(config_path)  # Load a dummy WandB config for all ranks > 0
@@ -50,30 +50,37 @@ def main(env_name: str):
     save_path = Path(__file__).parent / "saves" / env_name
     save_path.mkdir(parents=True, exist_ok=True)
 
-    env = gym.make(env_name, **cfg.kwargs) if hasattr(cfg, "kwargs") else gym.make(env_name)
-    comm = MPI.COMM_WORLD
-    if cfg.seed:
-        assert isinstance(cfg.seed, int)
-        set_seed(env, cfg.seed + comm.Get_rank())
-    if comm.Get_rank() == 0:
-        with wandb.init(project=env_name,
-                        entity="amacati",
-                        group=cfg.group if hasattr(cfg, "group") else None,
-                        config=str(config_path),
-                        save_code=True,
-                        dir=save_path) as run:
-            logger = WandBLogger(run)
+    for i in range(nruns):
+        env = gym.make(env_name, **cfg.kwargs) if hasattr(cfg, "kwargs") else gym.make(env_name)
+        comm = MPI.COMM_WORLD
+        if cfg.seed:
+            assert isinstance(cfg.seed, int)
+            set_seed(env, cfg.seed + comm.Get_rank() + comm.Get_size() * i)
+        if comm.Get_rank() == 0:
+            with wandb.init(project=env_name,
+                            entity="amacati",
+                            group=cfg.group if hasattr(cfg, "group") else None,
+                            config=str(config_path),
+                            save_code=True,
+                            dir=save_path) as run:
+                logger = WandBLogger(run)
+                ddpg = DDPG(env,
+                            run.config,
+                            logger,
+                            world_size=comm.Get_size(),
+                            rank=comm.Get_rank(),
+                            dist=True)
+                ddpg.train()
+                run.finish()
+        else:
+            logger = DummyLogger()
             ddpg = DDPG(env,
-                        run.config,
+                        cfg,
                         logger,
                         world_size=comm.Get_size(),
                         rank=comm.Get_rank(),
                         dist=True)
             ddpg.train()
-    else:
-        logger = DummyLogger()
-        ddpg = DDPG(env, cfg, logger, world_size=comm.Get_size(), rank=comm.Get_rank(), dist=True)
-        ddpg.train()
 
 
 if __name__ == "__main__":
