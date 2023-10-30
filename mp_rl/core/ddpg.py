@@ -114,7 +114,7 @@ class DDPG:
         training_start = time.time()
         # Main training loop
         for epoch in range(total_train_steps):
-            for _ in range(self.args.rollouts):
+            for _ in range(self.args.num_evals):
                 ep_buffer = self.buffer.get_trajectory_buffer()
                 obs = self.env.reset()
                 state, goal, agoal = unwrap_obs(obs)

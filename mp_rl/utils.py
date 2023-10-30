@@ -1,7 +1,8 @@
 """Utility module."""
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from abc import ABC, abstractmethod, abstractproperty
 from typing import Optional
+from pathlib import Path
 
 
 def import_guard() -> bool:
@@ -17,6 +18,24 @@ def import_guard() -> bool:
             return True
     except NameError:
         return False
+
+
+class DummyWandBConfig:
+
+    def __init__(self, config: dict):
+        self._config = config
+
+    def __getattr__(self, item):
+        if item not in self._config:
+            raise AttributeError(f"Config has no attribute {item}.")
+        return self._config.get(item)["value"]
+
+    def __setattr__(self, name: str, value: Any):
+        if name == "_config":
+            super().__setattr__(name, value)
+            return
+        assert name in self._config, f"Config has no attribute {name}."
+        self._config[name]["value"] = value
 
 
 class Logger(ABC):
@@ -57,4 +76,4 @@ class WandBLogger(Logger):
 
     @property
     def path(self):
-        return self._run.dir
+        return Path(self._run.dir)
