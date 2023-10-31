@@ -48,7 +48,6 @@ class RobotEnv(gym.GoalEnv):
         self.viewer = None
         self._viewers = {}
         self._use_info = True
-        self._use_contact_info = False
         self._use_step_reward = True
 
         self.metadata = {
@@ -119,12 +118,6 @@ class RobotEnv(gym.GoalEnv):
             info = {"is_success": self._is_success(obs["achieved_goal"], obs["desired_goal"])}
         else:
             info = {}
-
-        if self._use_contact_info:
-            info["contact_info"] = self._get_contact_info()
-            info["gripper_info"] = self._get_gripper_info()
-            info["object_info"] = self._get_object_info()
-
         return obs, reward, done, info
 
     def reset(self) -> Dict[str, np.ndarray]:
@@ -178,17 +171,6 @@ class RobotEnv(gym.GoalEnv):
             val: Flag to enable or disable info.
         """
         self._use_info = val
-
-    def use_contact_info(self, val: bool = True):
-        """Enable contact information between the gripper and the object in the info step return.
-
-        Has to be a function since gym wraps the environment in a `TimeLimit` object which does not
-        forward attribute changes.
-
-        Args:
-            val: Flag to enable or disable contact information. Default is True.
-        """
-        self._use_contact_info = val
 
     def use_step_reward(self, val: bool = True):
         """Use reward computation during ``step``.

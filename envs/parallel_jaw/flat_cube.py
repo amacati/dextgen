@@ -1,5 +1,6 @@
 """FlatPJCube environment module."""
 from pathlib import Path
+from typing import Tuple
 
 from gym import utils
 import numpy as np
@@ -12,21 +13,22 @@ MODEL_XML_PATH = str(Path("PJ", "flat_cube.xml"))
 class FlatPJCube(FlatPJBase, utils.EzPickle):
     """FlatPJCube environment class."""
 
-    def __init__(self, object_size_multiplier: float = 1., object_size_range: float = 0.):
+    def __init__(
+            self,
+            p_high_goal: float = 0.5,
+            goal_range: Tuple[float, float] = (0.0, 0.3),
+    ):
         """Initialize a parallel jaw cube environment.
 
         Args:
-            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
-            object_size_range: Optional range to randomly enlarge/shrink object sizes.
+            p_high_goal: Probability of sampling a goal that is above the surface.
+            goal_range: Range of object goal heights.
         """
         FlatPJBase.__init__(self,
-                            object_name="cube",
                             model_xml_path=MODEL_XML_PATH,
-                            object_size_multiplier=object_size_multiplier,
-                            object_size_range=object_size_range)
-        utils.EzPickle.__init__(self,
-                                object_size_multiplier=object_size_multiplier,
-                                object_size_range=object_size_range)
+                            p_high_goal=p_high_goal,
+                            goal_range=goal_range)
+        utils.EzPickle.__init__(self, p_high_goal=p_high_goal, goal_range=goal_range)
 
     def _sample_object_pose(self) -> np.ndarray:
         object_pose = super()._sample_object_pose()

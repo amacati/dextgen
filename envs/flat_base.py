@@ -6,7 +6,7 @@ largely been rewritten for our purpose. This also applies to all environments in
 
 See https://github.com/Farama-Foundation/Gym-Robotics/tree/main/gym_robotics/envs.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import logging
 import copy
 
@@ -29,10 +29,9 @@ class FlatBase(envs.robot_env.RobotEnv):
                  model_xml_path: str,
                  gripper_extra_height: float,
                  initial_qpos: dict,
+                 p_high_goal: float,
+                 goal_range: Tuple[float, float],
                  n_actions: int,
-                 object_name: str,
-                 object_size_multiplier: float = 1.,
-                 object_size_range: float = 0.,
                  initial_gripper: Optional[List] = None):
         """Initialize a grasp environment.
 
@@ -42,8 +41,6 @@ class FlatBase(envs.robot_env.RobotEnv):
             initial_qpos: a dictionary of joint names and values defining the initial configuration
             n_actions: Action state dimension
             object_name: Name of the manipulation object in Mujoco
-            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
-            object_size_range: Optional range to randomly enlarge/shrink object sizes.
             initial_gripper: Default initial gripper joint positions.
         """
         self.gripper_extra_height = gripper_extra_height
@@ -52,28 +49,25 @@ class FlatBase(envs.robot_env.RobotEnv):
         self.target_range = 0.15  # Admissible target range from the table center
         self.target_threshold = 0.05  # Range tolerance for task completion
         self.n_actions = n_actions
-        self.object_name = object_name
+        self.object_name = "cube"
         self.gripper_init_range = np.array([0.05, 0.1])  # Admissable range from gripper_init_pos
         self.gripper_start_pos = None  # Current starting position of the gripper
         self.height_offset = 0.43
-        self.goal_max_height = 0.3
         self.initial_qpos = initial_qpos
         self.initial_gripper = initial_gripper
         self.early_stop_ok = True  # Flag to prevent an early stop
         self._reset_sim_state = None
         self._reset_sim_goal = None
-        self.p_high_goal = 0  # Probability of a high goal
-        assert object_size_multiplier > 0
-        self.object_size_multiplier = object_size_multiplier
-        assert object_size_range >= 0
-        self.object_size_range = object_size_range
+        assert 0.0 <= p_high_goal <= 1.0, "Probability of high goal must be in [0.0, 1.0]"
+        self.p_high_goal = p_high_goal  # Probability of a high goal
+        assert 0.0 <= goal_range[0] <= goal_range[1] <= 0.4, "Goal range must be in [0.0, 0.4]"
+        self.goal_range = goal_range  # Range of goal heights. Defaults to (0.0, 0.3)
         super().__init__(
             model_path=model_xml_path,
             n_substeps=self.n_substeps,
             n_actions=n_actions,
             initial_qpos=initial_qpos,
         )
-        self.object_init_size = {}  # Save object sizes before modification
 
     def compute_reward(self, achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:
         """Compute the agent reward for the achieved goal.
@@ -137,17 +131,6 @@ class FlatBase(envs.robot_env.RobotEnv):
         else:
             raise RuntimeError("Gripper type not supported")
         return {"pos": pos, "orient": orient, "state": state, "type": self.gripper_type}
-
-    def _get_object_info(self) -> Dict:
-        object_pos = self.sim.data.get_site_xpos(self.object_name).copy()
-        object_orient = self.sim.data.get_site_xmat(self.object_name).copy()
-        object_size = self.sim.model.geom_size[self.sim.model.geom_name2id(self.object_name)]
-        return {
-            "pos": object_pos,
-            "orient": object_orient,
-            "name": self.object_name,
-            "size": object_size
-        }
 
     def _viewer_setup(self):
         body_id = self.sim.model.body_name2id("robot0:gripper_link")
@@ -217,7 +200,7 @@ class FlatBase(envs.robot_env.RobotEnv):
         goal[2] = self.height_offset
         # Random goal height
         if self.np_random.uniform() < self.p_high_goal:
-            goal[2] += self.np_random.uniform(0, self.goal_max_height)
+            goal[2] += self.np_random.uniform(self.goal_range[0], self.goal_range[1])
         return goal.copy()
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
@@ -225,7 +208,6 @@ class FlatBase(envs.robot_env.RobotEnv):
         return (d < self.target_threshold).astype(np.float32)
 
     def _env_setup(self, initial_qpos: np.ndarray):
-        self._modify_object_size()
         for name, value in initial_qpos.items():
             # Envs have joint start values for multiple grasp objects. Objects are not present in
             # all MuJoCo envs to speed up simulation for single grasp object environments. Therefore
@@ -267,31 +249,3 @@ class FlatBase(envs.robot_env.RobotEnv):
         object_pose[:2] = self.sim.data.get_body_xpos("table0")[:2]
         object_pose[2] = self.height_offset
         self.sim.data.set_joint_qpos(self.object_name + ":joint", object_pose)
-
-    def _modify_object_size(self):
-        if self.object_size_range > 0 or self.object_size_multiplier != 1:
-            supported_objects = ("cube", "cylinder", "sphere")
-            if self.object_name not in supported_objects:
-                raise RuntimeError(f"Object {self.object_name} does not support size modification!")
-            # Reset previously modified object sizes first
-            for object_name in self.object_init_size.keys():
-                idx = self.sim.model.geom_name2id(object_name)
-                self.sim.model.geom_size[idx] = self.object_init_size[object_name]
-            # if self.object_name == "mesh":
-            #    return
-            # Set new model size
-            idx = self.sim.model.geom_name2id(self.object_name)
-            # Save original size before modifying
-            if self.object_name not in self.object_init_size.keys():
-                if self.object_size_multiplier != 1:
-                    # Modify initial save to include the multiplier already. Necessary when
-                    # combining object size multiplication and range at the same time.
-                    geom_size = self.sim.model.geom_size[idx] * self.object_size_multiplier
-                    self.object_init_size[self.object_name] = geom_size
-                else:
-                    self.object_init_size[self.object_name] = self.sim.model.geom_size[idx].copy()
-            geom_size = self.object_init_size[self.object_name]
-            if self.object_size_range > 0:
-                geom_range = self.object_size_range
-                geom_size += self.np_random.uniform(-geom_range, geom_range, size=2)
-            self.sim.model.geom_size[idx] = geom_size

@@ -1,6 +1,6 @@
 """FlatPJ environment base module."""
 import logging
-from typing import Dict
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -17,18 +17,14 @@ class FlatPJBase(FlatBase):
     gripper_type = "ParallelJaw"
 
     def __init__(self,
-                 object_name: str,
                  model_xml_path: str,
-                 object_size_multiplier: float = 1.,
-                 object_size_range: float = 0.,
+                 p_high_goal: float,
+                 goal_range: Tuple[float, float],
                  n_actions: int = 4):
         """Initialize a flat parallel jaw environment.
 
         Args:
-            object_name: Name of the manipulation object in Mujoco.
             model_xml_path: Path to the Mujoco xml world file.
-            object_size_multiplier: Optional multiplier to change object sizes by a fixed amount.
-            object_size_range: Optional range to randomly enlarge/shrink object sizes.
             n_actions: Action dimensionality of the environment.
         """
         initial_qpos = {
@@ -44,14 +40,12 @@ class FlatPJBase(FlatBase):
             "sphere:joint": [.1, .1, .025, 1., 0, 0, 0],
             "mesh:joint": [-.1, -.1, .025, 1., 0, 0, 0]
         }
-        super().__init__(
-            model_xml_path=model_xml_path,
-            gripper_extra_height=0.15,
-            initial_qpos=initial_qpos,
-            n_actions=n_actions,  # default 13 for 3 pos, 9 rot, 1 gripper
-            object_name=object_name,
-            object_size_multiplier=object_size_multiplier,
-            object_size_range=object_size_range)
+        super().__init__(model_xml_path=model_xml_path,
+                         gripper_extra_height=0.15,
+                         initial_qpos=initial_qpos,
+                         p_high_goal=p_high_goal,
+                         goal_range=goal_range,
+                         n_actions=n_actions)
         self._ctrl_range = self.sim.model.actuator_ctrlrange
         self._act_range = (self._ctrl_range[:, 1] - self._ctrl_range[:, 0]) / 2.0
         self._act_center = (self._ctrl_range[:, 1] + self._ctrl_range[:, 0]) / 2.0
@@ -73,13 +67,6 @@ class FlatPJBase(FlatBase):
         self.sim.data.ctrl[:] = self._act_center + gripper_ctrl * self._act_range
         # envs.utils.ctrl_set_action(self.sim, action)
         envs.utils.mocap_set_action(self.sim, pose_ctrl)
-
-    def enable_full_orient_ctrl(self, val: bool = True):
-        """Enable full control over the gripper rotation for optimal control experiments.
-
-        Warning: Experimental. Only introduced for optimization.
-        """
-        self._full_orient_ctrl = val
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
         # positions

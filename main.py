@@ -51,7 +51,8 @@ def main(env_name: str, nruns: int = 1):
     save_path.mkdir(parents=True, exist_ok=True)
 
     for i in range(nruns):
-        env = gym.make(env_name, **cfg.kwargs) if hasattr(cfg, "kwargs") else gym.make(env_name)
+        kwargs = cfg.env_kwargs if hasattr(cfg, "env_kwargs") else {}
+        env = gym.make(env_name, **kwargs)
         comm = MPI.COMM_WORLD
         if cfg.seed:
             assert isinstance(cfg.seed, int)

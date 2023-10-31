@@ -1,9 +1,12 @@
 group:
   desc: "Group name"
   value: ""
+env_kwargs:
+  desc: "Keyword arguments for the environment"
+  value: {"p_high_goal": 0.5, "goal_range": [0, 0.3]}
 n_total_steps:
   desc: "Total number of environment steps"
-  value: 2_000_000
+  value: 4_000_000
 eval_interval:
   desc: "Number of training steps between evaluations"
   value: 6400
