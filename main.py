@@ -51,12 +51,13 @@ def main(env_name: str, nruns: int = 1):
     save_path.mkdir(parents=True, exist_ok=True)
 
     for i in range(nruns):
-        kwargs = cfg.env_kwargs if hasattr(cfg, "env_kwargs") else {}
-        env = gym.make(env_name, **kwargs)
+        env = gym.make(env_name, **getattr(cfg, "env_kwargs", {}))
+        eval_env = gym.make(env_name, **getattr(cfg, "eval_env_kwargs", {}))
         comm = MPI.COMM_WORLD
         if cfg.seed:
             assert isinstance(cfg.seed, int)
             set_seed(env, cfg.seed + comm.Get_rank() + comm.Get_size() * i)
+            set_seed(eval_env, cfg.seed + comm.Get_rank() + comm.Get_size() * i)
         if comm.Get_rank() == 0:
             with wandb.init(project=env_name,
                             entity="amacati",
@@ -66,6 +67,7 @@ def main(env_name: str, nruns: int = 1):
                             dir=save_path) as run:
                 logger = WandBLogger(run)
                 ddpg = DDPG(env,
+                            eval_env,
                             run.config,
                             logger,
                             world_size=comm.Get_size(),
@@ -76,6 +78,7 @@ def main(env_name: str, nruns: int = 1):
         else:
             logger = DummyLogger()
             ddpg = DDPG(env,
+                        eval_env,
                         cfg,
                         logger,
                         world_size=comm.Get_size(),

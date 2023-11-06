@@ -36,6 +36,7 @@ class DDPG:
 
     def __init__(self,
                  env: gym.Env,
+                 eval_env: gym.Env,
                  args: argparse.Namespace,
                  logger: Logger,
                  world_size: int = 1,
@@ -45,12 +46,14 @@ class DDPG:
 
         Args:
             env: OpenAI dictionary gym environment.
+            eval_env: OpenAI dictionary gym environment for evaluation.
             args: User settings and configs merged into a single namespace.
             world_size: Process group world size for distributed training.
             rank: Process rank for distributed training.
             dist: Toggles distributed training mode.
         """
         self.env = env
+        self.eval_env = eval_env
         # Rewards are calculated from HER buffer. Disable computation for runtime improvement
         self.args = args
         size_s = len(env.observation_space["observation"].low)
@@ -217,19 +220,17 @@ class DDPG:
         """
         self.actor.eval()
         success = 0
-        self.env.use_info(True)
         total_reward = 0
         for _ in range(self.args.num_evals):
-            state, goal, _ = unwrap_obs(self.env.reset())
+            state, goal, _ = unwrap_obs(self.eval_env.reset())
             for t in range(self.T):
                 with torch.no_grad():
                     action = self.actor.select_action(self.wrap_obs(state, goal))
-                next_obs, reward, _, info = self.env.step(action)
+                next_obs, reward, _, info = self.eval_env.step(action)
                 total_reward += reward
                 state, goal, _ = unwrap_obs(next_obs)
             success += info["is_success"]
         self.actor.train()
-        self.env.use_info(False)
         if self.dist:
             eval_info = np.array([success, total_reward]) / self.args.num_evals
             world_eval_info = np.zeros_like(eval_info)
