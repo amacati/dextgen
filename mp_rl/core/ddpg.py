@@ -16,6 +16,7 @@ import torch
 from tqdm import tqdm
 import gymnasium
 from mpi4py import MPI
+import einops
 
 from mp_rl.core.utils import unwrap_obs
 from mp_rl.core.noise import UniformNoise
@@ -28,6 +29,23 @@ from mp_rl.utils import Logger
 logger = logging.getLogger(__name__)
 
 
+def default_reward_fn(achieved_goal: np.ndarray, goal: np.ndarray, _) -> np.ndarray:
+    """Compute the agent reward for the achieved goal.
+
+    Args:
+        achieved_goal: Achieved goal.
+        goal: Desired goal.
+        _: Ignored argument.
+
+    Returns:
+        The default reward for the given state and goal.
+    """
+    TARGET_THRESHOLD = 0.05
+    achieved_goal = achieved_goal[..., :3]
+    assert achieved_goal.shape == goal.shape
+    return -(np.linalg.norm(achieved_goal - goal, axis=-1) > TARGET_THRESHOLD).astype(np.float32)
+
+
 class DDPG:
     """Deep Deterministic Policy Gradient algorithm class.
 
@@ -35,8 +53,8 @@ class DDPG:
     """
 
     def __init__(self,
-                 env: gymnasium.Env,
-                 eval_env: gymnasium.Env,
+                 env: gymnasium.vector.VectorEnv,
+                 eval_env: gymnasium.vector.VectorEnv,
                  args: argparse.Namespace,
                  logger: Logger,
                  world_size: int = 1,
@@ -56,10 +74,10 @@ class DDPG:
         self.eval_env = eval_env
         # Rewards are calculated from HER buffer. Disable computation for runtime improvement
         self.args = args
-        size_s = len(env.observation_space["observation"].low)
-        size_a = len(env.action_space.low)
-        size_g = len(env.observation_space["desired_goal"].low)
-        noise_process = UniformNoise(size_a)
+        size_s = len(env.single_observation_space["observation"].low)
+        size_a = len(env.single_action_space.low)
+        size_g = len(env.single_observation_space["desired_goal"].low)
+        noise_process = UniformNoise(env.num_envs, size_a)
         # Create actor and critic networks
         self.actor = Actor(args.actor_net_type, size_s + size_g, size_a, args.actor_net_nlayers,
                            args.actor_net_layer_width, noise_process, args.actor_lr, args.eps,
@@ -72,14 +90,17 @@ class DDPG:
         self.state_norm = Normalizer(size_s, world_size, clip=args.state_clip, idx=state_norm_idx)
         self.goal_norm = Normalizer(size_g, world_size, clip=args.goal_clip, idx=goal_norm_idx)
         # Create replay buffer
-        self.T = env._max_episode_steps
+        reward_fn = getattr(env.unwrapped, "compute_reward", None) or default_reward_fn
+        self.N = env.num_envs
+        self.T = env.spec.max_episode_steps
         self.buffer = HERBuffer(size_s,
                                 size_a,
                                 size_g,
+                                self.N,
                                 self.T,
                                 args.her_n_sampled_goal,
                                 args.buffer_size,
-                                reward_fun=self.env.unwrapped.compute_reward)
+                                reward_fun=reward_fn)
         self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
         # Initialize distributed training
         self.dist = False
@@ -154,7 +175,7 @@ class DDPG:
                     success_log.set_description_str(f"Success rate: {av_success:.2f}")
                     if self.args.save:
                         self.save_models(self.logger.path)
-                if av_success >= self.args.early_stop and self.env.early_stop_ok:
+                if av_success >= self.args.early_stop:
                     break
             if self.rank == 0:
                 status_bar.update()
@@ -208,7 +229,8 @@ class DDPG:
         Args:
             ep_buffer: Buffer containing a trajectory of replay experience.
         """
-        states, goals = ep_buffer.buffer["s"], ep_buffer.buffer["g"]
+        states = einops.rearrange(ep_buffer.buffer["s"], "n t d -> (n t) d")
+        goals = einops.rearrange(ep_buffer.buffer["g"], "n t d -> (n t) d")
         self.state_norm.update(states)
         self.goal_norm.update(goals)
 
@@ -227,12 +249,12 @@ class DDPG:
                 with torch.no_grad():
                     action = self.actor.select_action(self.wrap_obs(state, goal))
                 next_obs, reward, _, _, info = self.eval_env.step(action)
-                total_reward += reward
+                total_reward += np.sum(reward)
                 state, goal, _ = unwrap_obs(next_obs)
-            success += info["is_success"]
+            success += np.sum(reward >= 0)
         self.actor.train()
         if self.dist:
-            eval_info = np.array([success, total_reward]) / self.args.num_evals
+            eval_info = np.array([success, total_reward]) / self.args.num_evals / self.N
             world_eval_info = np.zeros_like(eval_info)
             MPI.COMM_WORLD.Allreduce(eval_info, world_eval_info, op=MPI.SUM)
             return world_eval_info[0] / self.world_size, world_eval_info[1] / self.world_size

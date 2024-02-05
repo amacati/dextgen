@@ -72,7 +72,7 @@ critic_net_layer_width:
   value: 256
 early_stop:
   desc: "Success rate threshold for early stopping"
-  value: 2  # Impossible success rate for no early stopping
+  value: 0.95  # Impossible success rate for no early stopping
 save:
   desc: "Save model after training"
   value: True

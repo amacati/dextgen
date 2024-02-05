@@ -51,8 +51,8 @@ def main(env_name: str, nruns: int = 1):
     save_path.mkdir(parents=True, exist_ok=True)
 
     for i in range(nruns):
-        env = gymnasium.make(env_name, **getattr(cfg, "env_kwargs", {}))
-        eval_env = gymnasium.make(env_name, **getattr(cfg, "eval_env_kwargs", {}))
+        env = gymnasium.make_vec(env_name, **getattr(cfg, "env_kwargs", {}))
+        eval_env = gymnasium.make_vec(env_name, **getattr(cfg, "eval_env_kwargs", {}))
         comm = MPI.COMM_WORLD
         if cfg.seed:
             assert isinstance(cfg.seed, int)

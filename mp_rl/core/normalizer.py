@@ -88,12 +88,12 @@ class Normalizer:
         to the global estimate. For the reasoning behind separate buffers see `__init__` comments.
 
         Args:
-            x: New input data. Expects a 3D array of shape (episodes, timestep, data dimension).
+            x: New input data. Expects a 2D array of shape (timestep, data dimension).
 
         Raises:
             AssertionError: Shape check failed.
         """
-        assert x.ndim != 3, "Expecting 3D arrays of shape (episodes, timestep, data dimension)!"
+        assert x.ndim == 2, "Expecting 2D arrays of shape (timestep, data dimension)!"
         self.lsum = np.sum(x, axis=0, dtype=np.float32)
         self.lsum_sq = np.sum(x**2, axis=0, dtype=np.float32)
         self.lcount[0] = x.shape[0]

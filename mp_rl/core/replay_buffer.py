@@ -42,22 +42,24 @@ class ReplayBuffer(ABC):
 class TrajectoryBuffer:
     """Trajectory buffer to hold a single trajectory of fixed time horizon from a single episode."""
 
-    def __init__(self, size_s: int, size_a: int, size_g: int, T: int):
+    def __init__(self, size_s: int, size_a: int, size_g: int, N: int, T: int):
         """Initialize the buffers for states, actions, goals and achieved goals.
 
         Args:
             size_s: State dimension.
             size_a: Action dimension.
             size_g: Goal dimension.
+            N: Number of environments.
             T: Trajectory length in time steps.
         """
         self.T = T
+        self.N = N
         # Both state and achieved goal hold one additional sample for the last simulation step
         self.buffer = {
-            "s": np.zeros([T + 1, size_s]),
-            "a": np.zeros([T, size_a]),
-            "g": np.zeros([T, size_g]),
-            "ag": np.zeros([T + 1, size_g])
+            "s": np.zeros([N, T + 1, size_s]),
+            "a": np.zeros([N, T, size_a]),
+            "g": np.zeros([N, T, size_g]),
+            "ag": np.zeros([N, T + 1, size_g])
         }
         self.t = 0
 
@@ -79,12 +81,12 @@ class TrajectoryBuffer:
         if self.t < self.T:
             assert len(args) == 4, "Trajectory appends require 4 arguments"
             for buffer, arr in zip(self.buffer.values(), args):
-                buffer[self.t] = arr.copy()
+                buffer[:, self.t] = arr.copy()
             self.t += 1
         elif self.t == self.T:
             assert len(args) == 2, "Final trajectory append requires 2 arguments"
-            self.buffer["s"][self.T] = args[0].copy()
-            self.buffer["ag"][self.T] = args[1].copy()
+            self.buffer["s"][:, self.T] = args[0].copy()
+            self.buffer["ag"][:, self.T] = args[1].copy()
         elif self.t > self.T:
             raise IndexError("Tried to add more samples to trajectory than its length!")
 
@@ -113,7 +115,9 @@ class TrajectoryBuffer:
 
     def clear(self):
         """Clear the buffer arrays."""
-        self.buffer = {key: np.empty((self.T, size_b)) for key, size_b in self.buffer_sizes.items()}
+        self.buffer = {
+            key: np.empty((self.N, self.T, size_b)) for key, size_b in self.buffer_sizes.items()
+        }
         self.t = 0
 
     def keys(self) -> KeysView:
@@ -159,6 +163,7 @@ class HERBuffer(ReplayBuffer):
                  size_s: int,
                  size_a: int,
                  size_g: int,
+                 N: int,
                  T: int,
                  k: int,
                  max_samples: int,
@@ -183,7 +188,10 @@ class HERBuffer(ReplayBuffer):
         self.size_s = size_s
         self.size_a = size_a
         self.size_g = size_g
-        self.curr_size = 0
+        self._maxidx = 0
+        self._idx = 0
+        assert self.size >= N, "Buffer size has to be larger than the number of environments"
+        self.N = N  # Number of environments
         self.T = T  # Episodes have a fixed time horizon T
         # Keys: state, action, goal, achieved goal
         self.buffer = {
@@ -205,10 +213,11 @@ class HERBuffer(ReplayBuffer):
             ep_buffer: Trajectory buffer filled with replay experience.
         """
         self._validate_episode(ep_buffer)
-        idx = self.curr_size if self.curr_size < self.size else np.random.randint(0, self.size)
+        idx = (np.arange(self.N) + self._idx) % self.size
         for key, val in ep_buffer.items():  # Keys are already validated to match the buffer
-            self.buffer[key][idx] = val
-        self.curr_size = min(self.curr_size + 1, self.size)
+            for i, j in enumerate(idx):
+                self.buffer[key][j] = val[i]
+        self._maxidx = min(self._maxidx + 1, self.size - 1)
 
     def _validate_episode(self, episode: TrajectoryBuffer):
         if len(episode) != self.T:
@@ -229,15 +238,16 @@ class HERBuffer(ReplayBuffer):
         if batch_size > self.size * self.T:
             raise RuntimeError("Batch size batch_size exceeds buffer contents")
         if self.sample_mode == "default":
-            return default_sampling(self.buffer["s"][:self.curr_size],
-                                    self.buffer["a"][:self.curr_size],
-                                    self.buffer["g"][:self.curr_size],
-                                    self.buffer["ag"][:self.curr_size], batch_size, self.reward_fun)
+            return default_sampling(self.buffer["s"][:self._maxidx + 1],
+                                    self.buffer["a"][:self._maxidx + 1],
+                                    self.buffer["g"][:self._maxidx + 1],
+                                    self.buffer["ag"][:self._maxidx + 1], batch_size,
+                                    self.reward_fun)
         elif self.sample_mode == "her":
-            return her_sampling(self.buffer["s"][:self.curr_size],
-                                self.buffer["a"][:self.curr_size],
-                                self.buffer["g"][:self.curr_size],
-                                self.buffer["ag"][:self.curr_size], batch_size, self.p_her,
+            return her_sampling(self.buffer["s"][:self._maxidx + 1],
+                                self.buffer["a"][:self._maxidx + 1],
+                                self.buffer["g"][:self._maxidx + 1],
+                                self.buffer["ag"][:self._maxidx + 1], batch_size, self.p_her,
                                 self.reward_fun)
         raise RuntimeError("Unsupported sample mode!")
 
@@ -254,7 +264,7 @@ class HERBuffer(ReplayBuffer):
         Returns:
             The current size.
         """
-        return self.curr_size
+        return self._maxidx
 
     def get_trajectory_buffer(self) -> TrajectoryBuffer:
         """Create a trajectory buffer of appropriate dimensions for this HERBuffer.
@@ -262,7 +272,7 @@ class HERBuffer(ReplayBuffer):
         Returns:
             The trajectory buffer.
         """
-        return TrajectoryBuffer(self.size_s, self.size_a, self.size_g, self.T)
+        return TrajectoryBuffer(self.size_s, self.size_a, self.size_g, self.N, self.T)
 
 
 def her_sampling(states: np.ndarray, actions: np.ndarray, goals: np.ndarray, agoals: np.ndarray,

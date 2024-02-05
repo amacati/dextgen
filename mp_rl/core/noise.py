@@ -101,12 +101,14 @@ class GaussianNoise(NoiseProcess):
 class UniformNoise(NoiseProcess):
     """Uniformly distributed noise with uncorrelated samples."""
 
-    def __init__(self, dims: int):
+    def __init__(self, N: int, dims: int):
         """Initialize the noise process.
 
         Args:
+            N: Number of environments.
             dims: Noise dimension.
         """
+        self.N = N
         self.dims = dims
 
     def sample(self) -> np.ndarray:
@@ -115,7 +117,7 @@ class UniformNoise(NoiseProcess):
         Returns:
             A numpy array of uniformly distributed noise.
         """
-        return np.random.uniform(-1., 1., self.dims)
+        return np.random.uniform(-1., 1., (self.N, self.dims))
 
     def reset(self):
         """Uniform noise is stateless, reset is a no-op."""
