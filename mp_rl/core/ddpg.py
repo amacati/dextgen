@@ -2,7 +2,7 @@
 
 :class:`.DDPG` initializes the actor, critic, normalizers and noise processes, manages the
 synchronization between MPI nodes and takes care of checkpoints during training as well as network
-loading if starting from pre-trained networks. It assumes dictionary gym environments.
+loading if starting from pre-trained networks. It assumes dictionary gymnasium environments.
 """
 
 import argparse
@@ -14,7 +14,7 @@ import time
 import numpy as np
 import torch
 from tqdm import tqdm
-import gym
+import gymnasium
 from mpi4py import MPI
 
 from mp_rl.core.utils import unwrap_obs
@@ -35,8 +35,8 @@ class DDPG:
     """
 
     def __init__(self,
-                 env: gym.Env,
-                 eval_env: gym.Env,
+                 env: gymnasium.Env,
+                 eval_env: gymnasium.Env,
                  args: argparse.Namespace,
                  logger: Logger,
                  world_size: int = 1,
@@ -45,8 +45,8 @@ class DDPG:
         """Initialize the Actor, Critic, HERBuffer and activate MPI synchronization if required.
 
         Args:
-            env: OpenAI dictionary gym environment.
-            eval_env: OpenAI dictionary gym environment for evaluation.
+            env: OpenAI dictionary gymnasium environment.
+            eval_env: OpenAI dictionary gymnasium environment for evaluation.
             args: User settings and configs merged into a single namespace.
             world_size: Process group world size for distributed training.
             rank: Process rank for distributed training.
@@ -79,7 +79,7 @@ class DDPG:
                                 self.T,
                                 args.her_n_sampled_goal,
                                 args.buffer_size,
-                                reward_fun=self.env.compute_reward)
+                                reward_fun=self.env.unwrapped.compute_reward)
         self.action_max = torch.as_tensor(self.env.action_space.high, dtype=torch.float32)
         # Initialize distributed training
         self.dist = False
@@ -119,12 +119,12 @@ class DDPG:
         for epoch in range(epochs):
             for _ in range(self.args.rollouts):
                 ep_buffer = self.buffer.get_trajectory_buffer()
-                obs = self.env.reset()
+                obs, _ = self.env.reset()
                 state, goal, agoal = unwrap_obs(obs)
                 for _ in range(self.T):
                     with torch.no_grad():
                         action = self.actor.select_action(self.wrap_obs(state, goal))
-                    next_obs, _, _, _ = self.env.step(action)
+                    next_obs, _, _, _, _ = self.env.step(action)
                     next_state, _, next_agoal = unwrap_obs(next_obs)
                     ep_buffer.append(state, action, goal, agoal)
                     state, agoal = next_state, next_agoal
@@ -158,8 +158,8 @@ class DDPG:
                     break
             if self.rank == 0:
                 status_bar.update()
-            if hasattr(self.env, "epoch_callback"):
-                assert callable(self.env.epoch_callback)
+            if hasattr(self.env.unwrapped, "epoch_callback"):
+                assert callable(self.env.unwrapped.epoch_callback)
                 self.env.epoch_callback(epoch, av_success)
         if self.rank == 0 and self.args.save:
             self.save_models(self.logger.path)
@@ -213,7 +213,7 @@ class DDPG:
         self.goal_norm.update(goals)
 
     def eval_agent(self) -> tuple[float, float]:
-        """Evaluate the current agent performance on the gym task.
+        """Evaluate the current agent performance on the gymnasium task.
 
         Runs `args.num_evals` times and averages the success rate. If distributed training is
         enabled, further averages over all distributed evaluations.
@@ -222,11 +222,11 @@ class DDPG:
         success = 0
         total_reward = 0
         for _ in range(self.args.num_evals):
-            state, goal, _ = unwrap_obs(self.eval_env.reset())
+            state, goal, _ = unwrap_obs(self.eval_env.reset()[0])
             for t in range(self.T):
                 with torch.no_grad():
                     action = self.actor.select_action(self.wrap_obs(state, goal))
-                next_obs, reward, _, info = self.eval_env.step(action)
+                next_obs, reward, _, _, info = self.eval_env.step(action)
                 total_reward += reward
                 state, goal, _ = unwrap_obs(next_obs)
             success += info["is_success"]

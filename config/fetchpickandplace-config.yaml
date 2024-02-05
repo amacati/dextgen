@@ -1,0 +1,84 @@
+group:
+  desc: "Group name"
+  value: "dexten_grasp"
+n_total_steps:
+  desc: "Total number of environment steps"
+  value: 4_000_000
+eval_interval:
+  desc: "Number of training steps between evaluations"
+  value: 6400
+rollouts:
+  desc: "Number of rollouts per training step"
+  value: 2
+gradient_steps:
+  desc: "Number of gradient steps per training step"
+  value: 40
+num_evals:
+  desc: "Number of evaluation episodes per worker"
+  value: 10
+batch_size:
+  desc: "Number of samples per batch"
+  value: 256
+buffer_size:
+  desc: "Number of samples in the replay buffer on each worker"
+  value: 1000000
+gamma:
+  desc: "Discount factor"
+  value: 0.98
+actor_lr:
+  desc: "Learning rate for the actor"
+  value: 0.001
+critic_lr:
+  desc: "Learning rate for the critic"
+  value: 0.001
+tau:
+  desc: "Polyak factor"
+  value: 0.05  # 1-tau is Polyak factor
+eps:
+  desc: "Number of completely random actions"
+  value: 0.3  # Fraction of completely random actions
+her_n_sampled_goal:
+  desc: "Ratio of HER experience vs normal experience"
+  value: 4  # Ratio of HER experience vs normal experience
+action_clip:
+  desc: "Maximum action value"
+  value: 1.
+state_clip:
+  desc: "Maximum state value"
+  value: 200.
+goal_clip:
+  desc: "Maximum goal value"
+  value: 200.
+grad_clip:
+  desc: "Maximum gradient value after clipping"
+  value: 5.
+action_norm:
+  desc: "Normalization factor for actions with pose output"
+  value: 1.  # Action regularization
+actor_net_type:
+  desc: "Type of actor network"
+  value: "DDP"
+actor_net_nlayers:
+  desc: "Number of layers in the actor network"
+  value: 4
+actor_net_layer_width:
+  desc: "Width of each layer in the actor network"
+  value: 256
+critic_net_nlayers:
+  desc: "Number of layers in the critic network"
+  value: 4
+critic_net_layer_width:
+  desc: "Width of each layer in the critic network"
+  value: 256
+early_stop:
+  desc: "Success rate threshold for early stopping"
+  value: 2  # Impossible success rate for no early stopping
+save:
+  desc: "Save model after training"
+  value: True
+load_pretrained:
+  desc: "Load pretrained model"
+  value: False
+seed:
+  desc: "Seed for the random number generator"
+  value: False  # Integer > 0 or False if no custom seed should be used

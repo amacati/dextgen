@@ -2,7 +2,7 @@
 import random
 from pathlib import Path
 
-import gym
+import gymnasium
 import fire
 import yaml
 import numpy as np
@@ -15,7 +15,7 @@ from mp_rl.core.ddpg import DDPG
 from mp_rl.utils import DummyLogger, WandBLogger, DummyWandBConfig
 
 
-def set_seed(env: gym.Env, seed: int):
+def set_seed(env: gymnasium.Env, seed: int):
     """Set the random seed of all relevant modules for reproducible experiments.
 
     Args:
@@ -51,8 +51,8 @@ def main(env_name: str, nruns: int = 1):
     save_path.mkdir(parents=True, exist_ok=True)
 
     for i in range(nruns):
-        env = gym.make(env_name, **getattr(cfg, "env_kwargs", {}))
-        eval_env = gym.make(env_name, **getattr(cfg, "eval_env_kwargs", {}))
+        env = gymnasium.make(env_name, **getattr(cfg, "env_kwargs", {}))
+        eval_env = gymnasium.make(env_name, **getattr(cfg, "eval_env_kwargs", {}))
         comm = MPI.COMM_WORLD
         if cfg.seed:
             assert isinstance(cfg.seed, int)
