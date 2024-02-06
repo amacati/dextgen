@@ -215,9 +215,9 @@ class HERBuffer(ReplayBuffer):
         self._validate_episode(ep_buffer)
         idx = (np.arange(self.N) + self._idx) % self.size
         for key, val in ep_buffer.items():  # Keys are already validated to match the buffer
-            for i, j in enumerate(idx):
-                self.buffer[key][j] = val[i]
-        self._maxidx = min(self._maxidx + 1, self.size - 1)
+            self.buffer[key][idx] = val
+        self._idx = (self._idx + self.N) % self.size
+        self._maxidx = min(self._maxidx + self.N, self.size)
 
     def _validate_episode(self, episode: TrajectoryBuffer):
         if len(episode) != self.T:
@@ -238,17 +238,14 @@ class HERBuffer(ReplayBuffer):
         if batch_size > self.size * self.T:
             raise RuntimeError("Batch size batch_size exceeds buffer contents")
         if self.sample_mode == "default":
-            return default_sampling(self.buffer["s"][:self._maxidx + 1],
-                                    self.buffer["a"][:self._maxidx + 1],
-                                    self.buffer["g"][:self._maxidx + 1],
-                                    self.buffer["ag"][:self._maxidx + 1], batch_size,
-                                    self.reward_fun)
+            return default_sampling(self.buffer["s"][:self._maxidx],
+                                    self.buffer["a"][:self._maxidx],
+                                    self.buffer["g"][:self._maxidx],
+                                    self.buffer["ag"][:self._maxidx], batch_size, self.reward_fun)
         elif self.sample_mode == "her":
-            return her_sampling(self.buffer["s"][:self._maxidx + 1],
-                                self.buffer["a"][:self._maxidx + 1],
-                                self.buffer["g"][:self._maxidx + 1],
-                                self.buffer["ag"][:self._maxidx + 1], batch_size, self.p_her,
-                                self.reward_fun)
+            return her_sampling(self.buffer["s"][:self._maxidx], self.buffer["a"][:self._maxidx],
+                                self.buffer["g"][:self._maxidx], self.buffer["ag"][:self._maxidx],
+                                batch_size, self.p_her, self.reward_fun)
         raise RuntimeError("Unsupported sample mode!")
 
     def _reward_fun(self, *_):

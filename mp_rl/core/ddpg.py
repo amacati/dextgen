@@ -197,7 +197,9 @@ class DDPG:
             rewards_T = rewards_T + self.args.gamma * next_q_T  # No dones in fixed length episode
             # Clip to minimum reward possible, geometric sum from 0 to inf with gamma and -1 rewards
             torch.clip(rewards_T, -1 / (1 - self.args.gamma), 0, out=rewards_T)
+            assert rewards_T.shape == next_q_T.shape
         q_T = self.critic(obs_T, actions_T)
+        assert rewards_T.shape == q_T.shape
         critic_loss_T = (rewards_T - q_T).pow(2).mean()
         # Regularize tanh activation in PosePolicyNets to prevent saturation and possibly parallel
         # rotation vectors (leads to random orientations and bad policies, see ``PosePolicyNet`` for
@@ -248,7 +250,7 @@ class DDPG:
             for t in range(self.T):
                 with torch.no_grad():
                     action = self.actor.select_action(self.wrap_obs(state, goal))
-                next_obs, reward, _, _, info = self.eval_env.step(action)
+                next_obs, reward, _, _, _ = self.eval_env.step(action)
                 total_reward += np.sum(reward)
                 state, goal, _ = unwrap_obs(next_obs)
             success += np.sum(reward >= 0)
