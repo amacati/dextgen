@@ -1,65 +1,98 @@
-"""Test a previously trained agent on an OpenAI gym environment.
-
-The MuJoCoVideoRecorder is a wrapper around OpenAI's gym VideoRecorder.
-"""
-
+"""Test a previously trained agent on an OpenAI gym environment."""
 import logging
 from pathlib import Path
+import random
 import time
-from typing import Optional, Tuple, Any
 
 import pickle
 import torch
-import gym
-from gym.wrappers.monitoring.video_recorder import VideoRecorder
-import mujoco_py
-import envs  # Import registers environments with gym  # noqa: F401
+import gymnasium
+import fire
+import yaml
+import numpy as np
+from tqdm import tqdm
 
 from mp_rl.core.utils import unwrap_obs
-from mp_rl.core.actor import PosePolicyNet, DDP
-from parse_args import parse_args
+from mp_rl.core.actor import DDP
+from mp_rl.utils import DummyWandBConfig
 
 
-class MujocoVideoRecorder(VideoRecorder):
-    """Record videos in Mujoco with adaptive resolution based on the gym VideoRecoder class."""
+def load_config(path: Path):
+    """Load the config file from the given path.
 
-    def __init__(self, *args: Any, resolution: Optional[Tuple[int]] = None, **kwargs: Any):
-        """Initialize a recorder with specific resolution.
+    Args:
+        path: Path to the config file.
 
-        Args:
-            args: VideoRecorder arguments.
-            resolution: Resolution tuple.
-            kwargs: VideoRecorder keyword arguments.
-        """
-        self.encoder = None
-        Path(kwargs["path"]).parent.mkdir(parents=True, exist_ok=True)
-        super().__init__(*args, **kwargs)
-        self.resolution = resolution
+    Returns:
+        The config as a dummy WandB config.
+    """
+    with open(path, "r") as f:
+        config = yaml.load(f, yaml.SafeLoader)
+    return DummyWandBConfig(config)
 
-    def capture_frame(self) -> Any:
-        """Capture a Mujoco frame.
 
-        Returns:
-            The frame in the previously specified format.
-        """
-        if self.resolution is None:
-            return super().capture_frame()
-        if not self.functional or self._closed:
-            return
-        # For errors with OpenGL see https://github.com/openai/mujoco-py/issues/187
-        # Fix: $ unset LD_PRELOAD
-        frame = self.env.render("rgb_array", width=self.resolution[0], height=self.resolution[1])
-        if frame is None:
-            if self._async:
-                return
-            self.broken = True
-        else:
-            self.last_frame = frame
-            self._encode_image_frame(frame)
+def set_seed(seed: int):
+    """Set the random seed of all relevant modules for reproducible experiments.
+
+    Args:
+        env: Gym environment.
+        seed: Seed used to set the seeds of all random number generators.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+@torch.no_grad()
+def main(env_name: str = "FetchPickAndPlace-v2", nruns: int = 1):
+    env_cfg = env_name.lower().replace("_", "-")[:-3] + "-config.yaml"
+    config_path = Path(__file__).parent / "config" / env_cfg
+    cfg = load_config(config_path)  # Load a dummy WandB config for all ranks > 0
+
+    save_path = Path(__file__).parent / "saves" / env_name
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    tstart = time.perf_counter()
+    num_envs = 2
+    env_kwargs = getattr(cfg, "env_kwargs", {})
+    env_kwargs["num_envs"] = num_envs
+    env = gymnasium.make_vec(env_name, num_envs=num_envs, vectorization_mode="sync")
+
+    # Load the actor network and normalization parameters
+    size_g = len(env.single_observation_space["desired_goal"].low)
+    size_s = len(env.single_observation_space["observation"].low) + size_g
+    size_a = len(env.single_action_space.low)
+
+    actor = DDP(size_s, size_a, cfg.actor_net_nlayers, cfg.actor_net_layer_width)
+    path = Path(__file__).parent / "saves" / env_name
+    actor.load_state_dict(torch.load(path / "actor.pt"))
+    with open(path / "state_norm.pkl", "rb") as f:
+        state_norm = pickle.load(f)
+    with open(path / "goal_norm.pkl", "rb") as f:
+        goal_norm = pickle.load(f)
+
+    success = 0.
+    for i in tqdm(range(nruns)):
+        seed = cfg.seed + i * num_envs
+        set_seed(seed)
+        state, goal, _ = unwrap_obs(env.reset(seed=seed)[0])
+        for _ in range(env.spec.max_episode_steps):
+            state_n, goal = state_norm(state), goal_norm(goal)
+            state_n = torch.as_tensor(state_n, dtype=torch.float32)
+            goal = torch.as_tensor(goal, dtype=torch.float32)
+            # action = env.action_space.sample()
+            action = actor(torch.cat([state_n, goal], dim=-1)).numpy()
+            next_obs, reward, _, _, info = env.step(action)
+            state, goal, _ = unwrap_obs(next_obs)
+
+        success += np.sum(reward == 0.)
+    env.close()
+    t_elapsed = time.perf_counter() - tstart
+    print(f"Agent success rate: {success/(nruns * num_envs):.2f}")
+    print(f"Elapsed time: {t_elapsed:.2f} s")
 
 
 if __name__ == "__main__":
-    args = parse_args()
     logger = logging.getLogger("GymTestScript")
     loglvls = {
         "DEBUG": logging.DEBUG,
@@ -68,60 +101,5 @@ if __name__ == "__main__":
         "ERROR": logging.ERROR
     }
     logging.basicConfig()
-    logging.getLogger().setLevel(loglvls[args.loglvl])
-    env = gym.make(args.env, **args.kwargs) if hasattr(args, "kwargs") else gym.make(args.env)
-    size_g = len(env.observation_space["desired_goal"].low)
-    size_s = len(env.observation_space["observation"].low) + size_g
-    size_a = len(env.action_space.low)
-    if args.actor_net_type == "DDP":
-        actor = DDP(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
-    elif args.actor_net_type == "PosePolicyNet":
-        actor = PosePolicyNet(size_s, size_a, args.actor_net_nlayers, args.actor_net_layer_width)
-    else:
-        raise KeyError(f"Actor network type {args.actor_net_type} not supported")
-    path = Path(__file__).parent / "saves" / args.env
-    actor.load_state_dict(torch.load(path / "actor.pt"))
-    with open(path / "state_norm.pkl", "rb") as f:
-        state_norm = pickle.load(f)
-    with open(path / "goal_norm.pkl", "rb") as f:
-        goal_norm = pickle.load(f)
-    success = 0.
-    render = args.render == "y"
-    record = args.record == "y"
-    if record:
-        path = Path(__file__).parent / "video" / (args.env + ".mp4")
-        recorder = MujocoVideoRecorder(env, path=str(path), resolution=(1920, 1080))
-        logger.info("Recording video, environment rendering disabled")
-    for i in range(args.ntests):
-        state, goal, _ = unwrap_obs(env.reset())
-        done = False
-        t = 0
-        early_stop = 0
-        while not done:
-            state, goal = state_norm(state), goal_norm(goal)
-            state = torch.as_tensor(state, dtype=torch.float32)
-            goal = torch.as_tensor(goal, dtype=torch.float32)
-            with torch.no_grad():
-                action = actor(torch.cat([state, goal])).numpy()
-            next_obs, reward, done, info = env.step(action)
-            state, goal, _ = unwrap_obs(next_obs)
-
-            early_stop = (early_stop + 1) if not reward else 0
-            if record:
-                t += 1
-                print(f"Capturing test {i+1} Frame {t}")
-                recorder.capture_frame()
-            if render and not record:
-                try:
-                    env.render()
-                    time.sleep(0.04)  # Gym operates on 25 Hz
-                except mujoco_py.cymj.GlfwError:
-                    logger.warning("No display available, rendering disabled")
-                    render = False
-            if early_stop == 10:
-                break
-        success += info["is_success"]
-    if record:
-        recorder.close()
-        (Path(__file__).parent / "video" / (args.env + ".meta.json")).unlink()  # Delete metafile
-    logger.info(f"Agent success rate: {success/args.ntests:.2f}")
+    logging.getLogger().setLevel(logging.INFO)
+    fire.Fire(main)

@@ -52,16 +52,14 @@ def main(env_name: str, nruns: int = 1):
 
     for i in range(nruns):
         # Sync vectorization mode for now as num_envs == 1
-        # TODO: Switch to async vectorization mode for num_envs > 1
-        env = gymnasium.make_vec(env_name,
-                                 **getattr(cfg, "env_kwargs", {}),
-                                 vectorization_mode="sync")
-        eval_env = gymnasium.make_vec(env_name,
-                                      **getattr(cfg, "eval_env_kwargs", {}),
-                                      vectorization_mode="sync")
+        # TODO: Switch to async env without MPI
+        num_envs = 2
+        env_kwargs = getattr(cfg, "env_kwargs", {})
+        env_kwargs["num_envs"] = num_envs
+        env = gymnasium.make_vec(env_name, **env_kwargs, vectorization_mode="sync")
+        eval_env = gymnasium.make_vec(env_name, **env_kwargs, vectorization_mode="sync")
         comm = MPI.COMM_WORLD
-        if cfg.seed:
-            assert isinstance(cfg.seed, int)
+        if isinstance(cfg.seed, int):
             set_seed(env, cfg.seed + comm.Get_rank() + comm.Get_size() * i)
             set_seed(eval_env, cfg.seed + comm.Get_rank() + comm.Get_size() * i)
         if comm.Get_rank() == 0:

@@ -1,27 +1,24 @@
 group:
   desc: "Group name"
-  value: "dextgen-vector"
+  value: "dextgen-vector-full"
 n_total_steps:
   desc: "Total number of environment steps"
   value: 2_000_000
 eval_interval:
   desc: "Number of training steps between evaluations"
   value: 6400
-rollouts:
-  desc: "Number of rollouts per training step"
-  value: 2
 gradient_steps:
   desc: "Number of gradient steps per training step"
   value: 40
 num_evals:
-  desc: "Number of evaluation episodes per worker"
-  value: 10
+  desc: "Number of evaluation episodes"
+  value: 160
 batch_size:
   desc: "Number of samples per batch"
-  value: 256
+  value: 4096
 buffer_size:
   desc: "Number of samples in the replay buffer on each worker"
-  value: 2000000
+  value: 2_000_000
 gamma:
   desc: "Discount factor"
   value: 0.98
@@ -55,9 +52,6 @@ grad_clip:
 action_norm:
   desc: "Normalization factor for actions with pose output"
   value: 1.  # Action regularization
-actor_net_type:
-  desc: "Type of actor network"
-  value: "DDP"
 actor_net_nlayers:
   desc: "Number of layers in the actor network"
   value: 4
@@ -72,7 +66,7 @@ critic_net_layer_width:
   value: 256
 early_stop:
   desc: "Success rate threshold for early stopping"
-  value: 2  # Impossible success rate for no early stopping
+  value: 2 # Impossible success rate for no early stopping
 save:
   desc: "Save model after training"
   value: True
@@ -81,4 +75,4 @@ load_pretrained:
   value: False
 seed:
   desc: "Seed for the random number generator"
-  value: False  # Integer > 0 or False if no custom seed should be used
+  value: 0  # Integer or null if no custom seed should be used
