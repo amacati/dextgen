@@ -12,7 +12,7 @@ gradient_steps:
   value: 40
 num_evals:
   desc: "Number of evaluation episodes"
-  value: 160
+  value: 5  # Multiplied by the number of environments -> 5 * 32 = 160
 batch_size:
   desc: "Number of samples per batch"
   value: 4096
